@@ -1,0 +1,12 @@
+.{
+    .name = .zttrpg,
+    .version = "0.0.0",
+    .fingerprint = 0x58e8cff3b8f79413,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

@@ -1,0 +1,5 @@
+.gitignore
+.zig-cache
+CLAUDE.md
+zig-out
+zig-pkg
