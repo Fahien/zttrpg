@@ -25,3 +25,7 @@ pub const PGExecStatusType = enum(u32) {
 pub extern fn PQresultStatus(res: *PGresult) PGExecStatusType;
 
 pub extern fn PQclear(res: *PGresult) void;
+
+pub extern fn PQntuples(res: *PGresult) c_int;
+
+pub extern fn PQgetvalue(res: *PGresult, row: c_int, col: c_int) [*:0]const u8;
