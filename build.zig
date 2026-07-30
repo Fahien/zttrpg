@@ -7,13 +7,21 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const libpq_dep = b.dependency("libpq", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const migration_mod = b.createModule(.{
+        .root_source_file = b.path("src/migration.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    migration_mod.linkLibrary(libpq_dep.artifact("pq"));
+
     const migration_exe = b.addExecutable(.{
         .name = "migration",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/migration.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
+        .root_module = migration_mod,
     });
     b.installArtifact(migration_exe);
     const migration_step = b.step("migration", "Run the migration");

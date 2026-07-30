@@ -3,7 +3,12 @@
     .version = "0.0.0",
     .fingerprint = 0x58e8cff3b8f79413,
     .minimum_zig_version = "0.16.0",
-    .dependencies = .{},
+    .dependencies = .{
+        .libpq = .{
+            .url = "git+https://github.com/allyourcodebase/libpq?ref=5.18.4#ad2f65b2d91311f6d85c329e7551d902f67c31b5",
+            .hash = "libpq-5.18.4-QME6aQMZAQCNCrTsnm7YktHJMqXvBdJ5MyXHWrdT-GR6",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
