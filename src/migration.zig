@@ -43,6 +43,15 @@ pub fn main(init: std.process.Init) !void {
         try applied_migrations.put(version_str, {});
     }
 
+    // Collect sql file names into a list and sort it.
+    var names = std.ArrayList([]const u8).empty;
+    defer {
+        for (names.items) |name| {
+            init.gpa.free(name);
+        }
+        names.deinit(init.gpa);
+    }
+
     const db_dir = try Io.Dir.cwd().openDir(init.io, "db", .{ .iterate = true });
     var db_it = db_dir.iterate();
     while (try db_it.next(init.io)) |entry| {
@@ -50,6 +59,14 @@ pub fn main(init: std.process.Init) !void {
         const name = entry.name;
         if (!std.mem.endsWith(u8, name, ".sql")) continue;
 
+        const name_copy = try init.gpa.dupe(u8, name);
+        errdefer init.gpa.free(name_copy);
+        try names.append(init.gpa, name_copy);
+    }
+
+    std.mem.sort([]const u8, names.items, {}, stringLessThan);
+
+    for (names.items) |name| {
         if (applied_migrations.contains(name)) {
             std.debug.print("Skipping already applied migration: {s}\n", .{name});
             continue;
@@ -81,4 +98,9 @@ pub fn main(init: std.process.Init) !void {
             return error.ExecutionFailed;
         }
     }
+}
+
+/// Sorts byte strings lexicographically.
+fn stringLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
+    return std.mem.lessThan(u8, lhs, rhs);
 }
