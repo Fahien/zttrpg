@@ -7,6 +7,20 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const migration_exe = b.addExecutable(.{
+        .name = "migration",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/migration.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    b.installArtifact(migration_exe);
+    const migration_step = b.step("migration", "Run the migration");
+
+    const run_migration_cmd = b.addRunArtifact(migration_exe);
+    migration_step.dependOn(&run_migration_cmd.step);
+
     const mod = b.addModule("zttrpg", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
