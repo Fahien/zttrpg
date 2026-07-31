@@ -56,6 +56,34 @@ pub const Database = struct {
         self.conn.close();
     }
 
+    pub fn readCharacter(self: *const Database, gpa: Allocator, id: u32) !?Character {
+        const query = "SELECT id, name, level FROM characters WHERE id = $1";
+        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
+        defer gpa.free(id_cstr);
+
+        const result = try self.conn.execParams(query, &.{id_cstr});
+        defer result.deinit();
+
+        if (result.len() == 0) {
+            return null;
+        } else if (result.len() != 1) {
+            return error.UnexpectedResult;
+        }
+
+        const id_cstr_result = result.getValue(0, 0);
+        const name_cstr = result.getValue(0, 1);
+        const level_cstr = result.getValue(0, 2);
+
+        const id_str = std.mem.span(id_cstr_result);
+        const name_str = std.mem.span(name_cstr);
+        const level_str = std.mem.span(level_cstr);
+
+        const id_parsed = try std.fmt.parseInt(u32, id_str, 10);
+        const level_parsed = try std.fmt.parseInt(u32, level_str, 10);
+
+        return try Character.init(gpa, id_parsed, name_str, level_parsed);
+    }
+
     pub fn readCharactersAlloc(self: *const Database, gpa: Allocator) ![]Character {
         const result = try self.conn.exec("SELECT id, name, level FROM characters");
         defer result.deinit();

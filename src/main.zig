@@ -64,15 +64,28 @@ fn handleConnection(
 
     var writer = Io.Writer.Allocating.init(gpa);
 
-    if (std.mem.eql(u8, request.head.target, "/")) {
-        try writer.writer.print("ZTTRPG\n", .{});
-        try request.respond(writer.written(), .{ .keep_alive = false });
-    } else if (std.mem.startsWith(u8, request.head.target, "/characters")) {
-        try handleCharacters(gpa, &writer, db, &request);
+    const target = std.mem.trim(u8, request.head.target, "/");
+
+    var sequence = std.mem.splitScalar(u8, target, '/');
+
+    const maybe_first_segment = sequence.peek();
+
+    if (maybe_first_segment == null or std.mem.eql(u8, maybe_first_segment.?, "")) {
+        try handleRoot(&writer, &request);
     } else {
-        try writer.writer.print("404 Not Found\n", .{});
-        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        const first_segment = sequence.next() orelse unreachable;
+        if (std.mem.eql(u8, first_segment, "characters")) {
+            try handleCharacters(gpa, &writer, db, &request, &sequence);
+        } else {
+            try writer.writer.print("404 Not Found: {s}\n", .{first_segment});
+            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        }
     }
+}
+
+fn handleRoot(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
+    try writer.writer.print("ZTTRPG API\n", .{});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
 fn handleCharacters(
@@ -80,10 +93,11 @@ fn handleCharacters(
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    sequence: *std.mem.SplitIterator(u8, .scalar),
 ) !void {
-    const characters_path = "/characters";
+    const maybe_next_segment = sequence.peek();
 
-    if (std.mem.eql(u8, request.head.target, characters_path)) {
+    if (maybe_next_segment == null) {
         switch (request.head.method) {
             .GET => try respondCharacters(gpa, writer, db, request),
             .POST => try insertCharacter(gpa, writer, db, request),
@@ -93,8 +107,17 @@ fn handleCharacters(
             },
         }
     } else {
+        const next_segment = sequence.next() orelse unreachable;
+
+        const id = std.fmt.parseInt(u32, next_segment, 10) catch {
+            try writer.writer.print("404 Not Found\n", .{});
+            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+            return;
+        };
+
         switch (request.head.method) {
-            .DELETE => try deleteCharacter(gpa, writer, db, request),
+            .GET => try respondCharacter(gpa, writer, db, request, id),
+            .DELETE => try deleteCharacter(gpa, writer, db, request, id),
             else => |method| {
                 try writer.writer.print("Method {} not allowed for this path.\n", .{method});
                 try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
@@ -108,27 +131,8 @@ fn deleteCharacter(
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    id: u32,
 ) !void {
-    const characters_path = "/characters";
-
-    const characters_path_len = characters_path.len;
-    std.debug.assert(request.head.target.len > characters_path_len);
-    const tail = request.head.target[characters_path_len..];
-    std.debug.assert(tail.len > 0);
-
-    if (tail[0] != '/') {
-        try writer.writer.print("404 Not Found: {s}\n", .{tail});
-        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-        return;
-    }
-
-    const id_str = tail[1..];
-    const id = std.fmt.parseInt(u32, id_str, 10) catch {
-        try writer.writer.print("Invalid character ID: {s}\n", .{id_str});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
-    };
-
     db.deleteCharacter(gpa, .{ .id = id }) catch {
         try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
@@ -147,6 +151,33 @@ fn respondCharacters(
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
     try std.json.Stringify.value(characters, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+}
+
+fn respondCharacter(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+    id: u32,
+) !void {
+    const character = db.readCharacter(gpa, id) catch {
+        try writer.writer.print("Failed to read character with ID {d}.\n", .{id});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
+    if (character == null) {
+        try writer.writer.print("Character with ID {d} not found.\n", .{id});
+        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        return;
+    }
+
+    try std.json.Stringify.value(character.?, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
         .value = "application/json",
