@@ -6,6 +6,7 @@ const zttrpg = @import("zttrpg");
 const pq = @import("pq");
 
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
 pub fn main(init: std.process.Init) !void {
     // Prints to stderr, unbuffered, ignoring potential errors.
@@ -13,14 +14,6 @@ pub fn main(init: std.process.Init) !void {
 
     const db = try zttrpg.Database.init();
     defer db.deinit();
-
-    const characters = try db.readCharactersAlloc(init.gpa);
-    defer {
-        for (characters) |character| {
-            character.deinit();
-        }
-        init.gpa.free(characters);
-    }
 
     // TCP skeleton.
     const address = "127.0.0.1";
@@ -34,7 +27,7 @@ pub fn main(init: std.process.Init) !void {
         const conn = try server.accept(init.io);
         defer conn.close(init.io);
 
-        handleConnection(init, conn, characters) catch |err| {
+        handleConnection(init, conn, &db) catch |err| {
             std.debug.print("Error handling connection: {}\n", .{err});
         };
     }
@@ -43,7 +36,7 @@ pub fn main(init: std.process.Init) !void {
 fn handleConnection(
     init: std.process.Init,
     conn: Io.net.Stream,
-    characters: []zttrpg.Character,
+    db: *const zttrpg.Database,
 ) !void {
     std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
 
@@ -68,7 +61,7 @@ fn handleConnection(
         try allocating_writer.writer.print("ZTTRPG\n", .{});
         try request.respond(allocating_writer.written(), .{});
     } else if (std.mem.eql(u8, request.head.target, "/characters")) {
-        try writeCharactersResponse(&allocating_writer, characters, &request);
+        try writeCharactersResponse(init.gpa, &allocating_writer, db, &request);
     } else {
         try allocating_writer.writer.print("404 Not Found\n", .{});
         try request.respond(allocating_writer.written(), .{ .status = .not_found });
@@ -76,10 +69,19 @@ fn handleConnection(
 }
 
 fn writeCharactersResponse(
+    gpa: Allocator,
     writer: *Io.Writer.Allocating,
-    characters: []zttrpg.Character,
+    db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
+    const characters = try db.readCharactersAlloc(gpa);
+    defer {
+        for (characters) |character| {
+            character.deinit();
+        }
+        gpa.free(characters);
+    }
+
     try writer.writer.print("Characters:\n", .{});
     for (characters) |character| {
         try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
