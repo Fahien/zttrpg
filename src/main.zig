@@ -60,12 +60,12 @@ fn handleConnection(
 
     if (std.mem.eql(u8, request.head.target, "/")) {
         try writer.writer.print("ZTTRPG\n", .{});
-        try request.respond(writer.written(), .{});
+        try request.respond(writer.written(), .{ .keep_alive = false });
     } else if (std.mem.eql(u8, request.head.target, "/characters")) {
         try handleCharacters(gpa, &writer, db, &request);
     } else {
         try writer.writer.print("404 Not Found\n", .{});
-        try request.respond(writer.written(), .{ .status = .not_found });
+        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
     }
 }
 
@@ -80,7 +80,7 @@ fn handleCharacters(
         .POST => try insertCharacter(gpa, writer, db, request),
         else => |method| {
             try writer.writer.print("Method {} not allowed.\n", .{method});
-            try request.respond(writer.written(), .{ .status = .method_not_allowed });
+            try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
         },
     }
 }
@@ -97,7 +97,7 @@ fn respondCharacters(
     for (characters) |character| {
         try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
     }
-    try request.respond(writer.written(), .{});
+    try request.respond(writer.written(), .{ .keep_alive = false });
 }
 
 fn insertCharacter(
@@ -115,5 +115,5 @@ fn insertCharacter(
     std.debug.print("Inserted character: {s} (level {d})\n", .{ character.name, character.level });
 
     try writer.writer.print("OK\n", .{});
-    try request.respond(writer.written(), .{ .status = .ok });
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
