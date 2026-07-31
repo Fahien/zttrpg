@@ -22,7 +22,24 @@ pub fn main(init: std.process.Init) !void {
     while (true) {
         const conn = try server.accept(init.io);
         defer conn.close(init.io);
+
         std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
+
+        const read_buffer = try init.gpa.alloc(u8, 4096);
+        defer init.gpa.free(read_buffer);
+
+        const write_buffer = try init.gpa.alloc(u8, 4096);
+        defer init.gpa.free(write_buffer);
+
+        var conn_reader = Io.net.Stream.Reader.init(conn, init.io, read_buffer);
+        var conn_writer = Io.net.Stream.Writer.init(conn, init.io, write_buffer);
+
+        var http_server = std.http.Server.init(&conn_reader.interface, &conn_writer.interface);
+        var request = try http_server.receiveHead();
+
+        std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
+
+        try request.respond("Hello from ZTTRPG!\n", .{});
     }
 }
 
