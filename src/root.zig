@@ -70,8 +70,8 @@ pub const Database = struct {
         return characters;
     }
 
-    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !void {
-        const query = "INSERT INTO characters (name, level) VALUES ($1, $2)";
+    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !u32 {
+        const query = "INSERT INTO characters (name, level) VALUES ($1, $2) RETURNING id";
 
         const name_cstr = try gpa.dupeZ(u8, character.name);
         defer gpa.free(name_cstr);
@@ -81,5 +81,13 @@ pub const Database = struct {
 
         const result = try self.conn.execParams(query, &.{ name_cstr, level_cstr });
         defer result.deinit();
+
+        if (result.len() != 1) {
+            return error.UnexpectedResult;
+        }
+        const id_cstr = result.getValue(0, 0);
+        const id_str = std.mem.span(id_cstr);
+        const id = try std.fmt.parseInt(u32, id_str, 10);
+        return id;
     }
 };

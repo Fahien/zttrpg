@@ -98,16 +98,12 @@ fn respondCharacters(
     request: *std.http.Server.Request,
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
-
-    try writer.writer.print("Characters:\n", .{});
-    for (characters) |character| {
-        try writer.writer.print("  - {d}: {s} (level {d})\n", .{
-            character.id,
-            character.name,
-            character.level,
-        });
-    }
-    try request.respond(writer.written(), .{ .keep_alive = false });
+    try std.json.Stringify.value(characters, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
 fn insertCharacter(
@@ -131,14 +127,16 @@ fn insertCharacter(
         return;
     };
 
-    db.insertCharacter(gpa, character) catch {
+    const character_id = db.insertCharacter(gpa, character) catch {
         try writer.writer.print("Failed to insert character.\n", .{});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
-    std.debug.print("Inserted character: {s} (level {d})\n", .{ character.name, character.level });
+    std.debug.print("Inserted character: {s} (level {d}) with ID {d}\n", .{ character.name, character.level, character_id });
 
-    try writer.writer.print("OK\n", .{});
+    const new_character = try zttrpg.Character.init(gpa, character_id, character.name, character.level);
+    try std.json.Stringify.value(new_character, .{}, &writer.writer);
+
     try request.respond(writer.written(), .{ .status = .created, .keep_alive = false });
 }
