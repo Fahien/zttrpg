@@ -40,11 +40,13 @@ fn handleConnection(
 ) !void {
     std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
 
-    const read_buffer = try init.gpa.alloc(u8, 4096);
-    defer init.gpa.free(read_buffer);
+    var arena = std.heap.ArenaAllocator.init(init.gpa);
+    defer arena.deinit();
 
-    const write_buffer = try init.gpa.alloc(u8, 4096);
-    defer init.gpa.free(write_buffer);
+    const gpa = arena.allocator();
+
+    const read_buffer = try gpa.alloc(u8, 4096);
+    const write_buffer = try gpa.alloc(u8, 4096);
 
     var conn_reader = Io.net.Stream.Reader.init(conn, init.io, read_buffer);
     var conn_writer = Io.net.Stream.Writer.init(conn, init.io, write_buffer);
@@ -54,14 +56,13 @@ fn handleConnection(
 
     std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
 
-    var allocating_writer = Io.Writer.Allocating.init(init.gpa);
-    defer allocating_writer.deinit();
+    var allocating_writer = Io.Writer.Allocating.init(gpa);
 
     if (std.mem.eql(u8, request.head.target, "/")) {
         try allocating_writer.writer.print("ZTTRPG\n", .{});
         try request.respond(allocating_writer.written(), .{});
     } else if (std.mem.eql(u8, request.head.target, "/characters")) {
-        try writeCharactersResponse(init.gpa, &allocating_writer, db, &request);
+        try writeCharactersResponse(gpa, &allocating_writer, db, &request);
     } else {
         try allocating_writer.writer.print("404 Not Found\n", .{});
         try request.respond(allocating_writer.written(), .{ .status = .not_found });
@@ -75,34 +76,10 @@ fn writeCharactersResponse(
     request: *std.http.Server.Request,
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
-    defer {
-        for (characters) |character| {
-            character.deinit();
-        }
-        gpa.free(characters);
-    }
 
     try writer.writer.print("Characters:\n", .{});
     for (characters) |character| {
         try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
     }
     try request.respond(writer.written(), .{});
-}
-
-fn readCharacters(init: std.process.Init) !void {
-    const db = try zttrpg.Database.init();
-    defer db.deinit();
-
-    const characters = try db.readCharactersAlloc(init.gpa);
-    defer {
-        for (characters) |character| {
-            character.deinit();
-        }
-        init.gpa.free(characters);
-    }
-
-    std.debug.print("Characters:\n", .{});
-    for (characters) |character| {
-        std.debug.print("  - {s} (level {d})\n", .{ character.name, character.level });
-    }
 }

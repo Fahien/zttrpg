@@ -11,19 +11,16 @@ pub const Character = struct {
     name: []const u8,
     level: u32,
 
-    _gpa: Allocator,
-
     pub fn init(gpa: Allocator, name: []const u8, level: u32) !Character {
         const name_copy = try gpa.dupe(u8, name);
         return Character{
             .name = name_copy,
             .level = level,
-            ._gpa = gpa,
         };
     }
 
-    pub fn deinit(self: *const Character) void {
-        self._gpa.free(self.name);
+    pub fn deinit(self: *const Character, gpa: Allocator) void {
+        gpa.free(self.name);
     }
 };
 
