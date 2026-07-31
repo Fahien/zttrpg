@@ -7,13 +7,20 @@ const pq = @import("pq");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+pub const CreateCharacter = struct {
+    name: []const u8,
+    level: u32,
+};
+
 pub const Character = struct {
+    id: u32,
     name: []const u8,
     level: u32,
 
-    pub fn init(gpa: Allocator, name: []const u8, level: u32) !Character {
+    pub fn init(gpa: Allocator, id: u32, name: []const u8, level: u32) !Character {
         const name_copy = try gpa.dupe(u8, name);
         return Character{
+            .id = id,
             .name = name_copy,
             .level = level,
         };
@@ -39,28 +46,31 @@ pub const Database = struct {
     }
 
     pub fn readCharactersAlloc(self: *const Database, gpa: Allocator) ![]Character {
-        const result = try self.conn.exec("SELECT name, level FROM characters");
+        const result = try self.conn.exec("SELECT id, name, level FROM characters");
         defer result.deinit();
 
         const count = result.len();
         var characters = try gpa.alloc(Character, count);
 
         for (0..count) |i| {
-            const name_cstr = result.getValue(i, 0);
-            const level_cstr = result.getValue(i, 1);
+            const id_cstr = result.getValue(i, 0);
+            const name_cstr = result.getValue(i, 1);
+            const level_cstr = result.getValue(i, 2);
 
+            const id_str = std.mem.span(id_cstr);
             const name_str = std.mem.span(name_cstr);
             const level_str = std.mem.span(level_cstr);
 
+            const id = try std.fmt.parseInt(u32, id_str, 10);
             const level = try std.fmt.parseInt(u32, level_str, 10);
 
-            characters[i] = try Character.init(gpa, name_str, level);
+            characters[i] = try Character.init(gpa, id, name_str, level);
         }
 
         return characters;
     }
 
-    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: Character) !void {
+    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !void {
         const query = "INSERT INTO characters (name, level) VALUES ($1, $2)";
 
         const name_cstr = try gpa.dupeZ(u8, character.name);

@@ -101,7 +101,11 @@ fn respondCharacters(
 
     try writer.writer.print("Characters:\n", .{});
     for (characters) |character| {
-        try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
+        try writer.writer.print("  - {d}: {s} (level {d})\n", .{
+            character.id,
+            character.name,
+            character.level,
+        });
     }
     try request.respond(writer.written(), .{ .keep_alive = false });
 }
@@ -117,7 +121,7 @@ fn insertCharacter(
     const body = try reader.allocRemaining(gpa, .limited(4096));
 
     const character = std.json.parseFromSliceLeaky(
-        zttrpg.Character,
+        zttrpg.CreateCharacter,
         gpa,
         body,
         .{},
