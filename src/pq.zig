@@ -18,6 +18,7 @@ extern fn PQfinish(conn: *PGconn) void;
 
 const PGresult = opaque {};
 extern fn PQexec(conn: *PGconn, query: [*:0]const u8) ?*PGresult;
+extern fn PQexecParams(conn: *PGconn, query: ?[*:0]const u8, nParams: c_int, paramTypes: ?[*]const u32, paramValues: ?[*]const ?[*:0]const u8, paramLengths: ?[*]const c_int, paramFormats: ?[*]const c_int, resultFormat: c_int) ?*PGresult;
 
 pub const PGExecStatusType = enum(u32) {
     PGRES_COMMAND_OK = 1,
@@ -55,6 +56,32 @@ pub const Connection = struct {
 
     pub fn exec(self: *const Connection, query: [*:0]const u8) !Result {
         const res = PQexec(self.conn, query) orelse return error.ExecutionFailed;
+        if (PQresultStatus(res) != PGExecStatusType.PGRES_COMMAND_OK and
+            PQresultStatus(res) != PGExecStatusType.PGRES_TUPLES_OK)
+        {
+            const err = PQerrorMessage(self.conn);
+            std.debug.print("Execution failed: {s}\n", .{err});
+            PQclear(res);
+            return error.ExecutionFailed;
+        }
+        return Result.init(res);
+    }
+
+    pub fn execParams(
+        self: *const Connection,
+        query: [*:0]const u8,
+        params: []const [*:0]const u8,
+    ) !Result {
+        const res = PQexecParams(
+            self.conn,
+            query,
+            @intCast(params.len),
+            null,
+            params.ptr,
+            null,
+            null,
+            0,
+        ) orelse return error.ExecutionFailed;
         if (PQresultStatus(res) != PGExecStatusType.PGRES_COMMAND_OK and
             PQresultStatus(res) != PGExecStatusType.PGRES_TUPLES_OK)
         {

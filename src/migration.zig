@@ -88,11 +88,14 @@ pub fn main(init: std.process.Init) !void {
             return error.ExecutionFailed;
         }
 
-        const insert_migration_sql = "INSERT INTO schema_migrations (version) VALUES ('{s}')";
-        const insert_migration_sql_fmt = try std.fmt.allocPrintSentinel(init.gpa, insert_migration_sql, .{name}, 0);
-        defer init.gpa.free(insert_migration_sql_fmt);
-        const insert_result = try conn.exec(insert_migration_sql_fmt);
+        const insert_migration_sql = "INSERT INTO schema_migrations (version) VALUES ($1)";
+
+        const name_cstr = try init.gpa.dupeZ(u8, name);
+        defer init.gpa.free(name_cstr);
+
+        const insert_result = try conn.execParams(insert_migration_sql, &.{name_cstr.ptr});
         defer insert_result.deinit();
+
         if (insert_result.status() != .PGRES_COMMAND_OK) {
             std.debug.print("Execution failed: {s}\n", .{conn.errorMessage()});
             return error.ExecutionFailed;
