@@ -12,12 +12,21 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const pq_mod = b.createModule(.{
+        .root_source_file = b.path("src/pq.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    pq_mod.linkLibrary(libpq_dep.artifact("pq"));
+
     const migration_mod = b.createModule(.{
         .root_source_file = b.path("src/migration.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "pq", .module = pq_mod },
+        },
     });
-    migration_mod.linkLibrary(libpq_dep.artifact("pq"));
 
     const migration_exe = b.addExecutable(.{
         .name = "migration",
@@ -33,6 +42,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "pq", .module = pq_mod },
+        },
     });
 
     const exe = b.addExecutable(.{

@@ -120,11 +120,11 @@ pub const Result = struct {
         return PQresultStatus(self.res);
     }
 
-    pub fn len(self: *const Result) c_int {
-        return PQntuples(self.res);
+    pub fn len(self: *const Result) usize {
+        return @intCast(PQntuples(self.res));
     }
 
-    pub fn getValue(self: *const Result, row: c_int, col: c_int) [*:0]const u8 {
-        return PQgetvalue(self.res, row, col);
+    pub fn getValue(self: *const Result, row: usize, col: usize) [*:0]const u8 {
+        return PQgetvalue(self.res, @intCast(row), @intCast(col));
     }
 };
