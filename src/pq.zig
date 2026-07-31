@@ -4,7 +4,7 @@
 const std = @import("std");
 
 const PGconn = opaque {};
-extern fn PQconnectdb(conninfo: [*]const u8) ?*PGconn;
+extern fn PQconnectdb(conninfo: [*:0]const u8) ?*PGconn;
 
 pub const PGStatus = enum(u32) {
     CONNECTION_OK = 0,
@@ -24,6 +24,7 @@ pub const PGExecStatusType = enum(u32) {
     PGRES_COMMAND_OK = 1,
     PGRES_TUPLES_OK = 2,
     // >=3 trouble
+    PGRES_FATAL_ERROR = 7,
 };
 extern fn PQresultStatus(res: *PGresult) PGExecStatusType;
 
@@ -36,7 +37,7 @@ extern fn PQgetvalue(res: *PGresult, row: c_int, col: c_int) [*:0]const u8;
 pub const Connection = struct {
     conn: *PGconn,
 
-    pub fn connect(conninfo: [*]const u8) !Connection {
+    pub fn connect(conninfo: [*:0]const u8) !Connection {
         const conn = PQconnectdb(conninfo) orelse return error.ConnectionFailed;
         if (PQstatus(conn) != PGStatus.CONNECTION_OK) {
             const err = PQerrorMessage(conn);
