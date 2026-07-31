@@ -31,7 +31,7 @@ pub fn main(init: std.process.Init) !void {
         try applied_migrations.put(version_str, {});
     }
 
-    // Collect sql file names into a list and sort it.
+    // SQL file names will be collected into a list and sorted.
     var names = std.ArrayList([]const u8).empty;
     defer {
         for (names.items) |name| {
@@ -40,6 +40,7 @@ pub fn main(init: std.process.Init) !void {
         names.deinit(init.gpa);
     }
 
+    // Collect all .sql files in the db directory.
     const db_dir = try Io.Dir.cwd().openDir(init.io, "db", .{ .iterate = true });
     var db_it = db_dir.iterate();
     while (try db_it.next(init.io)) |entry| {
@@ -52,6 +53,7 @@ pub fn main(init: std.process.Init) !void {
         try names.append(init.gpa, name_copy);
     }
 
+    // Sort the names of the SQL files to ensure they are applied in order.
     std.mem.sort([]const u8, names.items, {}, stringLessThan);
 
     for (names.items) |name| {
@@ -67,6 +69,8 @@ pub fn main(init: std.process.Init) !void {
         const sql_cstr = try init.gpa.dupeZ(u8, sql_str);
         defer init.gpa.free(sql_cstr);
 
+        try conn.beginTransaction();
+
         const result = try conn.exec(sql_cstr);
         defer result.deinit();
 
@@ -77,6 +81,8 @@ pub fn main(init: std.process.Init) !void {
 
         const insert_result = try conn.execParams(insert_migration_sql, &.{name_cstr.ptr});
         defer insert_result.deinit();
+
+        try conn.commitTransaction();
     }
 }
 

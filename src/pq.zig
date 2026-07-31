@@ -87,6 +87,11 @@ pub const Connection = struct {
         const res = try self.exec("BEGIN");
         defer res.deinit();
     }
+
+    pub fn commitTransaction(self: *const Connection) !void {
+        const res = try self.exec("COMMIT");
+        defer res.deinit();
+    }
 };
 
 pub const Result = struct {
