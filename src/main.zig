@@ -38,7 +38,13 @@ fn handleConnection(
     conn: Io.net.Stream,
     db: *const zttrpg.Database,
 ) !void {
-    std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
+    std.debug.print("Accepted connection from {d}.{d}.{d}.{d}:{d}\n", .{
+        conn.socket.address.ip4.bytes[0],
+        conn.socket.address.ip4.bytes[1],
+        conn.socket.address.ip4.bytes[2],
+        conn.socket.address.ip4.bytes[3],
+        conn.socket.address.getPort(),
+    });
 
     var arena = std.heap.ArenaAllocator.init(init.gpa);
     defer arena.deinit();
