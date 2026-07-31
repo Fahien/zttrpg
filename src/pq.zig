@@ -36,6 +36,8 @@ extern fn PQntuples(res: *PGresult) c_int;
 
 extern fn PQgetvalue(res: *PGresult, row: c_int, col: c_int) [*:0]const u8;
 
+extern fn PQcmdTuples(res: *PGresult) [*:0]const u8;
+
 pub const Connection = struct {
     conn: *PGconn,
 
@@ -128,5 +130,11 @@ pub const Result = struct {
 
     pub fn getValue(self: *const Result, row: usize, col: usize) [*:0]const u8 {
         return PQgetvalue(self.res, @intCast(row), @intCast(col));
+    }
+
+    pub fn affectedRows(self: *const Result) !usize {
+        const row_count_cstr = PQcmdTuples(self.res);
+        const row_count = std.mem.span(row_count_cstr);
+        return try std.fmt.parseInt(usize, row_count, 10);
     }
 };

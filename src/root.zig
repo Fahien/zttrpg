@@ -12,6 +12,10 @@ pub const CreateCharacter = struct {
     level: u32,
 };
 
+pub const DeleteCharacter = struct {
+    id: u32,
+};
+
 pub const Character = struct {
     id: u32,
     name: []const u8,
@@ -89,5 +93,19 @@ pub const Database = struct {
         const id_str = std.mem.span(id_cstr);
         const id = try std.fmt.parseInt(u32, id_str, 10);
         return id;
+    }
+
+    pub fn deleteCharacter(self: *const Database, gpa: Allocator, character: DeleteCharacter) !void {
+        const query = "DELETE FROM characters WHERE id = $1";
+
+        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.id}, 0);
+        defer gpa.free(id_cstr);
+
+        const result = try self.conn.execParams(query, &.{id_cstr});
+        defer result.deinit();
+
+        if (try result.affectedRows() != 1) {
+            return error.CharacterNotFound;
+        }
     }
 };
