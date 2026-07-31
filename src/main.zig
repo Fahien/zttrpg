@@ -11,6 +11,17 @@ pub fn main(init: std.process.Init) !void {
     // Prints to stderr, unbuffered, ignoring potential errors.
     std.debug.print("ZTTRPG\n", .{});
 
+    const db = try zttrpg.Database.init();
+    defer db.deinit();
+
+    const characters = try db.readCharactersAlloc(init.gpa);
+    defer {
+        for (characters) |character| {
+            character.deinit();
+        }
+        init.gpa.free(characters);
+    }
+
     // TCP skeleton.
     const address = "127.0.0.1";
     const port = 8080;
@@ -39,7 +50,15 @@ pub fn main(init: std.process.Init) !void {
 
         std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
 
-        try request.respond("Hello from ZTTRPG!\n", .{});
+        var allocating_writer = Io.Writer.Allocating.init(init.gpa);
+        defer allocating_writer.deinit();
+
+        try allocating_writer.writer.print("Characters:\n", .{});
+        for (characters) |character| {
+            try allocating_writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
+        }
+
+        try request.respond(allocating_writer.written(), .{});
     }
 }
 
