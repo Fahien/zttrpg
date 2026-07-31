@@ -34,34 +34,44 @@ pub fn main(init: std.process.Init) !void {
         const conn = try server.accept(init.io);
         defer conn.close(init.io);
 
-        std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
+        handleConnection(init, conn, characters) catch |err| {
+            std.debug.print("Error handling connection: {}\n", .{err});
+        };
+    }
+}
 
-        const read_buffer = try init.gpa.alloc(u8, 4096);
-        defer init.gpa.free(read_buffer);
+fn handleConnection(
+    init: std.process.Init,
+    conn: Io.net.Stream,
+    characters: []zttrpg.Character,
+) !void {
+    std.debug.print("Accepted connection from {s}:{d}\n", .{ conn.socket.address.ip4.bytes, conn.socket.address.getPort() });
 
-        const write_buffer = try init.gpa.alloc(u8, 4096);
-        defer init.gpa.free(write_buffer);
+    const read_buffer = try init.gpa.alloc(u8, 4096);
+    defer init.gpa.free(read_buffer);
 
-        var conn_reader = Io.net.Stream.Reader.init(conn, init.io, read_buffer);
-        var conn_writer = Io.net.Stream.Writer.init(conn, init.io, write_buffer);
+    const write_buffer = try init.gpa.alloc(u8, 4096);
+    defer init.gpa.free(write_buffer);
 
-        var http_server = std.http.Server.init(&conn_reader.interface, &conn_writer.interface);
-        var request = try http_server.receiveHead();
+    var conn_reader = Io.net.Stream.Reader.init(conn, init.io, read_buffer);
+    var conn_writer = Io.net.Stream.Writer.init(conn, init.io, write_buffer);
 
-        std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
+    var http_server = std.http.Server.init(&conn_reader.interface, &conn_writer.interface);
+    var request = try http_server.receiveHead();
 
-        var allocating_writer = Io.Writer.Allocating.init(init.gpa);
-        defer allocating_writer.deinit();
+    std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
 
-        if (std.mem.eql(u8, request.head.target, "/")) {
-            try allocating_writer.writer.print("ZTTRPG\n", .{});
-            try request.respond(allocating_writer.written(), .{});
-        } else if (std.mem.eql(u8, request.head.target, "/characters")) {
-            try writeCharactersResponse(&allocating_writer, characters, &request);
-        } else {
-            try allocating_writer.writer.print("404 Not Found\n", .{});
-            try request.respond(allocating_writer.written(), .{ .status = .not_found });
-        }
+    var allocating_writer = Io.Writer.Allocating.init(init.gpa);
+    defer allocating_writer.deinit();
+
+    if (std.mem.eql(u8, request.head.target, "/")) {
+        try allocating_writer.writer.print("ZTTRPG\n", .{});
+        try request.respond(allocating_writer.written(), .{});
+    } else if (std.mem.eql(u8, request.head.target, "/characters")) {
+        try writeCharactersResponse(&allocating_writer, characters, &request);
+    } else {
+        try allocating_writer.writer.print("404 Not Found\n", .{});
+        try request.respond(allocating_writer.written(), .{ .status = .not_found });
     }
 }
 
