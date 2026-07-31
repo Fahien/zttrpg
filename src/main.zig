@@ -175,6 +175,12 @@ fn insertCharacter(
         return;
     };
 
+    character.validate() catch |err| {
+        try writer.writer.print("Invalid character: {}\n", .{err});
+        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
+        return;
+    };
+
     const character_id = db.insertCharacter(gpa, character) catch {
         try writer.writer.print("Failed to insert character.\n", .{});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });

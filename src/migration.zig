@@ -90,3 +90,25 @@ pub fn main(init: std.process.Init) !void {
 fn stringLessThan(_: void, lhs: []const u8, rhs: []const u8) bool {
     return std.mem.lessThan(u8, lhs, rhs);
 }
+
+test "stringLessThan is a strict lexicographic order" {
+    try std.testing.expect(stringLessThan({}, "0001-a.sql", "0002-b.sql"));
+    try std.testing.expect(!stringLessThan({}, "0002-b.sql", "0001-a.sql"));
+    // Not less than itself: required by std.mem.sort's contract.
+    try std.testing.expect(!stringLessThan({}, "0001-a.sql", "0001-a.sql"));
+    // Prefix orders before its extension.
+    try std.testing.expect(stringLessThan({}, "0001.sql", "0001a.sql"));
+}
+
+test "migration files sort in version order thanks to zero-padding" {
+    var names = [_][]const u8{
+        "0010-later.sql",
+        "0001-characters.sql",
+        "0002-constraints.sql",
+    };
+    std.mem.sort([]const u8, &names, {}, stringLessThan);
+
+    try std.testing.expectEqualStrings("0001-characters.sql", names[0]);
+    try std.testing.expectEqualStrings("0002-constraints.sql", names[1]);
+    try std.testing.expectEqualStrings("0010-later.sql", names[2]);
+}
