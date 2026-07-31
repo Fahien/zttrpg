@@ -10,28 +10,16 @@ const pq = @import("pq.zig");
 pub fn main(init: std.process.Init) !void {
     const conn = try pq.Connection.connect("dbname=zttrpg");
     defer conn.close();
-    if (conn.status() != .CONNECTION_OK) {
-        std.debug.print("Connection failed: {s}\n", .{conn.errorMessage()});
-        return error.ConnectionFailed;
-    }
 
     // Create schema_migrations if it doesn't exist
     const create_schema_migrations_sql = "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY)";
     const schema_migration_result = try conn.exec(create_schema_migrations_sql);
     defer schema_migration_result.deinit();
-    if (schema_migration_result.status() != .PGRES_COMMAND_OK) {
-        std.debug.print("Execution failed: {s}\n", .{conn.errorMessage()});
-        return error.ExecutionFailed;
-    }
 
     // Get list of already applied migrations.
     const applied_migrations_sql = "SELECT version FROM schema_migrations";
     const applied_migrations_result = try conn.exec(applied_migrations_sql);
     defer applied_migrations_result.deinit();
-    if (applied_migrations_result.status() != .PGRES_TUPLES_OK) {
-        std.debug.print("Execution failed: {s}\n", .{conn.errorMessage()});
-        return error.ExecutionFailed;
-    }
 
     var applied_migrations = std.StringHashMap(void).init(init.gpa);
     defer applied_migrations.deinit();
@@ -82,12 +70,6 @@ pub fn main(init: std.process.Init) !void {
         const result = try conn.exec(sql_cstr);
         defer result.deinit();
 
-        const status = result.status();
-        if (status != .PGRES_COMMAND_OK and status != .PGRES_TUPLES_OK) {
-            std.debug.print("Execution failed: {s}\n", .{conn.errorMessage()});
-            return error.ExecutionFailed;
-        }
-
         const insert_migration_sql = "INSERT INTO schema_migrations (version) VALUES ($1)";
 
         const name_cstr = try init.gpa.dupeZ(u8, name);
@@ -95,11 +77,6 @@ pub fn main(init: std.process.Init) !void {
 
         const insert_result = try conn.execParams(insert_migration_sql, &.{name_cstr.ptr});
         defer insert_result.deinit();
-
-        if (insert_result.status() != .PGRES_COMMAND_OK) {
-            std.debug.print("Execution failed: {s}\n", .{conn.errorMessage()});
-            return error.ExecutionFailed;
-        }
     }
 }
 
