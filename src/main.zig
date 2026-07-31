@@ -116,10 +116,25 @@ fn insertCharacter(
     const reader = try request.readerExpectContinue(scratch_buffer);
     const body = try reader.allocRemaining(gpa, .limited(4096));
 
-    const character = try std.json.parseFromSliceLeaky(zttrpg.Character, gpa, body, .{});
-    try db.insertCharacter(gpa, character);
+    const character = std.json.parseFromSliceLeaky(
+        zttrpg.Character,
+        gpa,
+        body,
+        .{},
+    ) catch {
+        try writer.writer.print("Invalid JSON body.\n", .{});
+        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
+        return;
+    };
+
+    db.insertCharacter(gpa, character) catch {
+        try writer.writer.print("Failed to insert character.\n", .{});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
     std.debug.print("Inserted character: {s} (level {d})\n", .{ character.name, character.level });
 
     try writer.writer.print("OK\n", .{});
-    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
+    try request.respond(writer.written(), .{ .status = .created, .keep_alive = false });
 }
