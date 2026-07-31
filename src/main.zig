@@ -53,13 +53,28 @@ pub fn main(init: std.process.Init) !void {
         var allocating_writer = Io.Writer.Allocating.init(init.gpa);
         defer allocating_writer.deinit();
 
-        try allocating_writer.writer.print("Characters:\n", .{});
-        for (characters) |character| {
-            try allocating_writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
+        if (std.mem.eql(u8, request.head.target, "/")) {
+            try allocating_writer.writer.print("ZTTRPG\n", .{});
+            try request.respond(allocating_writer.written(), .{});
+        } else if (std.mem.eql(u8, request.head.target, "/characters")) {
+            try writeCharactersResponse(&allocating_writer, characters, &request);
+        } else {
+            try allocating_writer.writer.print("404 Not Found\n", .{});
+            try request.respond(allocating_writer.written(), .{ .status = .not_found });
         }
-
-        try request.respond(allocating_writer.written(), .{});
     }
+}
+
+fn writeCharactersResponse(
+    writer: *Io.Writer.Allocating,
+    characters: []zttrpg.Character,
+    request: *std.http.Server.Request,
+) !void {
+    try writer.writer.print("Characters:\n", .{});
+    for (characters) |character| {
+        try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
+    }
+    try request.respond(writer.written(), .{});
 }
 
 fn readCharacters(init: std.process.Init) !void {
