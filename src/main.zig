@@ -56,20 +56,36 @@ fn handleConnection(
 
     std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
 
-    var allocating_writer = Io.Writer.Allocating.init(gpa);
+    var writer = Io.Writer.Allocating.init(gpa);
 
     if (std.mem.eql(u8, request.head.target, "/")) {
-        try allocating_writer.writer.print("ZTTRPG\n", .{});
-        try request.respond(allocating_writer.written(), .{});
+        try writer.writer.print("ZTTRPG\n", .{});
+        try request.respond(writer.written(), .{});
     } else if (std.mem.eql(u8, request.head.target, "/characters")) {
-        try writeCharactersResponse(gpa, &allocating_writer, db, &request);
+        try handleCharacters(gpa, &writer, db, &request);
     } else {
-        try allocating_writer.writer.print("404 Not Found\n", .{});
-        try request.respond(allocating_writer.written(), .{ .status = .not_found });
+        try writer.writer.print("404 Not Found\n", .{});
+        try request.respond(writer.written(), .{ .status = .not_found });
     }
 }
 
-fn writeCharactersResponse(
+fn handleCharacters(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+) !void {
+    switch (request.head.method) {
+        .GET => try respondCharacters(gpa, writer, db, request),
+        .POST => try insertCharacter(gpa, writer, db, request),
+        else => |method| {
+            try writer.writer.print("Method {} not allowed.\n", .{method});
+            try request.respond(writer.written(), .{ .status = .method_not_allowed });
+        },
+    }
+}
+
+fn respondCharacters(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
@@ -82,4 +98,22 @@ fn writeCharactersResponse(
         try writer.writer.print("  - {s} (level {d})\n", .{ character.name, character.level });
     }
     try request.respond(writer.written(), .{});
+}
+
+fn insertCharacter(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+) !void {
+    const scratch_buffer = try gpa.alloc(u8, 4096);
+    const reader = try request.readerExpectContinue(scratch_buffer);
+    const body = try reader.allocRemaining(gpa, .limited(4096));
+
+    const character = try std.json.parseFromSliceLeaky(zttrpg.Character, gpa, body, .{});
+    try db.insertCharacter(gpa, character);
+    std.debug.print("Inserted character: {s} (level {d})\n", .{ character.name, character.level });
+
+    try writer.writer.print("OK\n", .{});
+    try request.respond(writer.written(), .{ .status = .ok });
 }

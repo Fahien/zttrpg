@@ -9,6 +9,7 @@ extern fn PQconnectdb(conninfo: [*:0]const u8) ?*PGconn;
 pub const PGStatus = enum(u32) {
     CONNECTION_OK = 0,
     CONNECTION_BAD = 1,
+    _,
 };
 extern fn PQstatus(conn: *PGconn) PGStatus;
 
@@ -25,6 +26,7 @@ pub const PGExecStatusType = enum(u32) {
     PGRES_TUPLES_OK = 2,
     // >=3 trouble
     PGRES_FATAL_ERROR = 7,
+    _,
 };
 extern fn PQresultStatus(res: *PGresult) PGExecStatusType;
 

@@ -59,4 +59,17 @@ pub const Database = struct {
 
         return characters;
     }
+
+    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: Character) !void {
+        const query = "INSERT INTO characters (name, level) VALUES ($1, $2)";
+
+        const name_cstr = try gpa.dupeZ(u8, character.name);
+        defer gpa.free(name_cstr);
+
+        const level_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.level}, 0);
+        defer gpa.free(level_cstr);
+
+        const result = try self.conn.execParams(query, &.{ name_cstr, level_cstr });
+        defer result.deinit();
+    }
 };
