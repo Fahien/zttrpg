@@ -85,7 +85,9 @@ fn handleConnection(
         try handleRoot(&writer, &request);
     } else {
         const first_segment = sequence.next() orelse unreachable;
-        if (std.mem.eql(u8, first_segment, "characters")) {
+        if (std.mem.eql(u8, first_segment, "static")) {
+            try handleStatic(gpa, init.io, &writer, &request, &sequence);
+        } else if (std.mem.eql(u8, first_segment, "characters")) {
             try handleCharacters(gpa, &writer, db, &request, &sequence);
         } else {
             try writer.writer.print("404 Not Found: {s}\n", .{first_segment});
@@ -98,6 +100,49 @@ fn handleRoot(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) 
     const index = @embedFile("web/index.html");
     try writer.writer.print("{s}", .{index});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
+}
+
+fn handleStatic(
+    gpa: Allocator,
+    io: Io,
+    writer: *Io.Writer.Allocating,
+    request: *std.http.Server.Request,
+    sequence: *std.mem.SplitIterator(u8, .scalar),
+) !void {
+    const maybe_next_segment = sequence.peek();
+
+    if (maybe_next_segment == null) {
+        try writer.writer.print("404 Not Found\n", .{});
+        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        return;
+    }
+
+    const file_path = request.head.target[1..]; // Skip the leading '/' in the path.
+
+    const cwd = std.Io.Dir.cwd();
+    const web_dir = try cwd.openDir(io, "src/web", .{});
+    const file_content = web_dir.readFileAlloc(io, file_path, gpa, .limited(4096 * 16)) catch |err| {
+        std.debug.print("Failed to read static file: {s}, error: {}\n", .{ file_path, err });
+        try writer.writer.print("404 Not Found\n", .{});
+        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        return;
+    };
+
+    var content_type: []const u8 = "text/plain";
+    if (std.mem.endsWith(u8, file_path, ".css")) {
+        content_type = "text/css";
+    } else if (std.mem.endsWith(u8, file_path, ".js")) {
+        content_type = "application/javascript";
+    } else if (std.mem.endsWith(u8, file_path, ".html")) {
+        content_type = "text/html";
+    }
+
+    const content_type_header = std.http.Header{
+        .name = "Content-Type",
+        .value = content_type,
+    };
+    try writer.writer.print("{s}", .{file_content});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false, .extra_headers = &.{content_type_header} });
 }
 
 fn handleCharacters(

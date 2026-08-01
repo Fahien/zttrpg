@@ -1,0 +1,13 @@
+/**
+ * © 2026 Antonio Caggiano
+ * SPDX-License-Identifier: MIT
+ */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-body: #222;
+        --background: #111;
+        --background-alt: #333;
+        --text-main: #D7CEA4;
+    }
+}

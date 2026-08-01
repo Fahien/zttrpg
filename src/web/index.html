@@ -9,39 +9,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZTTRPG</title>
-    <style>
-        body {
-            color: #D7CEA4;
-            background: #000000;
-            font-family: Arial, Helvetica, Sans-Serif;
-        }
-    </style>
+    <link rel="stylesheet" href="static/water.css" type="text/css">
+    <link rel="stylesheet" href="static/custom.css" type="text/css">
 </head>
 
 <body>
     <h1>ZTTRPG</h1>
     <table id="roster"></table>
 </body>
-<script>
-    async function fetchRoster() {
-        const response = await fetch('/characters');
-        if (!response.ok) {
-            console.error('Failed to fetch roster:', response.statusText);
-            return;
-        }
-        const characters = await response.json();
-        const rosterTable = document.getElementById('roster');
-        rosterTable.innerHTML = '';
-        characters.forEach(character => {
-            const row = rosterTable.insertRow();
-            row.insertCell().textContent = character.id;
-            row.insertCell().textContent = character.name;
-            row.insertCell().textContent = character.level;
-        });
-    }
-
-    // Fetch the roster when the page loads
-    window.addEventListener('load', fetchRoster);
-</script>
+<script src="static/roster.js"></script>
 
 </html>
