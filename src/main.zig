@@ -66,7 +66,18 @@ fn handleConnection(
 
     const target = std.mem.trim(u8, request.head.target, "/");
 
-    var sequence = std.mem.splitScalar(u8, target, '/');
+    var path_and_query = std.mem.splitScalar(u8, target, '?');
+
+    const path = path_and_query.next() orelse {
+        try writer.writer.print("400 Bad Request: Missing path\n", .{});
+        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
+        return;
+    };
+
+    // TODO: use query later.
+    _ = path_and_query.next();
+
+    var sequence = std.mem.splitScalar(u8, path, '/');
 
     const maybe_first_segment = sequence.peek();
 
@@ -115,6 +126,13 @@ fn handleCharacters(
             return;
         };
 
+        const maybe_next_after_id = sequence.peek();
+        if (maybe_next_after_id != null) {
+            try writer.writer.print("404 Not Found\n", .{});
+            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+            return;
+        }
+
         switch (request.head.method) {
             .GET => try respondCharacter(gpa, writer, db, request, id),
             .DELETE => try deleteCharacter(gpa, writer, db, request, id),
@@ -149,8 +167,8 @@ fn updateCharacter(
         return;
     };
 
-    character_update.validate() catch |err| {
-        try writer.writer.print("Invalid character update: {}\n", .{err});
+    character_update.validate() catch {
+        try writer.writer.print("Invalid character update\n", .{});
         try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
         return;
     };
@@ -180,9 +198,17 @@ fn deleteCharacter(
     request: *std.http.Server.Request,
     id: u32,
 ) !void {
-    db.deleteCharacter(gpa, .{ .id = id }) catch {
-        try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
-        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+    db.deleteCharacter(gpa, id) catch |err| {
+        switch (err) {
+            error.CharacterNotFound => {
+                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+                try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+            },
+            else => {
+                try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
+                try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+            },
+        }
         return;
     };
 

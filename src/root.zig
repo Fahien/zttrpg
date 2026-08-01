@@ -7,31 +7,20 @@ const pq = @import("pq");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
-pub const CreateCharacter = struct {
+pub const BodyCharacter = struct {
     name: []const u8,
     level: u32,
 
     // Mirrors the CHECK constraints in db/0001-characters.sql: the database
     // enforces integrity, this gives clients a 400 instead of a 500.
-    pub fn validate(self: *const CreateCharacter) error{ EmptyName, LevelOutOfRange }!void {
+    pub fn validate(self: *const BodyCharacter) error{ EmptyName, LevelOutOfRange }!void {
         if (self.name.len == 0) return error.EmptyName;
         if (self.level < 1 or self.level > 100) return error.LevelOutOfRange;
     }
 };
 
-pub const DeleteCharacter = struct {
-    id: u32,
-};
-
-pub const UpdateCharacter = struct {
-    name: []const u8,
-    level: u32,
-
-    pub fn validate(self: *const UpdateCharacter) error{ EmptyName, LevelOutOfRange }!void {
-        if (self.name.len == 0) return error.EmptyName;
-        if (self.level < 1 or self.level > 100) return error.LevelOutOfRange;
-    }
-};
+pub const CreateCharacter = BodyCharacter;
+pub const UpdateCharacter = BodyCharacter;
 
 pub const Character = struct {
     id: u32,
@@ -80,18 +69,7 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        const id_cstr_result = result.getValue(0, 0);
-        const name_cstr = result.getValue(0, 1);
-        const level_cstr = result.getValue(0, 2);
-
-        const id_str = std.mem.span(id_cstr_result);
-        const name_str = std.mem.span(name_cstr);
-        const level_str = std.mem.span(level_cstr);
-
-        const id_parsed = try std.fmt.parseInt(u32, id_str, 10);
-        const level_parsed = try std.fmt.parseInt(u32, level_str, 10);
-
-        return try Character.init(gpa, id_parsed, name_str, level_parsed);
+        return try Database.rowToCharacter(gpa, &result, 0);
     }
 
     pub fn readCharactersAlloc(self: *const Database, gpa: Allocator) ![]Character {
@@ -101,22 +79,26 @@ pub const Database = struct {
         const count = result.len();
         var characters = try gpa.alloc(Character, count);
 
-        for (0..count) |i| {
-            const id_cstr = result.getValue(i, 0);
-            const name_cstr = result.getValue(i, 1);
-            const level_cstr = result.getValue(i, 2);
-
-            const id_str = std.mem.span(id_cstr);
-            const name_str = std.mem.span(name_cstr);
-            const level_str = std.mem.span(level_cstr);
-
-            const id = try std.fmt.parseInt(u32, id_str, 10);
-            const level = try std.fmt.parseInt(u32, level_str, 10);
-
-            characters[i] = try Character.init(gpa, id, name_str, level);
+        for (0..count) |row| {
+            characters[row] = try Database.rowToCharacter(gpa, &result, row);
         }
 
         return characters;
+    }
+
+    fn rowToCharacter(gpa: Allocator, result: *const pq.Result, row: usize) !Character {
+        const id_cstr = result.getValue(row, 0);
+        const name_cstr = result.getValue(row, 1);
+        const level_cstr = result.getValue(row, 2);
+
+        const id_str = std.mem.span(id_cstr);
+        const name_str = std.mem.span(name_cstr);
+        const level_str = std.mem.span(level_cstr);
+
+        const id_parsed = try std.fmt.parseInt(u32, id_str, 10);
+        const level_parsed = try std.fmt.parseInt(u32, level_str, 10);
+
+        return try Character.init(gpa, id_parsed, name_str, level_parsed);
     }
 
     pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !u32 {
@@ -160,10 +142,10 @@ pub const Database = struct {
         }
     }
 
-    pub fn deleteCharacter(self: *const Database, gpa: Allocator, character: DeleteCharacter) !void {
+    pub fn deleteCharacter(self: *const Database, gpa: Allocator, id: u32) !void {
         const query = "DELETE FROM characters WHERE id = $1";
 
-        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.id}, 0);
+        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
         defer gpa.free(id_cstr);
 
         const result = try self.conn.execParams(query, &.{id_cstr});
