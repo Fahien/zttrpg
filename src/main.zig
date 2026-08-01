@@ -95,7 +95,8 @@ fn handleConnection(
 }
 
 fn handleRoot(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
-    try writer.writer.print("ZTTRPG API\n", .{});
+    const index = @embedFile("web/index.html");
+    try writer.writer.print("{s}", .{index});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
