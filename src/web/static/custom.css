@@ -11,3 +11,9 @@
         --text-main: #D7CEA4;
     }
 }
+
+form {
+    padding: 1em;
+    border: 1px solid var(--background-alt);
+    border-radius: 4px;
+}
