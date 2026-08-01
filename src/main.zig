@@ -33,6 +33,65 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
+const Route = union(enum) {
+    root,
+    characters,
+    character: u32,
+    static: []const u8,
+    not_found,
+
+    fn parseRoute(target: []const u8) Route {
+        const trimmed_target = std.mem.trim(u8, target, "/");
+        var path_and_query = std.mem.splitScalar(u8, trimmed_target, '?');
+        const path = path_and_query.next() orelse return Route.not_found;
+
+        var sequence = std.mem.splitScalar(u8, path, '/');
+        const maybe_first_segment = sequence.peek();
+
+        // Root case.
+        if (maybe_first_segment == null or std.mem.eql(u8, maybe_first_segment.?, "")) {
+            return Route.root;
+        }
+
+        const first_segment = sequence.next() orelse unreachable;
+
+        // Static paths.
+        if (std.mem.eql(u8, first_segment, "static")) {
+            const maybe_next_segment = sequence.peek();
+            if (maybe_next_segment == null) {
+                return Route.not_found;
+            }
+
+            const dots_position = std.mem.find(u8, path, "..");
+            if (dots_position != null) {
+                return Route.not_found;
+            }
+
+            return .{ .static = path };
+        }
+
+        // Characters.
+        if (std.mem.eql(u8, first_segment, "characters")) {
+            const maybe_next_segment = sequence.peek();
+            if (maybe_next_segment == null) {
+                return Route.characters;
+            }
+
+            const next_segment = sequence.next() orelse unreachable;
+            const id = std.fmt.parseInt(u32, next_segment, 10) catch return Route.not_found;
+
+            const maybe_next_after_id = sequence.peek();
+            if (maybe_next_after_id != null) {
+                return Route.not_found;
+            }
+
+            return .{ .character = id };
+        }
+
+        return Route.not_found;
+    }
+};
+
 fn handleConnection(
     init: std.process.Init,
     conn: Io.net.Stream,
@@ -64,36 +123,25 @@ fn handleConnection(
 
     var writer = Io.Writer.Allocating.init(gpa);
 
-    const target = std.mem.trim(u8, request.head.target, "/");
+    const route = Route.parseRoute(request.head.target);
 
-    var path_and_query = std.mem.splitScalar(u8, target, '?');
-
-    const path = path_and_query.next() orelse {
-        try writer.writer.print("400 Bad Request: Missing path\n", .{});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
-    };
-
-    // TODO: use query later.
-    _ = path_and_query.next();
-
-    var sequence = std.mem.splitScalar(u8, path, '/');
-
-    const maybe_first_segment = sequence.peek();
-
-    if (maybe_first_segment == null or std.mem.eql(u8, maybe_first_segment.?, "")) {
-        try handleRoot(&writer, &request);
-    } else {
-        const first_segment = sequence.next() orelse unreachable;
-        if (std.mem.eql(u8, first_segment, "static")) {
-            try handleStatic(gpa, init.io, &writer, &request, &sequence);
-        } else if (std.mem.eql(u8, first_segment, "characters")) {
-            try handleCharacters(gpa, &writer, db, &request, &sequence);
-        } else {
-            try writer.writer.print("404 Not Found: {s}\n", .{first_segment});
-            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-        }
+    switch (route) {
+        .root => try handleRoot(&writer, &request),
+        .characters => try handleCharacters(gpa, &writer, db, &request),
+        .character => |id| try handleCharacter(gpa, &writer, db, &request, id),
+        .static => |path| try handleStatic(gpa, init.io, &writer, &request, path),
+        .not_found => try handleNotFound(&writer, &request),
     }
+}
+
+fn handleNotFound(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
+    try writer.writer.print("404 Not Found\n", .{});
+    try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+}
+
+fn handleMethodNotAllowed(writer: *Io.Writer.Allocating, request: *std.http.Server.Request, method: std.http.Method) !void {
+    try writer.writer.print("Method {} not allowed for this path.\n", .{method});
+    try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
 }
 
 fn handleRoot(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
@@ -107,18 +155,8 @@ fn handleStatic(
     io: Io,
     writer: *Io.Writer.Allocating,
     request: *std.http.Server.Request,
-    sequence: *std.mem.SplitIterator(u8, .scalar),
+    file_path: []const u8,
 ) !void {
-    const maybe_next_segment = sequence.peek();
-
-    if (maybe_next_segment == null) {
-        try writer.writer.print("404 Not Found\n", .{});
-        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-        return;
-    }
-
-    const file_path = request.head.target[1..]; // Skip the leading '/' in the path.
-
     const cwd = std.Io.Dir.cwd();
     const web_dir = try cwd.openDir(io, "src/web", .{});
     const file_content = web_dir.readFileAlloc(io, file_path, gpa, .limited(4096 * 16)) catch |err| {
@@ -150,44 +188,26 @@ fn handleCharacters(
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
-    sequence: *std.mem.SplitIterator(u8, .scalar),
 ) !void {
-    const maybe_next_segment = sequence.peek();
+    switch (request.head.method) {
+        .GET => try respondCharacters(gpa, writer, db, request),
+        .POST => try insertCharacter(gpa, writer, db, request),
+        else => |method| try handleMethodNotAllowed(writer, request, method),
+    }
+}
 
-    if (maybe_next_segment == null) {
-        switch (request.head.method) {
-            .GET => try respondCharacters(gpa, writer, db, request),
-            .POST => try insertCharacter(gpa, writer, db, request),
-            else => |method| {
-                try writer.writer.print("Method {} not allowed for this path.\n", .{method});
-                try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
-            },
-        }
-    } else {
-        const next_segment = sequence.next() orelse unreachable;
-
-        const id = std.fmt.parseInt(u32, next_segment, 10) catch {
-            try writer.writer.print("404 Not Found\n", .{});
-            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-            return;
-        };
-
-        const maybe_next_after_id = sequence.peek();
-        if (maybe_next_after_id != null) {
-            try writer.writer.print("404 Not Found\n", .{});
-            try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-            return;
-        }
-
-        switch (request.head.method) {
-            .GET => try respondCharacter(gpa, writer, db, request, id),
-            .DELETE => try deleteCharacter(gpa, writer, db, request, id),
-            .PUT => try updateCharacter(gpa, writer, db, request, id),
-            else => |method| {
-                try writer.writer.print("Method {} not allowed for this path.\n", .{method});
-                try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
-            },
-        }
+fn handleCharacter(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+    id: u32,
+) !void {
+    switch (request.head.method) {
+        .GET => try respondCharacter(gpa, writer, db, request, id),
+        .DELETE => try deleteCharacter(gpa, writer, db, request, id),
+        .PUT => try updateCharacter(gpa, writer, db, request, id),
+        else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
@@ -343,4 +363,67 @@ fn insertCharacter(
     try std.json.Stringify.value(new_character, .{}, &writer.writer);
 
     try request.respond(writer.written(), .{ .status = .created, .keep_alive = false });
+}
+
+test "parseRoute: root" {
+    try std.testing.expectEqual(Route.root, Route.parseRoute("/"));
+    try std.testing.expectEqual(Route.root, Route.parseRoute(""));
+    // Trailing slashes are trimmed, so doubled slashes still mean root.
+    try std.testing.expectEqual(Route.root, Route.parseRoute("//"));
+}
+
+test "parseRoute: characters collection" {
+    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters"));
+    // Policy: a trailing slash is tolerated and means the same route.
+    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters/"));
+    // Query strings are ignored for routing purposes.
+    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters?page=2"));
+}
+
+test "parseRoute: single character by id" {
+    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3"));
+    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3/"));
+    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3?verbose=1"));
+    try std.testing.expectEqual(Route{ .character = 0 }, Route.parseRoute("/characters/0"));
+}
+
+test "parseRoute: static assets" {
+    // The payload is a slice, so expectEqual would compare pointers, not
+    // content: check the tag first, then the payload text.
+    const css = Route.parseRoute("/static/custom.css");
+    try std.testing.expect(css == .static);
+    try std.testing.expectEqualStrings("static/custom.css", css.static);
+
+    const nested = Route.parseRoute("/static/js/character-form.js");
+    try std.testing.expect(nested == .static);
+    try std.testing.expectEqualStrings("static/js/character-form.js", nested.static);
+
+    // Bare /static names no file.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static/"));
+}
+
+test "parseRoute: static ignores query strings like every other route" {
+    const versioned = Route.parseRoute("/static/custom.css?v=2");
+    try std.testing.expect(versioned == .static);
+    try std.testing.expectEqualStrings("static/custom.css", versioned.static);
+}
+
+test "parseRoute: static rejects path traversal" {
+    // A '..' segment would let a request escape src/web and read arbitrary
+    // files (e.g. GET /static/../../build.zig). Never route it.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static/../secret.txt"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static/../../build.zig"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static/css/../../../etc/passwd"));
+}
+
+test "parseRoute: rejections" {
+    // Unknown top-level segment.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/nope"));
+    // Ids must be numeric, in range for u32, and positive.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/alice"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/-1"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/99999999999"));
+    // Nothing is routed below a character id.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/junk"));
 }
