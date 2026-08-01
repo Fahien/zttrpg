@@ -11,7 +11,27 @@
     </head>
     <body>
         <h1>ZTTRPG</h1>
-        <p>Welcome to ZTTRPG, a simple web-based RPG game built with Zig.</p>
-        <p>Use the API endpoints to create, read, update, and delete characters.</p>
+        <table id="roster"></table>
     </body>
+    <script>
+        async function fetchRoster() {
+            const response = await fetch('/characters');
+            if (!response.ok) {
+                console.error('Failed to fetch roster:', response.statusText);
+                return;
+            }
+            const characters = await response.json();
+            const rosterTable = document.getElementById('roster');
+            rosterTable.innerHTML = '';
+            characters.forEach(character => {
+                const row = rosterTable.insertRow();
+                row.insertCell().textContent = character.id;
+                row.insertCell().textContent = character.name;
+                row.insertCell().textContent = character.level;
+            });
+        }
+
+        // Fetch the roster when the page loads
+        window.addEventListener('load', fetchRoster);
+    </script>
 </html>
