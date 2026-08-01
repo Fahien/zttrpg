@@ -23,6 +23,16 @@ pub const DeleteCharacter = struct {
     id: u32,
 };
 
+pub const UpdateCharacter = struct {
+    name: []const u8,
+    level: u32,
+
+    pub fn validate(self: *const UpdateCharacter) error{ EmptyName, LevelOutOfRange }!void {
+        if (self.name.len == 0) return error.EmptyName;
+        if (self.level < 1 or self.level > 100) return error.LevelOutOfRange;
+    }
+};
+
 pub const Character = struct {
     id: u32,
     name: []const u8,
@@ -128,6 +138,26 @@ pub const Database = struct {
         const id_str = std.mem.span(id_cstr);
         const id = try std.fmt.parseInt(u32, id_str, 10);
         return id;
+    }
+
+    pub fn updateCharacter(self: *const Database, gpa: Allocator, id: u32, character: UpdateCharacter) !void {
+        const query = "UPDATE characters SET name = $1, level = $2 WHERE id = $3";
+
+        const name_cstr = try gpa.dupeZ(u8, character.name);
+        defer gpa.free(name_cstr);
+
+        const level_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.level}, 0);
+        defer gpa.free(level_cstr);
+
+        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
+        defer gpa.free(id_cstr);
+
+        const result = try self.conn.execParams(query, &.{ name_cstr, level_cstr, id_cstr });
+        defer result.deinit();
+
+        if (try result.affectedRows() != 1) {
+            return error.CharacterNotFound;
+        }
     }
 
     pub fn deleteCharacter(self: *const Database, gpa: Allocator, character: DeleteCharacter) !void {

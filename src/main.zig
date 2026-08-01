@@ -118,12 +118,59 @@ fn handleCharacters(
         switch (request.head.method) {
             .GET => try respondCharacter(gpa, writer, db, request, id),
             .DELETE => try deleteCharacter(gpa, writer, db, request, id),
+            .PUT => try updateCharacter(gpa, writer, db, request, id),
             else => |method| {
                 try writer.writer.print("Method {} not allowed for this path.\n", .{method});
                 try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
             },
         }
     }
+}
+
+fn updateCharacter(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+    id: u32,
+) !void {
+    const scratch_buffer = try gpa.alloc(u8, 4096);
+    const reader = try request.readerExpectContinue(scratch_buffer);
+    const body = try reader.allocRemaining(gpa, .limited(4096));
+
+    const character_update = std.json.parseFromSliceLeaky(
+        zttrpg.UpdateCharacter,
+        gpa,
+        body,
+        .{},
+    ) catch {
+        try writer.writer.print("Invalid JSON body.\n", .{});
+        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
+        return;
+    };
+
+    character_update.validate() catch |err| {
+        try writer.writer.print("Invalid character update: {}\n", .{err});
+        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
+        return;
+    };
+
+    db.updateCharacter(gpa, id, character_update) catch |err| {
+        switch (err) {
+            error.CharacterNotFound => {
+                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+                try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+            },
+            else => {
+                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ id, err });
+                try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+            },
+        }
+        return;
+    };
+
+    try writer.writer.print("Updated character with ID {d}.\n", .{id});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
 fn deleteCharacter(
