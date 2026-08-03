@@ -4,7 +4,7 @@
 async function fetchRoster() {
     const response = await fetch('/characters', {
         headers: {
-            'Content-Type': 'application/json'
+            'Accept': 'application/json'
         }
     });
     if (!response.ok) {

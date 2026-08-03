@@ -290,9 +290,9 @@ fn respondCharacters(
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
 
-    if (request.head.content_type) |content_type| {
-        std.debug.print("Found content_type header: {s}\n", .{content_type});
-        if (std.mem.eql(u8, content_type, "application/json")) {
+    var headers = request.iterateHeaders();
+    while (headers.next()) |header| {
+        if (std.mem.eql(u8, header.name, "Accept") and std.mem.eql(u8, header.value, "application/json")) {
             try std.json.Stringify.value(characters, .{}, &writer.writer);
             const extra_header = std.http.Header{
                 .name = "Content-Type",
