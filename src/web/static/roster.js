@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 async function fetchRoster() {
-    const response = await fetch('/characters');
+    const response = await fetch('/characters', {
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
     if (!response.ok) {
         console.error('Failed to fetch roster:', response.statusText);
         return;

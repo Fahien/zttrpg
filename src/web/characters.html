@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!--
+---- © 2026 Antonio Caggiano
+---- SPDX-License-Identifier: MIT
+--->
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTTRPG - Characters</title>
+    <link rel="stylesheet" href="/static/water.css" type="text/css">
+    <link rel="stylesheet" href="/static/custom.css" type="text/css">
+</head>
+
+<body>
+    <h1>Characters</h1>
+    <form id="character-form">
+        <label for="character-name">Character Name:</label>
+        <input type="text" id="character-name" name="character-name" required>
+        <label for="character-level">Character Level:</label>
+        <input type="number" id="character-level" name="character-level" min="1" max="100" value="1" required>
+        <button type="submit">Add Character</button>
+    </form>
+    <table id="roster"></table>
+</body>
+<script src="/static/roster.js"></script>
+
+</html>

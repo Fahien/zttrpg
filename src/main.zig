@@ -289,12 +289,23 @@ fn respondCharacters(
     request: *std.http.Server.Request,
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
-    try std.json.Stringify.value(characters, .{}, &writer.writer);
-    const extra_header = std.http.Header{
-        .name = "Content-Type",
-        .value = "application/json",
-    };
-    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+
+    if (request.head.content_type) |content_type| {
+        std.debug.print("Found content_type header: {s}\n", .{content_type});
+        if (std.mem.eql(u8, content_type, "application/json")) {
+            try std.json.Stringify.value(characters, .{}, &writer.writer);
+            const extra_header = std.http.Header{
+                .name = "Content-Type",
+                .value = "application/json",
+            };
+            try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+            return;
+        }
+    }
+
+    const index = @embedFile("web/characters.html");
+    try writer.writer.print("{s}", .{index});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
 fn respondCharacter(
