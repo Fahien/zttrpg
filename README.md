@@ -34,7 +34,7 @@ Run the server from the repository root:
 zig build run
 ```
 
-The server listens on `http://127.0.0.1:8080`. Open this address in a browser to see the character roster.
+The server listens on `http://127.0.0.1:8080`. Open this address in a browser. The home page links to the characters page, which shows the roster and a form to add a character.
 
 Note: the server reads static files from `src/web/`, relative to the current directory. If you start the binary from a different directory, static files do not load.
 
@@ -46,23 +46,41 @@ Run all tests:
 zig build test
 ```
 
+## Pages
+
+The server serves three kinds of page and asset:
+
+| Path | Content |
+|---|---|
+| `/` | The home page. It links to the characters page. |
+| `/characters` | The characters page: the roster table and the form to add a character. |
+| `/static/{file}` | A file from `src/web/static/`, such as the CSS and the JavaScript. |
+
 ## HTTP API
 
-The API uses JSON. A character has an `id`, a `name`, and a `level` from 1 to 100.
+A character has an `id`, a `name`, and a `level` from 1 to 100. The API uses JSON.
+
+The `/characters` path returns two different representations. If the request has the header `Accept: application/json`, the server returns the roster as JSON. If it does not, the server returns the characters page as HTML. The other paths always return JSON.
+
+Note: the server compares the `Accept` header with the exact text `application/json`. A list of several media types, such as `application/json, */*`, does not match.
 
 | Method | Path | Action |
 |---|---|---|
-| GET | `/` | Serve the roster page. |
 | GET | `/characters` | List all characters. |
-| POST | `/characters` | Create a character from a JSON body. |
+| POST | `/characters` | Create a character from a JSON body. Returns status 201 and the new character. |
 | GET | `/characters/{id}` | Get one character. |
-| PUT | `/characters/{id}` | Update one character from a JSON body. |
+| PUT | `/characters/{id}` | Replace the name and the level of one character. |
 | DELETE | `/characters/{id}` | Delete one character. |
-| GET | `/static/{file}` | Serve a file from `src/web/static/`. |
 
-Example:
+The server returns status 400 for an invalid body, 404 for an unknown ID, and 405 for a method that the path does not support.
+
+Examples:
 
 ```sh
+# Get the roster as JSON.
+curl -H "Accept: application/json" http://127.0.0.1:8080/characters
+
+# Create a character.
 curl -X POST http://127.0.0.1:8080/characters \
   -d '{"name": "Grog", "level": 3}'
 ```
@@ -75,7 +93,7 @@ curl -X POST http://127.0.0.1:8080/characters \
 | `src/root.zig` | The `zttrpg` module: character types and database queries. |
 | `src/pq.zig` | Minimal Zig bindings for libpq. |
 | `src/migration.zig` | The migration tool. |
-| `src/web/` | HTML page, CSS, and JavaScript for the roster. |
+| `src/web/` | HTML pages, and the CSS and JavaScript in `static/`. |
 | `db/` | SQL migration files. |
 
 ## License

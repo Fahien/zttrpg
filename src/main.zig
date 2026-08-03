@@ -373,7 +373,18 @@ fn insertCharacter(
     const new_character = try zttrpg.Character.init(gpa, character_id, character.name, character.level);
     try std.json.Stringify.value(new_character, .{}, &writer.writer);
 
-    try request.respond(writer.written(), .{ .status = .created, .keep_alive = false });
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(
+        writer.written(),
+        .{
+            .status = .created,
+            .keep_alive = false,
+            .extra_headers = &.{extra_header},
+        },
+    );
 }
 
 test "parseRoute: root" {
