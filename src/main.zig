@@ -33,10 +33,19 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
+const Resource = enum {
+    characters,
+};
+
+const ResourceItem = struct {
+    resource: Resource,
+    id: u32,
+};
+
 const Route = union(enum) {
     root,
-    characters,
-    character: u32,
+    collection: Resource,
+    item: ResourceItem,
     static: []const u8,
     not_found,
 
@@ -70,25 +79,23 @@ const Route = union(enum) {
             return .{ .static = path };
         }
 
-        // Characters.
-        if (std.mem.eql(u8, first_segment, "characters")) {
-            const maybe_next_segment = sequence.peek();
-            if (maybe_next_segment == null) {
-                return Route.characters;
-            }
+        // Resources.
+        const resource = std.meta.stringToEnum(Resource, first_segment) orelse return Route.not_found;
 
-            const next_segment = sequence.next() orelse unreachable;
-            const id = std.fmt.parseInt(u32, next_segment, 10) catch return Route.not_found;
-
-            const maybe_next_after_id = sequence.peek();
-            if (maybe_next_after_id != null) {
-                return Route.not_found;
-            }
-
-            return .{ .character = id };
+        const maybe_next_segment = sequence.peek();
+        if (maybe_next_segment == null) {
+            return .{ .collection = resource };
         }
 
-        return Route.not_found;
+        const next_segment = sequence.next() orelse unreachable;
+        const id = std.fmt.parseInt(u32, next_segment, 10) catch return Route.not_found;
+
+        const maybe_next_after_id = sequence.peek();
+        if (maybe_next_after_id != null) {
+            return Route.not_found;
+        }
+
+        return .{ .item = .{ .resource = resource, .id = id } };
     }
 };
 
@@ -127,8 +134,8 @@ fn handleConnection(
 
     switch (route) {
         .root => try handleRoot(&writer, &request),
-        .characters => try handleCharacters(gpa, &writer, db, &request),
-        .character => |id| try handleCharacter(gpa, &writer, db, &request, id),
+        .collection => |resource| try handleCollection(resource, gpa, &writer, db, &request),
+        .item => |item| try handleItem(item, gpa, &writer, db, &request),
         .static => |path| try handleStatic(gpa, init.io, &writer, &request, path),
         .not_found => try handleNotFound(&writer, &request),
     }
@@ -183,40 +190,41 @@ fn handleStatic(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false, .extra_headers = &.{content_type_header} });
 }
 
-fn handleCharacters(
+fn handleCollection(
+    resource: Resource,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondCharacters(gpa, writer, db, request),
-        .POST => try insertCharacter(gpa, writer, db, request),
+        .GET => try respondCollection(resource, gpa, writer, db, request),
+        .POST => try insertItem(resource, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
-fn handleCharacter(
+fn handleItem(
+    item: ResourceItem,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
-    id: u32,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondCharacter(gpa, writer, db, request, id),
-        .DELETE => try deleteCharacter(gpa, writer, db, request, id),
-        .PUT => try updateCharacter(gpa, writer, db, request, id),
+        .GET => try respondItem(item, gpa, writer, db, request),
+        .DELETE => try deleteItem(item, gpa, writer, db, request),
+        .PUT => try updateItem(item, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
-fn updateCharacter(
+fn updateItem(
+    item: ResourceItem,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
-    id: u32,
 ) !void {
     const scratch_buffer = try gpa.alloc(u8, 4096);
     const reader = try request.readerExpectContinue(scratch_buffer);
@@ -239,46 +247,46 @@ fn updateCharacter(
         return;
     };
 
-    db.updateCharacter(gpa, id, character_update) catch |err| {
+    db.updateCharacter(gpa, item.id, character_update) catch |err| {
         switch (err) {
             error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+                try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ id, err });
+                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ item.id, err });
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Updated character with ID {d}.\n", .{id});
+    try writer.writer.print("Updated character with ID {d}.\n", .{item.id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
-fn deleteCharacter(
+fn deleteItem(
+    item: ResourceItem,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
-    id: u32,
 ) !void {
-    db.deleteCharacter(gpa, id) catch |err| {
+    db.deleteCharacter(gpa, item.id) catch |err| {
         switch (err) {
             error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+                try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
+                try writer.writer.print("Failed to delete character with ID {d}.\n", .{item.id});
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Deleted character with ID {d}.\n", .{id});
+    try writer.writer.print("Deleted character with ID {d}.\n", .{item.id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
@@ -292,12 +300,14 @@ fn wantsJson(request: *std.http.Server.Request) bool {
     return false;
 }
 
-fn respondCharacters(
+fn respondCollection(
+    resource: Resource,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
+    std.debug.assert(resource == .characters);
     const characters = try db.readCharactersAlloc(gpa);
 
     if (wantsJson(request)) {
@@ -315,21 +325,21 @@ fn respondCharacters(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
-fn respondCharacter(
+fn respondItem(
+    item: ResourceItem,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
-    id: u32,
 ) !void {
-    const character = db.readCharacter(gpa, id) catch {
-        try writer.writer.print("Failed to read character with ID {d}.\n", .{id});
+    const character = db.readCharacter(gpa, item.id) catch {
+        try writer.writer.print("Failed to read character with ID {d}.\n", .{item.id});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
     if (character == null) {
-        try writer.writer.print("Character with ID {d} not found.\n", .{id});
+        try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
         return;
     }
@@ -349,12 +359,14 @@ fn respondCharacter(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
-fn insertCharacter(
+fn insertItem(
+    resource: Resource,
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
+    std.debug.assert(resource == .characters);
     const scratch_buffer = try gpa.alloc(u8, 4096);
     const reader = try request.readerExpectContinue(scratch_buffer);
     const body = try reader.allocRemaining(gpa, .limited(4096));
@@ -409,18 +421,18 @@ test "parseRoute: root" {
 }
 
 test "parseRoute: characters collection" {
-    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters"));
+    try std.testing.expectEqual(Route{ .collection = .characters }, Route.parseRoute("/characters"));
     // Policy: a trailing slash is tolerated and means the same route.
-    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters/"));
+    try std.testing.expectEqual(Route{ .collection = .characters }, Route.parseRoute("/characters/"));
     // Query strings are ignored for routing purposes.
-    try std.testing.expectEqual(Route.characters, Route.parseRoute("/characters?page=2"));
+    try std.testing.expectEqual(Route{ .collection = .characters }, Route.parseRoute("/characters?page=2"));
 }
 
 test "parseRoute: single character by id" {
-    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3"));
-    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3/"));
-    try std.testing.expectEqual(Route{ .character = 3 }, Route.parseRoute("/characters/3?verbose=1"));
-    try std.testing.expectEqual(Route{ .character = 0 }, Route.parseRoute("/characters/0"));
+    try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 3 } }, Route.parseRoute("/characters/3"));
+    try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 3 } }, Route.parseRoute("/characters/3/"));
+    try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 3 } }, Route.parseRoute("/characters/3?verbose=1"));
+    try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 0 } }, Route.parseRoute("/characters/0"));
 }
 
 test "parseRoute: static assets" {
