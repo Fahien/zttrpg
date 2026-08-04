@@ -134,8 +134,8 @@ fn handleConnection(
 
     switch (route) {
         .root => try handleRoot(&writer, &request),
-        .collection => |resource| try handleCollection(resource, gpa, &writer, db, &request),
-        .item => |item| try handleItem(item, gpa, &writer, db, &request),
+        .collection => |resource| try handleCollection(resource, gpa, init.io, &writer, db, &request),
+        .item => |item| try handleItem(item, gpa, init.io, &writer, db, &request),
         .static => |path| try handleStatic(gpa, init.io, &writer, &request, path),
         .not_found => try handleNotFound(&writer, &request),
     }
@@ -164,21 +164,32 @@ fn handleStatic(
     request: *std.http.Server.Request,
     file_path: []const u8,
 ) !void {
-    const cwd = std.Io.Dir.cwd();
-    const web_dir = try cwd.openDir(io, "src/web", .{});
-    const file_content = web_dir.readFileAlloc(io, file_path, gpa, .limited(4096 * 16)) catch |err| {
-        std.debug.print("Failed to read static file: {s}, error: {}\n", .{ file_path, err });
+    try servePath(gpa, io, writer, request, file_path);
+}
+
+fn servePath(
+    gpa: Allocator,
+    io: Io,
+    writer: *Io.Writer.Allocating,
+    request: *std.http.Server.Request,
+    sub_path: []const u8,
+) !void {
+    const web_dir = try Io.Dir.cwd().openDir(io, "src/web", .{});
+    defer web_dir.close(io);
+
+    const file_content = web_dir.readFileAlloc(io, sub_path, gpa, .limited(4096 * 16)) catch |err| {
+        std.debug.print("Failed to read file: {s}, error: {}\n", .{ sub_path, err });
         try writer.writer.print("404 Not Found\n", .{});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
         return;
     };
 
     var content_type: []const u8 = "text/plain";
-    if (std.mem.endsWith(u8, file_path, ".css")) {
+    if (std.mem.endsWith(u8, sub_path, ".css")) {
         content_type = "text/css";
-    } else if (std.mem.endsWith(u8, file_path, ".js")) {
+    } else if (std.mem.endsWith(u8, sub_path, ".js")) {
         content_type = "application/javascript";
-    } else if (std.mem.endsWith(u8, file_path, ".html")) {
+    } else if (std.mem.endsWith(u8, sub_path, ".html")) {
         content_type = "text/html";
     }
 
@@ -193,12 +204,13 @@ fn handleStatic(
 fn handleCollection(
     resource: Resource,
     gpa: Allocator,
+    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondCollection(resource, gpa, writer, db, request),
+        .GET => try respondCollection(resource, gpa, io, writer, db, request),
         .POST => try insertItem(resource, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
@@ -207,12 +219,13 @@ fn handleCollection(
 fn handleItem(
     item: ResourceItem,
     gpa: Allocator,
+    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondItem(item, gpa, writer, db, request),
+        .GET => try respondItem(item, gpa, io, writer, db, request),
         .DELETE => try deleteItem(item, gpa, writer, db, request),
         .PUT => try updateItem(item, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -303,14 +316,15 @@ fn wantsJson(request: *std.http.Server.Request) bool {
 fn respondCollection(
     resource: Resource,
     gpa: Allocator,
+    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
     std.debug.assert(resource == .characters);
-    const characters = try db.readCharactersAlloc(gpa);
 
     if (wantsJson(request)) {
+        const characters = try db.readCharactersAlloc(gpa);
         try std.json.Stringify.value(characters, .{}, &writer.writer);
         const extra_header = std.http.Header{
             .name = "Content-Type",
@@ -320,14 +334,14 @@ fn respondCollection(
         return;
     }
 
-    const index = @embedFile("web/characters.html");
-    try writer.writer.print("{s}", .{index});
-    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
+    const collection_path = try std.fmt.allocPrint(gpa, "{s}/index.html", .{@tagName(resource)});
+    try servePath(gpa, io, writer, request, collection_path);
 }
 
 fn respondItem(
     item: ResourceItem,
     gpa: Allocator,
+    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
@@ -354,9 +368,8 @@ fn respondItem(
         return;
     }
 
-    const index = @embedFile("web/character.html");
-    try writer.writer.print("{s}", .{index});
-    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
+    const item_path = try std.fmt.allocPrint(gpa, "{s}/item.html", .{@tagName(item.resource)});
+    try servePath(gpa, io, writer, request, item_path);
 }
 
 fn insertItem(
