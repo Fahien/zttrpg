@@ -282,6 +282,16 @@ fn deleteCharacter(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
+fn wantsJson(request: *std.http.Server.Request) bool {
+    var headers = request.iterateHeaders();
+    while (headers.next()) |header| {
+        if (std.mem.eql(u8, header.name, "Accept") and std.mem.eql(u8, header.value, "application/json")) {
+            return true;
+        }
+    }
+    return false;
+}
+
 fn respondCharacters(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
@@ -290,17 +300,14 @@ fn respondCharacters(
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
 
-    var headers = request.iterateHeaders();
-    while (headers.next()) |header| {
-        if (std.mem.eql(u8, header.name, "Accept") and std.mem.eql(u8, header.value, "application/json")) {
-            try std.json.Stringify.value(characters, .{}, &writer.writer);
-            const extra_header = std.http.Header{
-                .name = "Content-Type",
-                .value = "application/json",
-            };
-            try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
-            return;
-        }
+    if (wantsJson(request)) {
+        try std.json.Stringify.value(characters, .{}, &writer.writer);
+        const extra_header = std.http.Header{
+            .name = "Content-Type",
+            .value = "application/json",
+        };
+        try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+        return;
     }
 
     const index = @embedFile("web/characters.html");
@@ -327,12 +334,19 @@ fn respondCharacter(
         return;
     }
 
-    try std.json.Stringify.value(character.?, .{}, &writer.writer);
-    const extra_header = std.http.Header{
-        .name = "Content-Type",
-        .value = "application/json",
-    };
-    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+    if (wantsJson(request)) {
+        try std.json.Stringify.value(character.?, .{}, &writer.writer);
+        const extra_header = std.http.Header{
+            .name = "Content-Type",
+            .value = "application/json",
+        };
+        try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+        return;
+    }
+
+    const index = @embedFile("web/character.html");
+    try writer.writer.print("{s}", .{index});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
 fn insertCharacter(
