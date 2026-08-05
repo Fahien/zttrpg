@@ -222,7 +222,13 @@ fn handleCollection(
     request: *std.http.Server.Request,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondCollection(resource, gpa, io, writer, db, request),
+        .GET => {
+            if (wantsJson(request)) {
+                try respondCollection(resource, gpa, writer, db, request);
+            } else {
+                try serveResource(gpa, io, writer, request, resource, Page.index);
+            }
+        },
         .POST => try insertItem(resource, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
@@ -237,7 +243,13 @@ fn handleItem(
     request: *std.http.Server.Request,
 ) !void {
     switch (request.head.method) {
-        .GET => try respondItem(item, gpa, io, writer, db, request),
+        .GET => {
+            if (wantsJson(request)) {
+                try respondItem(item, gpa, writer, db, request);
+            } else {
+                try serveResource(gpa, io, writer, request, item.resource, Page.item);
+            }
+        },
         .DELETE => try deleteItem(item, gpa, writer, db, request),
         .PUT => try updateItem(item, gpa, writer, db, request),
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -330,31 +342,24 @@ const Page = enum { index, item };
 fn respondCollection(
     resource: Resource,
     gpa: Allocator,
-    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
     std.debug.assert(resource == .characters);
 
-    if (wantsJson(request)) {
-        const characters = try db.readCharactersAlloc(gpa);
-        try std.json.Stringify.value(characters, .{}, &writer.writer);
-        const extra_header = std.http.Header{
-            .name = "Content-Type",
-            .value = "application/json",
-        };
-        try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
-        return;
-    }
-
-    try serveResource(gpa, io, writer, request, resource, Page.index);
+    const characters = try db.readCharactersAlloc(gpa);
+    try std.json.Stringify.value(characters, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
 fn respondItem(
     item: ResourceItem,
     gpa: Allocator,
-    io: Io,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
@@ -371,17 +376,12 @@ fn respondItem(
         return;
     }
 
-    if (wantsJson(request)) {
-        try std.json.Stringify.value(character.?, .{}, &writer.writer);
-        const extra_header = std.http.Header{
-            .name = "Content-Type",
-            .value = "application/json",
-        };
-        try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
-        return;
-    }
-
-    try serveResource(gpa, io, writer, request, item.resource, Page.item);
+    try std.json.Stringify.value(character.?, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
 fn insertItem(
