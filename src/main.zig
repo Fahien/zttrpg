@@ -167,6 +167,18 @@ fn handleStatic(
     try servePath(gpa, io, writer, request, file_path);
 }
 
+fn serveResource(
+    gpa: Allocator,
+    io: Io,
+    writer: *Io.Writer.Allocating,
+    request: *std.http.Server.Request,
+    resource: Resource,
+    page: Page,
+) !void {
+    const sub_path = try std.fmt.allocPrint(gpa, "{s}/{s}.html", .{ @tagName(resource), @tagName(page) });
+    try servePath(gpa, io, writer, request, sub_path);
+}
+
 fn servePath(
     gpa: Allocator,
     io: Io,
@@ -313,6 +325,8 @@ fn wantsJson(request: *std.http.Server.Request) bool {
     return false;
 }
 
+const Page = enum { index, item };
+
 fn respondCollection(
     resource: Resource,
     gpa: Allocator,
@@ -334,8 +348,7 @@ fn respondCollection(
         return;
     }
 
-    const collection_path = try std.fmt.allocPrint(gpa, "{s}/index.html", .{@tagName(resource)});
-    try servePath(gpa, io, writer, request, collection_path);
+    try serveResource(gpa, io, writer, request, resource, Page.index);
 }
 
 fn respondItem(
@@ -368,8 +381,7 @@ fn respondItem(
         return;
     }
 
-    const item_path = try std.fmt.allocPrint(gpa, "{s}/item.html", .{@tagName(item.resource)});
-    try servePath(gpa, io, writer, request, item_path);
+    try serveResource(gpa, io, writer, request, item.resource, Page.item);
 }
 
 fn insertItem(
