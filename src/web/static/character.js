@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 async function getIdFromUrl() {
-// Get the ID from the URL which is in this format: /character/<id>
+    // Get the ID from the URL which is in this format: /character/<id>
     const url_after_slash = window.location.pathname.split('/').pop();
     const url_part = url_after_slash.split('?')[0];
     const id = parseInt(url_part, 10);
@@ -13,9 +13,21 @@ async function getIdFromUrl() {
     return id;
 }
 
+async function reportError(message) {
+    console.error(message);
+    const statusMessage = document.getElementById('status-message');
+    statusMessage.hidden = false;
+    statusMessage.classList.add('error');
+    statusMessage.textContent = message;
+
+    const characterDetails = document.getElementById('character-details');
+    characterDetails.hidden = true;
+}
+
 async function fetchCharacter() {
     const id = await getIdFromUrl();
-    if (!id) {
+    if (id === undefined) {
+        reportError('Invalid character ID in URL.');
         return;
     }
 
@@ -25,9 +37,10 @@ async function fetchCharacter() {
         }
     });
     if (!response.ok) {
-        console.error('Failed to fetch character:', response.statusText);
+        reportError(`Failed to fetch character data: ${response.status} ${response.statusText}`);
         return;
     }
+
     const character = await response.json();
     document.getElementById('character-name').textContent = character.name;
     document.getElementById('character-level').textContent = character.level;

@@ -14,24 +14,26 @@
 </head>
 
 <body>
-    <header>
-        <h1 id="character-name">Character Name</h1>
-    </header>
-
-    <nav>
-        <ul>
-            <!-- TODO: active element? -->
-            <li>Character</li>
-            <li>Pets</li>
-        </ul>
-    </nav>
+    <section id="status-message" hidden>Status message</section>
 
     <main id="character-details">
+        <header>
+            <h1 id="character-name">Character Name</h1>
+        </header>
+
+        <nav>
+            <ul>
+                <!-- TODO: active element? -->
+                <li>Character</li>
+                <li>Pets</li>
+            </ul>
+        </nav>
+
         <section id="character-stats">
             <h2>Stats</h2>
             <ul>
                 <li>Level: <span id="character-level">1</span></li>
-               
+
             </ul>
         </section>
         <section id="character-equipment">
@@ -39,6 +41,7 @@
         </section>
     </main>
 </body>
+
 <script src="/static/character.js"></script>
 
 </html>

@@ -133,7 +133,7 @@ fn handleConnection(
     const route = Route.parseRoute(request.head.target);
 
     switch (route) {
-        .root => try handleRoot(&writer, &request),
+        .root => try handleRoot(gpa, init.io, &writer, &request),
         .collection => |resource| try handleCollection(resource, gpa, init.io, &writer, db, &request),
         .item => |item| try handleItem(item, gpa, init.io, &writer, db, &request),
         .static => |path| try handleStatic(gpa, init.io, &writer, &request, path),
@@ -151,10 +151,8 @@ fn handleMethodNotAllowed(writer: *Io.Writer.Allocating, request: *std.http.Serv
     try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
 }
 
-fn handleRoot(writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
-    const index = @embedFile("web/index.html");
-    try writer.writer.print("{s}", .{index});
-    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
+fn handleRoot(gpa: Allocator, io: Io, writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
+    try servePath(gpa, io, writer, request, "index.html");
 }
 
 fn handleStatic(
