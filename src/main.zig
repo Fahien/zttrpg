@@ -35,6 +35,7 @@ pub fn main(init: std.process.Init) !void {
 
 const Resource = enum {
     characters,
+    kins,
 };
 
 const ResourceItem = struct {
@@ -224,6 +225,7 @@ fn handleCollection(
             if (wantsJson(request)) {
                 switch (resource) {
                     .characters => try respondCharacters(gpa, writer, db, request),
+                    .kins => try respondKins(gpa, writer, db, request),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, resource, Page.index);
@@ -232,6 +234,7 @@ fn handleCollection(
         .POST => {
             switch (resource) {
                 .characters => try insertCharacter(gpa, writer, db, request),
+                else => try handleNotFound(writer, request),
             }
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -251,6 +254,7 @@ fn handleItem(
             if (wantsJson(request)) {
                 switch (item.resource) {
                     .characters => try respondCharacter(gpa, writer, db, request, item.id),
+                    else => try handleNotFound(writer, request),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, item.resource, Page.item);
@@ -258,9 +262,11 @@ fn handleItem(
         },
         .DELETE => switch (item.resource) {
             .characters => try deleteCharacter(gpa, writer, db, request, item.id),
+            else => try handleNotFound(writer, request),
         },
         .PUT => switch (item.resource) {
             .characters => try updateCharacter(gpa, writer, db, request, item.id),
+            else => try handleNotFound(writer, request),
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
@@ -357,6 +363,21 @@ fn respondCharacters(
 ) !void {
     const characters = try db.readCharactersAlloc(gpa);
     try std.json.Stringify.value(characters, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+}
+
+fn respondKins(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+) !void {
+    const kins = try db.readKinsAlloc(gpa);
+    try std.json.Stringify.value(kins, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
         .value = "application/json",
