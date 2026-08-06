@@ -222,12 +222,18 @@ fn handleCollection(
     switch (request.head.method) {
         .GET => {
             if (wantsJson(request)) {
-                try respondCollection(resource, gpa, writer, db, request);
+                switch (resource) {
+                    .characters => try respondCharacters(gpa, writer, db, request),
+                }
             } else {
                 try serveResource(gpa, io, writer, request, resource, Page.index);
             }
         },
-        .POST => try insertItem(resource, gpa, writer, db, request),
+        .POST => {
+            switch (resource) {
+                .characters => try insertCharacter(gpa, writer, db, request),
+            }
+        },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
@@ -243,23 +249,29 @@ fn handleItem(
     switch (request.head.method) {
         .GET => {
             if (wantsJson(request)) {
-                try respondItem(item, gpa, writer, db, request);
+                switch (item.resource) {
+                    .characters => try respondCharacter(gpa, writer, db, request, item.id),
+                }
             } else {
                 try serveResource(gpa, io, writer, request, item.resource, Page.item);
             }
         },
-        .DELETE => try deleteItem(item, gpa, writer, db, request),
-        .PUT => try updateItem(item, gpa, writer, db, request),
+        .DELETE => switch (item.resource) {
+            .characters => try deleteCharacter(gpa, writer, db, request, item.id),
+        },
+        .PUT => switch (item.resource) {
+            .characters => try updateCharacter(gpa, writer, db, request, item.id),
+        },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
-fn updateItem(
-    item: ResourceItem,
+fn updateCharacter(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    id: u32,
 ) !void {
     const scratch_buffer = try gpa.alloc(u8, 4096);
     const reader = try request.readerExpectContinue(scratch_buffer);
@@ -282,46 +294,46 @@ fn updateItem(
         return;
     };
 
-    db.updateCharacter(gpa, item.id, character_update) catch |err| {
+    db.updateCharacter(gpa, id, character_update) catch |err| {
         switch (err) {
             error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
+                try writer.writer.print("Character with ID {d} not found.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ item.id, err });
+                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ id, err });
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Updated character with ID {d}.\n", .{item.id});
+    try writer.writer.print("Updated character with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
-fn deleteItem(
-    item: ResourceItem,
+fn deleteCharacter(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    id: u32,
 ) !void {
-    db.deleteCharacter(gpa, item.id) catch |err| {
+    db.deleteCharacter(gpa, id) catch |err| {
         switch (err) {
             error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
+                try writer.writer.print("Character with ID {d} not found.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to delete character with ID {d}.\n", .{item.id});
+                try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Deleted character with ID {d}.\n", .{item.id});
+    try writer.writer.print("Deleted character with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
@@ -337,15 +349,12 @@ fn wantsJson(request: *std.http.Server.Request) bool {
 
 const Page = enum { index, item };
 
-fn respondCollection(
-    resource: Resource,
+fn respondCharacters(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    std.debug.assert(resource == .characters);
-
     const characters = try db.readCharactersAlloc(gpa);
     try std.json.Stringify.value(characters, .{}, &writer.writer);
     const extra_header = std.http.Header{
@@ -355,21 +364,21 @@ fn respondCollection(
     try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
-fn respondItem(
-    item: ResourceItem,
+fn respondCharacter(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    id: u32,
 ) !void {
-    const character = db.readCharacter(gpa, item.id) catch {
-        try writer.writer.print("Failed to read character with ID {d}.\n", .{item.id});
+    const character = db.readCharacter(gpa, id) catch {
+        try writer.writer.print("Failed to read character with ID {d}.\n", .{id});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
     if (character == null) {
-        try writer.writer.print("Character with ID {d} not found.\n", .{item.id});
+        try writer.writer.print("Character with ID {d} not found.\n", .{id});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
         return;
     }
@@ -382,14 +391,12 @@ fn respondItem(
     try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
-fn insertItem(
-    resource: Resource,
+fn insertCharacter(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    std.debug.assert(resource == .characters);
     const scratch_buffer = try gpa.alloc(u8, 4096);
     const reader = try request.readerExpectContinue(scratch_buffer);
     const body = try reader.allocRemaining(gpa, .limited(4096));
