@@ -233,8 +233,8 @@ fn handleCollection(
         },
         .POST => {
             switch (resource) {
-                .characters => try insertCharacter(gpa, writer, db, request),
-                else => try handleNotFound(writer, request),
+                .characters => try insertItem(gpa, writer, db, request, zttrpg.Character),
+                .kins => try insertItem(gpa, writer, db, request, zttrpg.Kin),
             }
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -380,19 +380,19 @@ fn respondItem(
     comptime T: type,
     id: u32,
 ) !void {
-    const character = db.readItem(gpa, T, id) catch {
+    const item = db.readItem(gpa, T, id) catch {
         try writer.writer.print("Failed to read " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
-    if (character == null) {
+    if (item == null) {
         try writer.writer.print(@typeName(T) ++ " with ID {d} not found.\n", .{id});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
         return;
     }
 
-    try std.json.Stringify.value(character.?, .{}, &writer.writer);
+    try std.json.Stringify.value(item.?, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
         .value = "application/json",
@@ -400,18 +400,19 @@ fn respondItem(
     try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
-fn insertCharacter(
+fn insertItem(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    comptime T: type,
 ) !void {
     const scratch_buffer = try gpa.alloc(u8, 4096);
     const reader = try request.readerExpectContinue(scratch_buffer);
     const body = try reader.allocRemaining(gpa, .limited(4096));
 
-    const character = std.json.parseFromSliceLeaky(
-        zttrpg.CreateCharacter,
+    const item = std.json.parseFromSliceLeaky(
+        T.Create,
         gpa,
         body,
         .{},
@@ -421,35 +422,21 @@ fn insertCharacter(
         return;
     };
 
-    character.validate() catch |err| {
-        try writer.writer.print("Invalid character: {}\n", .{err});
+    item.validate() catch |err| {
+        try writer.writer.print("Invalid " ++ @typeName(T) ++ ": {}\n", .{err});
         try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
         return;
     };
 
-    const character_id = db.insertCharacter(gpa, character) catch {
-        try writer.writer.print("Failed to insert character.\n", .{});
+    const item_id = db.insertItem(gpa, T, item) catch {
+        try writer.writer.print("Failed to insert " ++ @typeName(T) ++ ".\n", .{});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
-    std.debug.print("Inserted character: {s} (level {d}) with ID {d}\n", .{ character.name, character.level, character_id });
+    std.debug.print("Inserted " ++ @typeName(T) ++ " with ID {d}\n", .{item_id});
 
-    const new_character = try zttrpg.Character.init(gpa, character_id, character.name, character.level);
-    try std.json.Stringify.value(new_character, .{}, &writer.writer);
-
-    const extra_header = std.http.Header{
-        .name = "Content-Type",
-        .value = "application/json",
-    };
-    try request.respond(
-        writer.written(),
-        .{
-            .status = .created,
-            .keep_alive = false,
-            .extra_headers = &.{extra_header},
-        },
-    );
+    try respondItem(gpa, writer, db, request, T, item_id);
 }
 
 test "parseRoute: root" {

@@ -58,6 +58,20 @@ pub const Database = struct {
         return cols;
     }
 
+    fn getColsWithoutId(comptime T: type) []const u8 {
+        comptime var cols: []const u8 = "";
+        const field_count = @typeInfo(T).@"struct".fields.len;
+        inline for (@typeInfo(T).@"struct".fields, 0..) |field, i| {
+            if (!std.mem.eql(u8, field.name, "id")) {
+                cols = cols ++ field.name;
+                if (i < field_count - 1) {
+                    cols = cols ++ ", ";
+                }
+            }
+        }
+        return cols;
+    }
+
     pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
         // Build the SELECT query dynamically based on the fields of the struct T.
         const cols = comptime Database.getCols(T);
@@ -102,16 +116,52 @@ pub const Database = struct {
         return ret;
     }
 
-    pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !u32 {
-        const query = "INSERT INTO characters (name, level) VALUES ($1, $2) RETURNING id";
+    pub fn getPlaceholders(comptime T: type) []const u8 {
+        comptime var placeholders: []const u8 = "";
+        const fields = @typeInfo(T).@"struct".fields;
+        inline for (0..fields.len) |placeholder_index| {
+            placeholders = placeholders ++ "$" ++ std.fmt.comptimePrint("{d}", .{placeholder_index + 1});
+            if (placeholder_index < fields.len - 1) {
+                placeholders = placeholders ++ ", ";
+            }
+        }
+        return placeholders;
+    }
 
-        const name_cstr = try gpa.dupeZ(u8, character.name);
-        defer gpa.free(name_cstr);
+    fn getParams(gpa: Allocator, comptime T: type, item: T) ![@typeInfo(T).@"struct".fields.len][*:0]const u8 {
+        const fields = @typeInfo(T).@"struct".fields;
+        var params: [fields.len][*:0]const u8 = undefined;
 
-        const level_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.level}, 0);
-        defer gpa.free(level_cstr);
+        inline for (fields, 0..) |field, i| {
+            switch (@typeInfo(field.type)) {
+                .int => {
+                    const field_value = @field(item, field.name);
+                    params[i] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{field_value}, 0);
+                },
+                .pointer => {
+                    if (@typeInfo(field.type).pointer.child == u8) {
+                        const field_value = @field(item, field.name);
+                        params[i] = try gpa.dupeZ(u8, field_value);
+                    } else {
+                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
+                    }
+                },
+                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
+            }
+        }
 
-        const result = try self.conn.execParams(query, &.{ name_cstr, level_cstr });
+        return params;
+    }
+
+    pub fn insertItem(self: *const Database, gpa: Allocator, comptime T: type, item: T.Create) !u32 {
+        const cols = comptime Database.getCols(T.Create);
+        const placeholders = comptime Database.getPlaceholders(T.Create);
+
+        const query = "INSERT INTO " ++ T.table_name ++ " (" ++ cols ++ ") VALUES (" ++ placeholders ++ ") RETURNING id";
+
+        const params = try Database.getParams(gpa, T.Create, item);
+
+        const result = try self.conn.execParams(query, &params);
         defer result.deinit();
 
         if (result.len() != 1) {
