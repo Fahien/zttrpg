@@ -143,8 +143,8 @@ pub const Database = struct {
         }
     }
 
-    pub fn deleteCharacter(self: *const Database, gpa: Allocator, id: u32) !void {
-        const query = "DELETE FROM characters WHERE id = $1";
+    pub fn deleteItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !void {
+        const query = "DELETE FROM " ++ T.table_name ++ " WHERE id = $1";
 
         const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
         defer gpa.free(id_cstr);
@@ -153,7 +153,7 @@ pub const Database = struct {
         defer result.deinit();
 
         if (try result.affectedRows() != 1) {
-            return error.CharacterNotFound;
+            return error.ItemNotFound;
         }
     }
 };

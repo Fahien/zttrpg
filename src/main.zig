@@ -261,8 +261,8 @@ fn handleItem(
             }
         },
         .DELETE => switch (item.resource) {
-            .characters => try deleteCharacter(gpa, writer, db, request, item.id),
-            else => try handleNotFound(writer, request),
+            .characters => try deleteItem(gpa, writer, db, request, zttrpg.Character, item.id),
+            .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
         },
         .PUT => switch (item.resource) {
             .characters => try updateCharacter(gpa, writer, db, request, item.id),
@@ -318,28 +318,29 @@ fn updateCharacter(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
-fn deleteCharacter(
+fn deleteItem(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    comptime T: type,
     id: u32,
 ) !void {
-    db.deleteCharacter(gpa, id) catch |err| {
+    db.deleteItem(gpa, T, id) catch |err| {
         switch (err) {
-            error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+            error.ItemNotFound => {
+                try writer.writer.print(@typeName(T) ++ " with ID {d} not found.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to delete character with ID {d}.\n", .{id});
+                try writer.writer.print("Failed to delete " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Deleted character with ID {d}.\n", .{id});
+    try writer.writer.print("Deleted " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
