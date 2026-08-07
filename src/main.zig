@@ -253,8 +253,8 @@ fn handleItem(
         .GET => {
             if (wantsJson(request)) {
                 switch (item.resource) {
-                    .characters => try respondCharacter(gpa, writer, db, request, item.id),
-                    else => try handleNotFound(writer, request),
+                    .characters => try respondItem(gpa, writer, db, request, zttrpg.Character, item.id),
+                    .kins => try respondItem(gpa, writer, db, request, zttrpg.Kin, item.id),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, item.resource, Page.item);
@@ -385,21 +385,22 @@ fn respondKins(
     try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
 }
 
-fn respondCharacter(
+fn respondItem(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    comptime T: type,
     id: u32,
 ) !void {
-    const character = db.readItem(gpa, zttrpg.Character, id) catch {
-        try writer.writer.print("Failed to read character with ID {d}.\n", .{id});
+    const character = db.readItem(gpa, T, id) catch {
+        try writer.writer.print("Failed to read " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
     };
 
     if (character == null) {
-        try writer.writer.print("Character with ID {d} not found.\n", .{id});
+        try writer.writer.print(@typeName(T) ++ " with ID {d} not found.\n", .{id});
         try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
         return;
     }
