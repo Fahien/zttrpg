@@ -265,18 +265,19 @@ fn handleItem(
             .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
         },
         .PUT => switch (item.resource) {
-            .characters => try updateCharacter(gpa, writer, db, request, item.id),
-            else => try handleNotFound(writer, request),
+            .characters => try updateItem(gpa, writer, db, request, zttrpg.Character, item.id),
+            .kins => try updateItem(gpa, writer, db, request, zttrpg.Kin, item.id),
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
-fn updateCharacter(
+fn updateItem(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    comptime T: type,
     id: u32,
 ) !void {
     const scratch_buffer = try gpa.alloc(u8, 4096);
@@ -284,7 +285,7 @@ fn updateCharacter(
     const body = try reader.allocRemaining(gpa, .limited(4096));
 
     const character_update = std.json.parseFromSliceLeaky(
-        zttrpg.UpdateCharacter,
+        T.Update,
         gpa,
         body,
         .{},
@@ -300,21 +301,21 @@ fn updateCharacter(
         return;
     };
 
-    db.updateCharacter(gpa, id, character_update) catch |err| {
+    db.updateItem(gpa, T, id, character_update) catch |err| {
         switch (err) {
-            error.CharacterNotFound => {
-                try writer.writer.print("Character with ID {d} not found.\n", .{id});
+            error.ItemNotFound => {
+                try writer.writer.print("Item with ID {d} not found.\n", .{id});
                 try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
             },
             else => {
-                try writer.writer.print("Failed to update character with ID {d}: {}\n", .{ id, err });
+                try writer.writer.print("Failed to update item with ID {d}: {}\n", .{ id, err });
                 try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
             },
         }
         return;
     };
 
-    try writer.writer.print("Updated character with ID {d}.\n", .{id});
+    try writer.writer.print("Updated item with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 

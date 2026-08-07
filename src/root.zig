@@ -153,6 +153,33 @@ pub const Database = struct {
         return params;
     }
 
+    fn getParamsWithId(gpa: Allocator, comptime T: type, item: T, id: u32) ![@typeInfo(T).@"struct".fields.len + 1][*:0]const u8 {
+        const fields = @typeInfo(T).@"struct".fields;
+        var params: [fields.len + 1][*:0]const u8 = undefined;
+
+        inline for (fields, 0..) |field, i| {
+            switch (@typeInfo(field.type)) {
+                .int => {
+                    const field_value = @field(item, field.name);
+                    params[i] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{field_value}, 0);
+                },
+                .pointer => {
+                    if (@typeInfo(field.type).pointer.child == u8) {
+                        const field_value = @field(item, field.name);
+                        params[i] = try gpa.dupeZ(u8, field_value);
+                    } else {
+                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
+                    }
+                },
+                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
+            }
+        }
+
+        params[fields.len] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
+
+        return params;
+    }
+
     pub fn insertItem(self: *const Database, gpa: Allocator, comptime T: type, item: T.Create) !u32 {
         const cols = comptime Database.getCols(T.Create);
         const placeholders = comptime Database.getPlaceholders(T.Create);
@@ -173,23 +200,31 @@ pub const Database = struct {
         return id;
     }
 
-    pub fn updateCharacter(self: *const Database, gpa: Allocator, id: u32, character: UpdateCharacter) !void {
-        const query = "UPDATE characters SET name = $1, level = $2 WHERE id = $3";
+    pub fn getSetClauses(comptime T: type) []const u8 {
+        comptime var set_clauses: []const u8 = "";
+        const fields = @typeInfo(T).@"struct".fields;
+        inline for (0..fields.len) |i| {
+            const field = fields[i];
+            set_clauses = set_clauses ++ field.name ++ " = $" ++ std.fmt.comptimePrint("{d}", .{i + 1});
+            if (i < fields.len - 1) {
+                set_clauses = set_clauses ++ ", ";
+            }
+        }
+        set_clauses = set_clauses ++ " WHERE id = $" ++ std.fmt.comptimePrint("{d}", .{fields.len + 1});
+        return set_clauses;
+    }
 
-        const name_cstr = try gpa.dupeZ(u8, character.name);
-        defer gpa.free(name_cstr);
+    pub fn updateItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32, item: T.Update) !void {
+        const set_clauses = comptime Database.getSetClauses(T.Update);
+        const query = "UPDATE " ++ T.table_name ++ " SET " ++ set_clauses;
 
-        const level_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{character.level}, 0);
-        defer gpa.free(level_cstr);
+        const params = try Database.getParamsWithId(gpa, T.Update, item, id);
 
-        const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
-        defer gpa.free(id_cstr);
-
-        const result = try self.conn.execParams(query, &.{ name_cstr, level_cstr, id_cstr });
+        const result = try self.conn.execParams(query, &params);
         defer result.deinit();
 
         if (try result.affectedRows() != 1) {
-            return error.CharacterNotFound;
+            return error.ItemNotFound;
         }
     }
 

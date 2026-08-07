@@ -5,16 +5,20 @@ const std = @import("std");
 
 const Allocator = std.mem.Allocator;
 
-pub const KinCreate = struct {
+pub const KinBody = struct {
     name: []const u8,
 
-    pub fn validate(self: *const KinCreate) error{EmptyName}!void {
+    pub fn validate(self: *const KinBody) error{EmptyName}!void {
         if (self.name.len == 0) return error.EmptyName;
     }
 };
 
+pub const KinCreate = KinBody;
+pub const KinUpdate = KinBody;
+
 pub const Kin = struct {
     pub const Create = KinCreate;
+    pub const Update = KinUpdate;
     pub const table_name: []const u8 = "kins";
 
     id: u32 = 0,
