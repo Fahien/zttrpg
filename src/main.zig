@@ -224,8 +224,8 @@ fn handleCollection(
         .GET => {
             if (wantsJson(request)) {
                 switch (resource) {
-                    .characters => try respondCharacters(gpa, writer, db, request),
-                    .kins => try respondKins(gpa, writer, db, request),
+                    .characters => try respondItems(gpa, writer, db, request, zttrpg.Character),
+                    .kins => try respondItems(gpa, writer, db, request, zttrpg.Kin),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, resource, Page.index);
@@ -356,29 +356,15 @@ fn wantsJson(request: *std.http.Server.Request) bool {
 
 const Page = enum { index, item };
 
-fn respondCharacters(
+fn respondItems(
     gpa: Allocator,
     writer: *Io.Writer.Allocating,
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
+    comptime T: type,
 ) !void {
-    const characters = try db.readAllAlloc(gpa, zttrpg.Character);
-    try std.json.Stringify.value(characters, .{}, &writer.writer);
-    const extra_header = std.http.Header{
-        .name = "Content-Type",
-        .value = "application/json",
-    };
-    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
-}
-
-fn respondKins(
-    gpa: Allocator,
-    writer: *Io.Writer.Allocating,
-    db: *const zttrpg.Database,
-    request: *std.http.Server.Request,
-) !void {
-    const kins = try db.readAllAlloc(gpa, zttrpg.Kin);
-    try std.json.Stringify.value(kins, .{}, &writer.writer);
+    const items = try db.readAllAlloc(gpa, T);
+    try std.json.Stringify.value(items, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
         .value = "application/json",
