@@ -22,6 +22,8 @@ pub const CreateCharacter = BodyCharacter;
 pub const UpdateCharacter = BodyCharacter;
 
 pub const Character = struct {
+    pub const table_name: []const u8 = "characters";
+
     id: u32,
     name: []const u8,
     level: u32,

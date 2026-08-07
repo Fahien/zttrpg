@@ -6,7 +6,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const Kin = struct {
-    id: u32,
+    pub const table_name: []const u8 = "kins";
+
+    id: u32 = 0,
     name: []const u8,
 
     pub fn init(gpa: Allocator, id: u32, name: []const u8) !Kin {

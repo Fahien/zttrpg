@@ -42,62 +42,59 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        return try Database.rowToCharacter(gpa, &result, 0);
+        return try Database.rowToT(Character, gpa, &result, 0);
     }
 
-    pub fn readKinsAlloc(self: *const Database, gpa: Allocator) ![]Kin {
-        const result = try self.conn.exec("SELECT id, name FROM kins");
+    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
+        // Build the SELECT query dynamically based on the fields of the struct T.
+        comptime var cols: []const u8 = "";
+        const field_count = @typeInfo(T).@"struct".fields.len;
+        inline for (@typeInfo(T).@"struct".fields, 0..) |field, i| {
+            cols = cols ++ field.name;
+            if (i < field_count - 1) {
+                cols = cols ++ ", ";
+            }
+        }
+
+        const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
+        const result = try self.conn.exec(query);
         defer result.deinit();
 
         const count = result.len();
-        var kins = try gpa.alloc(Kin, count);
+        var items = try gpa.alloc(T, count);
 
         for (0..count) |row| {
-            kins[row] = try Database.rowToKin(gpa, &result, row);
+            items[row] = try Database.rowToT(T, gpa, &result, row);
         }
 
-        return kins;
+        return items;
     }
 
-    fn rowToKin(gpa: Allocator, result: *const pq.Result, row: usize) !Kin {
-        const id_cstr = result.getValue(row, 0);
-        const name_cstr = result.getValue(row, 1);
+    fn rowToT(comptime T: type, gpa: Allocator, result: *const pq.Result, row: usize) !T {
+        var ret: T = undefined;
 
-        const id_str = std.mem.span(id_cstr);
-        const name_str = std.mem.span(name_cstr);
+        inline for (@typeInfo(T).@"struct".fields, 0..) |field, col_index| {
+            const col_value_cstr = result.getValue(row, col_index);
+            const col_value_str = std.mem.span(col_value_cstr);
 
-        const id_parsed = try std.fmt.parseInt(u32, id_str, 10);
-
-        return try Kin.init(gpa, id_parsed, name_str);
-    }
-
-    pub fn readCharactersAlloc(self: *const Database, gpa: Allocator) ![]Character {
-        const result = try self.conn.exec("SELECT id, name, level FROM characters");
-        defer result.deinit();
-
-        const count = result.len();
-        var characters = try gpa.alloc(Character, count);
-
-        for (0..count) |row| {
-            characters[row] = try Database.rowToCharacter(gpa, &result, row);
+            const type_info = @typeInfo(field.type);
+            switch (type_info) {
+                .int => {
+                    const field_value = try std.fmt.parseInt(field.type, col_value_str, 10);
+                    @field(ret, field.name) = field_value;
+                },
+                .pointer => {
+                    if (type_info.pointer.child == u8) {
+                        const field_value = try gpa.dupe(u8, col_value_str);
+                        @field(ret, field.name) = field_value;
+                    } else {
+                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
+                    }
+                },
+                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
+            }
         }
-
-        return characters;
-    }
-
-    fn rowToCharacter(gpa: Allocator, result: *const pq.Result, row: usize) !Character {
-        const id_cstr = result.getValue(row, 0);
-        const name_cstr = result.getValue(row, 1);
-        const level_cstr = result.getValue(row, 2);
-
-        const id_str = std.mem.span(id_cstr);
-        const name_str = std.mem.span(name_cstr);
-        const level_str = std.mem.span(level_cstr);
-
-        const id_parsed = try std.fmt.parseInt(u32, id_str, 10);
-        const level_parsed = try std.fmt.parseInt(u32, level_str, 10);
-
-        return try Character.init(gpa, id_parsed, name_str, level_parsed);
+        return ret;
     }
 
     pub fn insertCharacter(self: *const Database, gpa: Allocator, character: CreateCharacter) !u32 {

@@ -361,7 +361,7 @@ fn respondCharacters(
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    const characters = try db.readCharactersAlloc(gpa);
+    const characters = try db.readAllAlloc(gpa, zttrpg.Character);
     try std.json.Stringify.value(characters, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
@@ -376,7 +376,7 @@ fn respondKins(
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    const kins = try db.readKinsAlloc(gpa);
+    const kins = try db.readAllAlloc(gpa, zttrpg.Kin);
     try std.json.Stringify.value(kins, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
