@@ -28,8 +28,9 @@ pub const Database = struct {
         self.conn.close();
     }
 
-    pub fn readCharacter(self: *const Database, gpa: Allocator, id: u32) !?Character {
-        const query = "SELECT id, name, level FROM characters WHERE id = $1";
+    pub fn readItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !?T {
+        const cols = comptime Database.getCols(T);
+        const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " WHERE id = $1";
         const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
         defer gpa.free(id_cstr);
 
@@ -42,11 +43,10 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        return try Database.rowToT(Character, gpa, &result, 0);
+        return try Database.rowToT(T, gpa, &result, 0);
     }
 
-    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
-        // Build the SELECT query dynamically based on the fields of the struct T.
+    fn getCols(comptime T: type) []const u8 {
         comptime var cols: []const u8 = "";
         const field_count = @typeInfo(T).@"struct".fields.len;
         inline for (@typeInfo(T).@"struct".fields, 0..) |field, i| {
@@ -55,7 +55,12 @@ pub const Database = struct {
                 cols = cols ++ ", ";
             }
         }
+        return cols;
+    }
 
+    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
+        // Build the SELECT query dynamically based on the fields of the struct T.
+        const cols = comptime Database.getCols(T);
         const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
         const result = try self.conn.exec(query);
         defer result.deinit();

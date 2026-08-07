@@ -392,7 +392,7 @@ fn respondCharacter(
     request: *std.http.Server.Request,
     id: u32,
 ) !void {
-    const character = db.readCharacter(gpa, id) catch {
+    const character = db.readItem(gpa, zttrpg.Character, id) catch {
         try writer.writer.print("Failed to read character with ID {d}.\n", .{id});
         try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
         return;
