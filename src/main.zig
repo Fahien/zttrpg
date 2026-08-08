@@ -492,6 +492,17 @@ test "parseRoute: static rejects path traversal" {
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/static/css/../../../etc/passwd"));
 }
 
+test "every resource ships its index and item pages" {
+    // Pages are read from disk at request time, so a missing file would only
+    // surface as a runtime 404. Embedding each expected page here makes
+    // "resource without its HTML" fail the build instead.
+    inline for (@typeInfo(Resource).@"enum".fields) |resource| {
+        inline for (@typeInfo(Page).@"enum".fields) |page| {
+            _ = @embedFile("web/" ++ resource.name ++ "/" ++ page.name ++ ".html");
+        }
+    }
+}
+
 test "parseRoute: rejections" {
     // Unknown top-level segment.
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/nope"));

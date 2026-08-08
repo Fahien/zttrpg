@@ -7,3 +7,10 @@ pub const Character = character.Character;
 
 const kin = @import("kin.zig");
 pub const Kin = kin.Kin;
+
+test {
+    // Test discovery is lazy: a file's tests are only collected when the file
+    // is referenced from a test context, so name each model file here.
+    _ = character;
+    _ = kin;
+}

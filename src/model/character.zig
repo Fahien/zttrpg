@@ -3,7 +3,7 @@
 
 const std = @import("std");
 
-const Io = std.io;
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 pub const BodyCharacter = struct {

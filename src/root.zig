@@ -58,20 +58,6 @@ pub const Database = struct {
         return cols;
     }
 
-    fn getColsWithoutId(comptime T: type) []const u8 {
-        comptime var cols: []const u8 = "";
-        const field_count = @typeInfo(T).@"struct".fields.len;
-        inline for (@typeInfo(T).@"struct".fields, 0..) |field, i| {
-            if (!std.mem.eql(u8, field.name, "id")) {
-                cols = cols ++ field.name;
-                if (i < field_count - 1) {
-                    cols = cols ++ ", ";
-                }
-            }
-        }
-        return cols;
-    }
-
     pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
         // Build the SELECT query dynamically based on the fields of the struct T.
         const cols = comptime Database.getCols(T);
@@ -242,3 +228,61 @@ pub const Database = struct {
         }
     }
 };
+
+test {
+    // Test discovery is lazy: without this reference the model files' tests
+    // are silently skipped.
+    _ = model;
+}
+
+test "getCols lists the fields in declaration order" {
+    try std.testing.expectEqualStrings("id, name, level", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name", comptime Database.getCols(Kin));
+    // Insert columns come from the Create type, which must never carry `id`:
+    // getPlaceholders and getParams both assume every field is insertable.
+    try std.testing.expectEqualStrings("name, level", comptime Database.getCols(Character.Create));
+    try std.testing.expectEqualStrings("name", comptime Database.getCols(Kin.Create));
+}
+
+test "getPlaceholders numbers parameters from $1" {
+    try std.testing.expectEqualStrings("$1, $2", comptime Database.getPlaceholders(Character.Create));
+    try std.testing.expectEqualStrings("$1", comptime Database.getPlaceholders(Kin.Create));
+}
+
+test "getSetClauses derives the id placeholder from the field count" {
+    // Regression guard: a hardcoded `WHERE id = $3` once broke PUT /kins/<id>,
+    // because Kin.Update has one body field and its id parameter is $2.
+    try std.testing.expectEqualStrings(
+        "name = $1, level = $2 WHERE id = $3",
+        comptime Database.getSetClauses(Character.Update),
+    );
+    try std.testing.expectEqualStrings(
+        "name = $1 WHERE id = $2",
+        comptime Database.getSetClauses(Kin.Update),
+    );
+}
+
+test "getParams renders fields as C strings in declaration order" {
+    const gpa = std.testing.allocator;
+
+    const params = try Database.getParams(gpa, Character.Create, .{ .name = "Grog", .level = 3 });
+    defer {
+        for (params) |param| gpa.free(std.mem.span(param));
+    }
+
+    try std.testing.expectEqualStrings("Grog", std.mem.span(params[0]));
+    try std.testing.expectEqualStrings("3", std.mem.span(params[1]));
+}
+
+test "getParamsWithId appends the id as the final parameter" {
+    const gpa = std.testing.allocator;
+
+    // The id position must match the placeholder getSetClauses generates.
+    const params = try Database.getParamsWithId(gpa, Kin.Update, .{ .name = "Elf" }, 9);
+    defer {
+        for (params) |param| gpa.free(std.mem.span(param));
+    }
+
+    try std.testing.expectEqualStrings("Elf", std.mem.span(params[0]));
+    try std.testing.expectEqualStrings("9", std.mem.span(params[1]));
+}
