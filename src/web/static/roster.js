@@ -1,8 +1,22 @@
 // © 2026 Antonio Caggiano
 // SPDX-License-Identifier: MIT
 
+const script = document.currentScript;
+const resource = script.dataset.resource;
+const spec = script.dataset.fields; // e.g., "name:text,level:number"
+
+function parseSpec(spec) {
+    const fields = spec.split(','); // e.g., ["name:text", "level:number"]
+    return fields.map(field => {
+        const [name, type] = field.split(':');
+        return { name, type };
+    });
+}
+
+const fields = parseSpec(spec);
+
 async function fetchRoster() {
-    const response = await fetch('/characters', {
+    const response = await fetch(`/${resource}`, {
         headers: {
             'Accept': 'application/json'
         }
@@ -11,16 +25,31 @@ async function fetchRoster() {
         console.error('Failed to fetch roster:', response.statusText);
         return;
     }
-    const characters = await response.json();
+
     const rosterTable = document.getElementById('roster');
     rosterTable.innerHTML = '';
-    characters.forEach(character => {
-        const row = rosterTable.insertRow();
-        row.insertCell().textContent = character.id;
-        row.insertCell().textContent = character.name;
-        row.insertCell().textContent = character.level;
+
+    // Table header.
+    const tableHeader = rosterTable.createTHead()
+    const headerRow = tableHeader.insertRow();
+    for (const field of fields) {
+        const headerCell = headerRow.insertCell();
+        headerCell.textContent = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+    }
+
+    // Table body.
+    const tableBody = rosterTable.createTBody(); // Create a tbody for the data rows
+    const items = await response.json();
+    items.forEach(item => {
+        const row = tableBody.insertRow();
+
+        for (const field of fields) {
+            const cell = row.insertCell();
+            cell.textContent = item[field.name];
+        }
     });
 }
+
 
 // Fetch the roster when the page loads
 window.addEventListener('load', fetchRoster);
@@ -44,7 +73,7 @@ characterForm.addEventListener('submit', async (event) => {
 
     try {
         // Send a POST request to the server to add the new character.
-        const response = await fetch('/characters', {
+        const response = await fetch(`/${resource}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
