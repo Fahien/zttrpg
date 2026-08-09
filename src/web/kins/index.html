@@ -14,14 +14,16 @@
 </head>
 
 <body>
-    <h1>Kins</h1>
-    <form id="kin-form">
-        <label for="kin-name">Kin Name:</label>
-        <input type="text" id="kin-name" name="kin-name" required>
+    <h1 id="resource-name">Kins</h1>
+    <form id="instance-form">
+        <label for="name">Kin Name:</label>
+        <input type="text" id="name" name="name" required>
         <button type="submit">Add Kin</button>
     </form>
     <table id="roster"></table>
 </body>
-<script src="/static/kin-roster.js"></script>
+<script src="/static/roster.js"
+        data-resource="kins"
+        data-fields="id:number,name:text"></script>
 
 </html>
