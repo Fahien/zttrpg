@@ -95,22 +95,7 @@ function initializeForm() {
     instanceForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevent the default form submission behavior.
 
-        // Get the instance name and level from the form inputs.
-        const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('name'));
-        const levelInput = /** @type {HTMLInputElement | null} */ (document.getElementById('level'));
-
-        if (!nameInput || !levelInput) {
-            console.error('Form inputs not found in the DOM.');
-            return;
-        } 
-        const name = nameInput.value;
-        const level = parseInt(levelInput.value, 10);
-
-        // Create a new instance.
-        const newInstance = {
-            name: name,
-            level: level
-        };
+        const newInstance = Object.fromEntries(new FormData(instanceForm));
 
         try {
             // Send a POST request to the server to add the new instance.
