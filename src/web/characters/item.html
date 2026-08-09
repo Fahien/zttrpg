@@ -16,9 +16,9 @@
 <body>
     <section id="status-message" hidden>Status message</section>
 
-    <main id="character-details">
+    <main id="instance-details">
         <header>
-            <h1 id="character-name">Character Name</h1>
+            <h1 data-field="name">Name</h1>
         </header>
 
         <nav>
@@ -29,19 +29,18 @@
             </ul>
         </nav>
 
-        <section id="character-stats">
+        <section id="instance-stats">
             <h2>Stats</h2>
             <ul>
-                <li>Level: <span id="character-level">1</span></li>
-
+                <li>Level: <span data-field="level">1</span></li>
             </ul>
         </section>
-        <section id="character-equipment">
+        <section id="instance-equipment">
             <h2>Equipment</h2>
         </section>
     </main>
 </body>
 
-<script src="/static/character.js"></script>
+<script src="/static/instance.js" data-resource="characters"></script>
 
 </html>
