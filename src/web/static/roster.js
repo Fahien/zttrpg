@@ -1,10 +1,35 @@
 // © 2026 Antonio Caggiano
 // SPDX-License-Identifier: MIT
 
-const script = document.currentScript;
-const resource = script.dataset.resource;
-const spec = script.dataset.fields; // e.g., "name:text,level:number"
+// @ts-check
 
+const script = document.currentScript;
+if (!script) {
+    throw new Error('No current script found.');
+}
+
+const resource = script.dataset.resource;
+if (!resource) {
+    throw new Error('No resource specified in data-resource attribute.');
+}
+
+// Fixup h1 text to match the resource name.
+const resourceNameElement = document.getElementById('resource-name');
+if (resourceNameElement) {
+    resourceNameElement.textContent = resource.charAt(0).toUpperCase() + resource.slice(1);
+} else {
+    console.warn('No h1 element with id "resource-name" found.');
+}
+
+const spec_string = script.dataset.fields; // e.g., "name:text,level:number"
+if (!spec_string) {
+    throw new Error('No fields specified in data-fields attribute.');
+}
+
+/**
+ * @param {string} spec
+ * @returns {{name: string, type: string}[]}
+ */
 function parseSpec(spec) {
     const fields = spec.split(','); // e.g., ["name:text", "level:number"]
     return fields.map(field => {
@@ -13,7 +38,7 @@ function parseSpec(spec) {
     });
 }
 
-const fields = parseSpec(spec);
+const fields = parseSpec(spec_string);
 
 async function fetchRoster() {
     const response = await fetch(`/${resource}`, {
@@ -26,11 +51,17 @@ async function fetchRoster() {
         return;
     }
 
-    const rosterTable = document.getElementById('roster');
+
+    const rosterTable = /** @type {HTMLTableElement | null} */ (document.getElementById('roster'));
+    if (!rosterTable) {
+        console.error('No roster table found in the DOM.');
+        return;
+    }
+
     rosterTable.innerHTML = '';
 
     // Table header.
-    const tableHeader = rosterTable.createTHead()
+    const tableHeader = rosterTable.createTHead();
     const headerRow = tableHeader.insertRow();
     for (const field of fields) {
         const headerCell = headerRow.insertCell();
@@ -40,57 +71,70 @@ async function fetchRoster() {
     // Table body.
     const tableBody = rosterTable.createTBody(); // Create a tbody for the data rows
     const items = await response.json();
-    items.forEach(item => {
+    for (const item of items) {
         const row = tableBody.insertRow();
-
         for (const field of fields) {
             const cell = row.insertCell();
             cell.textContent = item[field.name];
         }
-    });
+    }
 }
 
 
 // Fetch the roster when the page loads
 window.addEventListener('load', fetchRoster);
 
-// Find character-form by ID.
-const characterForm = document.getElementById('character-form');
-
-// Add an event listener for form submission.
-characterForm.addEventListener('submit', async (event) => {
-    event.preventDefault(); // Prevent the default form submission behavior.
-
-    // Get the character name and level from the form inputs.
-    const characterName = document.getElementById('character-name').value;
-    const characterLevel = parseInt(document.getElementById('character-level').value, 10);
-
-    // Create a new character object.
-    const newCharacter = {
-        name: characterName,
-        level: characterLevel
-    };
-
-    try {
-        // Send a POST request to the server to add the new character.
-        const response = await fetch(`/${resource}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newCharacter)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to add character: ${response.statusText}`);
-        }
-
-        // Clear the form inputs after successful submission.
-        characterForm.reset();
-
-        // Refresh the roster to include the newly added character.
-        await fetchRoster();
-    } catch (error) {
-        console.error('Error adding character:', error);
+function initializeForm() {
+    // Find form by ID.
+    const instanceForm = /** @type {HTMLFormElement | null} */ (document.getElementById('instance-form'));
+    if (!instanceForm) {
+        throw new Error('No instance form found in the DOM.');
     }
-});
+
+    // Add an event listener for form submission.
+    instanceForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent the default form submission behavior.
+
+        // Get the instance name and level from the form inputs.
+        const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('name'));
+        const levelInput = /** @type {HTMLInputElement | null} */ (document.getElementById('level'));
+
+        if (!nameInput || !levelInput) {
+            console.error('Form inputs not found in the DOM.');
+            return;
+        } 
+        const name = nameInput.value;
+        const level = parseInt(levelInput.value, 10);
+
+        // Create a new instance.
+        const newInstance = {
+            name: name,
+            level: level
+        };
+
+        try {
+            // Send a POST request to the server to add the new instance.
+            const response = await fetch(`/${resource}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newInstance)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to add instance: ${response.statusText}`);
+            }
+
+            // Clear the form inputs after successful submission.
+            instanceForm.reset();
+
+            // Refresh the roster to include the newly added instance.
+            await fetchRoster();
+        } catch (error) {
+            console.error('Error adding instance:', error);
+        }
+    });
+}
+
+initializeForm();
