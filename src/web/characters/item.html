@@ -5,15 +5,11 @@
 --->
 <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZTTRPG - Character</title>
-    <link rel="stylesheet" href="/static/water.css" type="text/css">
-    <link rel="stylesheet" href="/static/custom.css" type="text/css">
-</head>
+{{head}}
 
 <body>
+    {{header}}
+
     <section id="status-message" hidden>Status message</section>
 
     <main id="instance-details">
@@ -39,8 +35,10 @@
             <h2>Equipment</h2>
         </section>
     </main>
-</body>
 
-<script src="/static/instance.js" data-resource="characters"></script>
+    {{footer}}
+
+    <script src="/static/instance.js" data-resource="characters"></script>
+</body>
 
 </html>

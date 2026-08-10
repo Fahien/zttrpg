@@ -5,15 +5,11 @@
 --->
 <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZTTRPG - Kins</title>
-    <link rel="stylesheet" href="/static/water.css" type="text/css">
-    <link rel="stylesheet" href="/static/custom.css" type="text/css">
-</head>
+{{head}}
 
 <body>
+    {{header}}
+
     <h1 id="resource-name">Kins</h1>
     <form id="instance-form">
         <label for="name">Kin Name:</label>
@@ -21,9 +17,10 @@
         <button type="submit">Add Kin</button>
     </form>
     <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="kins" data-fields="id:number,name:text"></script>
 </body>
-<script src="/static/roster.js"
-        data-resource="kins"
-        data-fields="id:number,name:text"></script>
 
 </html>

@@ -153,7 +153,7 @@ fn handleMethodNotAllowed(writer: *Io.Writer.Allocating, request: *std.http.Serv
 }
 
 fn handleRoot(gpa: Allocator, io: Io, writer: *Io.Writer.Allocating, request: *std.http.Server.Request) !void {
-    try servePath(gpa, io, writer, request, "index.html");
+    try servePage(gpa, io, writer, request, "index.html", "ZTTRPG");
 }
 
 fn handleStatic(
@@ -175,7 +175,9 @@ fn serveResource(
     page: Page,
 ) !void {
     const sub_path = try std.fmt.allocPrint(gpa, "{s}/{s}.html", .{ @tagName(resource), @tagName(page) });
-    try servePath(gpa, io, writer, request, sub_path);
+    const title = try std.fmt.allocPrint(gpa, "ZTTRPG - {s}", .{@tagName(resource)});
+    std.ascii.toUpper(title[0]);
+    try servePage(gpa, io, writer, request, sub_path, title);
 }
 
 fn servePath(
@@ -210,6 +212,65 @@ fn servePath(
     };
     try writer.writer.print("{s}", .{file_content});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false, .extra_headers = &.{content_type_header} });
+}
+
+fn servePage(
+    gpa: Allocator,
+    io: Io,
+    writer: *Io.Writer.Allocating,
+    request: *std.http.Server.Request,
+    sub_path: []const u8,
+    title: []const u8,
+) !void {
+    const web_dir = try Io.Dir.cwd().openDir(io, "src/web", .{});
+    defer web_dir.close(io);
+
+    var file_content = web_dir.readFileAlloc(io, sub_path, gpa, .limited(4096 * 16)) catch |err| {
+        std.debug.print("Failed to read file: {s}, error: {}\n", .{ sub_path, err });
+        try writer.writer.print("404 Not Found\n", .{});
+        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
+        return;
+    };
+
+    const head_partial = web_dir.readFileAlloc(io, "partials/head.html", gpa, .limited(4096)) catch |err| {
+        std.debug.print("Failed to assemble page, error: {}\n", .{err});
+        try writer.writer.print("500 Internal Server Error\n", .{});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
+    const header_partial = web_dir.readFileAlloc(io, "partials/header.html", gpa, .limited(4096)) catch |err| {
+        std.debug.print("Failed to assemble page, error: {}\n", .{err});
+        try writer.writer.print("500 Internal Server Error\n", .{});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
+    const footer_partial = web_dir.readFileAlloc(io, "partials/footer.html", gpa, .limited(4096)) catch |err| {
+        std.debug.print("Failed to assemble page, error: {}\n", .{err});
+        try writer.writer.print("500 Internal Server Error\n", .{});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
+    file_content = try autoReplace(file_content, "{{head}}", head_partial);
+    file_content = try autoReplace(file_content, "{{header}}", header_partial);
+    file_content = try autoReplace(file_content, "{{footer}}", footer_partial);
+    file_content = try autoReplace(file_content, "{{title}}", title);
+
+    const content_type_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "text/html",
+    };
+    try writer.writer.print("{s}", .{file_content});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false, .extra_headers = &.{content_type_header} });
+}
+
+fn autoReplace(source: []const u8, placeholder: []const u8, replacement: []const u8) ![]u8 {
+    const new_size = std.mem.replacementSize(u8, source, placeholder, replacement);
+    const new_buffer = try std.heap.page_allocator.alloc(u8, new_size);
+    _ = std.mem.replace(u8, source, placeholder, replacement, new_buffer);
+    return new_buffer;
 }
 
 fn handleCollection(

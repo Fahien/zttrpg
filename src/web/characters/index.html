@@ -5,15 +5,11 @@
 --->
 <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZTTRPG - Characters</title>
-    <link rel="stylesheet" href="/static/water.css" type="text/css">
-    <link rel="stylesheet" href="/static/custom.css" type="text/css">
-</head>
+{{head}}
 
 <body>
+    {{header}}
+
     <h1 id="resource-name">Characters</h1>
     <form id="instance-form">
         <label for="name">Character Name:</label>
@@ -23,9 +19,10 @@
         <button type="submit">Add Character</button>
     </form>
     <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="characters" data-fields="id:number,name:text,level:number"></script>
 </body>
-<script src="/static/roster.js"
-        data-resource="characters"
-        data-fields="id:number,name:text,level:number"></script>
 
 </html>
