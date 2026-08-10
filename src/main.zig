@@ -176,7 +176,7 @@ fn serveResource(
 ) !void {
     const sub_path = try std.fmt.allocPrint(gpa, "{s}/{s}.html", .{ @tagName(resource), @tagName(page) });
     const title = try std.fmt.allocPrint(gpa, "ZTTRPG - {s}", .{@tagName(resource)});
-    std.ascii.toUpper(title[0]);
+    title[0] = std.ascii.toUpper(title[0]);
     try servePage(gpa, io, writer, request, sub_path, title);
 }
 

@@ -12,17 +12,20 @@
 
     <h1 id="resource-name">Characters</h1>
     <form id="instance-form">
-        <label for="name">Character Name:</label>
+        <label for="name">Name:</label>
         <input type="text" id="name" name="name" required>
-        <label for="level">Character Level:</label>
+        <label for="level">Level:</label>
         <input type="number" id="level" name="level" min="1" max="100" value="1" required>
+        <label for="kin">Kin:</label>
+        <select id="kin" name="kin" required>
+        </select>
         <button type="submit">Add Character</button>
     </form>
     <table id="roster"></table>
 
     {{footer}}
 
-    <script src="/static/roster.js" data-resource="characters" data-fields="id:number,name:text,level:number"></script>
+    <script src="/static/roster.js" data-resource="characters" data-fields="id:number,name:text,level:number,kin.name:text"></script>
 </body>
 
 </html>

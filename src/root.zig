@@ -28,8 +28,18 @@ pub const Database = struct {
         self.conn.close();
     }
 
+    fn RowOfT(comptime T: type) type {
+        if (@hasDecl(T, "Row")) {
+            return @field(T, "Row");
+        } else {
+            return T;
+        }
+    }
+
     pub fn readItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !?T {
-        const cols = comptime Database.getCols(T);
+        const QueryType = RowOfT(T);
+
+        const cols = comptime Database.getCols(QueryType);
         const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " WHERE id = $1";
         const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
         defer gpa.free(id_cstr);
@@ -43,7 +53,8 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        return try Database.rowToT(T, gpa, &result, 0);
+        const inner = try Database.rowToT(QueryType, gpa, &result, 0);
+        return try self.innerToT(T, QueryType, gpa, inner);
     }
 
     fn getCols(comptime T: type) []const u8 {
@@ -59,8 +70,10 @@ pub const Database = struct {
     }
 
     pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
+        const QueryType = RowOfT(T);
+
         // Build the SELECT query dynamically based on the fields of the struct T.
-        const cols = comptime Database.getCols(T);
+        const cols = comptime Database.getCols(QueryType);
         const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
         const result = try self.conn.exec(query);
         defer result.deinit();
@@ -69,7 +82,8 @@ pub const Database = struct {
         var items = try gpa.alloc(T, count);
 
         for (0..count) |row| {
-            items[row] = try Database.rowToT(T, gpa, &result, row);
+            const inner = try Database.rowToT(QueryType, gpa, &result, row);
+            items[row] = try self.innerToT(T, QueryType, gpa, inner);
         }
 
         return items;
@@ -100,6 +114,24 @@ pub const Database = struct {
             }
         }
         return ret;
+    }
+
+    fn innerToT(
+        self: *const Database,
+        comptime T: type,
+        comptime Inner: type,
+        gpa: Allocator,
+        inner: Inner,
+    ) !T {
+        if (T == Inner) {
+            return inner;
+        } else if (T == Character) {
+            const kin = try self.readItem(gpa, Kin, inner.kin);
+            if (kin == null) return error.KinNotFound;
+            return Character.init(gpa, inner.id, inner.name, inner.level, kin.?);
+        } else {
+            @compileError("Unsupported conversion from " ++ @typeName(Inner) ++ " to " ++ @typeName(T));
+        }
     }
 
     pub fn getPlaceholders(comptime T: type) []const u8 {
@@ -236,16 +268,16 @@ test {
 }
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name", comptime Database.getCols(Kin));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
-    try std.testing.expectEqualStrings("name, level", comptime Database.getCols(Character.Create));
+    try std.testing.expectEqualStrings("name, level, kin", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name", comptime Database.getCols(Kin.Create));
 }
 
 test "getPlaceholders numbers parameters from $1" {
-    try std.testing.expectEqualStrings("$1, $2", comptime Database.getPlaceholders(Character.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1", comptime Database.getPlaceholders(Kin.Create));
 }
 
@@ -253,7 +285,7 @@ test "getSetClauses derives the id placeholder from the field count" {
     // Regression guard: a hardcoded `WHERE id = $3` once broke PUT /kins/<id>,
     // because Kin.Update has one body field and its id parameter is $2.
     try std.testing.expectEqualStrings(
-        "name = $1, level = $2 WHERE id = $3",
+        "name = $1, level = $2, kin = $3 WHERE id = $4",
         comptime Database.getSetClauses(Character.Update),
     );
     try std.testing.expectEqualStrings(
@@ -265,13 +297,14 @@ test "getSetClauses derives the id placeholder from the field count" {
 test "getParams renders fields as C strings in declaration order" {
     const gpa = std.testing.allocator;
 
-    const params = try Database.getParams(gpa, Character.Create, .{ .name = "Grog", .level = 3 });
+    const params = try Database.getParams(gpa, Character.Create, .{ .name = "Grog", .level = 3, .kin = 1 });
     defer {
         for (params) |param| gpa.free(std.mem.span(param));
     }
 
     try std.testing.expectEqualStrings("Grog", std.mem.span(params[0]));
     try std.testing.expectEqualStrings("3", std.mem.span(params[1]));
+    try std.testing.expectEqualStrings("1", std.mem.span(params[2]));
 }
 
 test "getParamsWithId appends the id as the final parameter" {

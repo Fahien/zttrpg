@@ -65,7 +65,8 @@ async function fetchRoster() {
     const headerRow = tableHeader.insertRow();
     for (const field of fields) {
         const headerCell = headerRow.insertCell();
-        headerCell.textContent = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        const upperCaseName = field.name.charAt(0).toUpperCase() + field.name.slice(1);
+        headerCell.textContent = upperCaseName.replace('.', ' '); // Replace dot with space for nested fields
     }
 
     // Table body.
@@ -75,7 +76,12 @@ async function fetchRoster() {
         const row = tableBody.insertRow();
         for (const field of fields) {
             const cell = row.insertCell();
-            cell.textContent = item[field.name];
+            const path = field.name.split('.'); // Handle nested fields like "kin.name"
+            const value = path.reduce((obj, key) => (obj && obj[key] !== undefined) ? obj[key] : null, item);
+            if (value === null || value === undefined) {
+                cell.textContent = '<error>';
+            }
+            cell.textContent = value;
         }
     }
 }

@@ -18,11 +18,12 @@ pub const KinCreate = KinBody;
 pub const KinUpdate = KinBody;
 
 pub const Kin = struct {
+    pub const Id = u32;
     pub const Create = KinCreate;
     pub const Update = KinUpdate;
     pub const table_name: []const u8 = "kins";
 
-    id: u32 = 0,
+    id: Id = 0,
     name: []const u8,
 
     pub fn init(gpa: Allocator, id: u32, name: []const u8) !Kin {
