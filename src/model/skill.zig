@@ -60,3 +60,30 @@ test "Skill serializes to the JSON wire shape" {
         \\{"id":1,"name":"Stealth"}
     , out.written());
 }
+
+test "SkillCreate parses from a JSON body" {
+    // The shape POST /skills receives: no id, because the database assigns it.
+    const parsed = try std.json.parseFromSlice(
+        SkillCreate,
+        std.testing.allocator,
+        \\{"name":"Stealth"}
+    ,
+        .{},
+    );
+    defer parsed.deinit();
+
+    try std.testing.expectEqualStrings("Stealth", parsed.value.name);
+}
+
+test "Skill.init copies the name and deinit frees it" {
+    const gpa = std.testing.allocator;
+
+    var name_buf = [_]u8{ 'H', 'e', 'a', 'l' };
+    const skill = try Skill.init(gpa, 7, &name_buf);
+    defer skill.deinit(gpa);
+
+    // Mutating the source must not affect the copy.
+    name_buf[0] = 'S';
+    try std.testing.expectEqualStrings("Heal", skill.name);
+    try std.testing.expectEqual(7, skill.id);
+}

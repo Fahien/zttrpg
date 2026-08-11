@@ -351,7 +351,7 @@ fn updateItem(
     const reader = try request.readerExpectContinue(scratch_buffer);
     const body = try reader.allocRemaining(gpa, .limited(4096));
 
-    const character_update = std.json.parseFromSliceLeaky(
+    const update = std.json.parseFromSliceLeaky(
         T.Update,
         gpa,
         body,
@@ -362,13 +362,13 @@ fn updateItem(
         return;
     };
 
-    character_update.validate() catch {
+    update.validate() catch {
         try writer.writer.print("Invalid update\n", .{});
         try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
         return;
     };
 
-    db.updateItem(gpa, T, id, character_update) catch |err| {
+    db.updateItem(gpa, T, id, update) catch |err| {
         switch (err) {
             error.ItemNotFound => {
                 try writer.writer.print("Item with ID {d} not found.\n", .{id});
@@ -567,6 +567,51 @@ test "every resource ships its index and item pages" {
         inline for (@typeInfo(Page).@"enum".fields) |page| {
             _ = @embedFile("web/" ++ resource.name ++ "/" ++ page.name ++ ".html");
         }
+    }
+}
+
+test "every resource routes as a collection and as an item" {
+    // parseRoute resolves the first segment with stringToEnum over Resource, so
+    // a new resource becomes routable the moment it joins the enum. Looping over
+    // the enum instead of naming each resource keeps this from falling behind.
+    inline for (@typeInfo(Resource).@"enum".fields) |field| {
+        const resource: Resource = @enumFromInt(field.value);
+
+        try std.testing.expectEqual(
+            Route{ .collection = resource },
+            Route.parseRoute("/" ++ field.name),
+        );
+        try std.testing.expectEqual(
+            Route{ .item = .{ .resource = resource, .id = 7 } },
+            Route.parseRoute("/" ++ field.name ++ "/7"),
+        );
+    }
+}
+
+test "every page wires up the ids its shared script looks up" {
+    // roster.js and instance.js are shared by every resource and find their
+    // elements by id. A page that names an element after its own resource
+    // (#kin-details) still renders, so the break only shows up as a dead error
+    // path in the browser: pin the contract at build time instead.
+    inline for (@typeInfo(Resource).@"enum".fields) |resource| {
+        const index_page = @embedFile("web/" ++ resource.name ++ "/index.html");
+        for ([_][]const u8{ "resource-name", "instance-form", "roster" }) |id| {
+            try expectContainsId(index_page, id);
+        }
+
+        const item_page = @embedFile("web/" ++ resource.name ++ "/item.html");
+        for ([_][]const u8{ "status-message", "instance-details" }) |id| {
+            try expectContainsId(item_page, id);
+        }
+    }
+}
+
+fn expectContainsId(page: []const u8, id: []const u8) !void {
+    var buffer: [64]u8 = undefined;
+    const attribute = try std.fmt.bufPrint(&buffer, "id=\"{s}\"", .{id});
+    if (std.mem.find(u8, page, attribute) == null) {
+        std.debug.print("page is missing {s}\n", .{attribute});
+        return error.MissingElementId;
     }
 }
 
