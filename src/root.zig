@@ -8,6 +8,7 @@ const Allocator = std.mem.Allocator;
 
 const model = @import("model/model.zig");
 
+pub const Skill = model.Skill;
 pub const Kin = model.Kin;
 pub const BodyCharacter = model.BodyCharacter;
 pub const CreateCharacter = model.CreateCharacter;

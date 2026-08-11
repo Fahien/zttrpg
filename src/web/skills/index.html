@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--
+---- © 2026 Antonio Caggiano
+---- SPDX-License-Identifier: MIT
+--->
+<html lang="en">
+
+{{head}}
+
+<body>
+    {{header}}
+
+    <h1 id="resource-name">Skills</h1>
+    <form id="instance-form">
+        <label for="name">Skill Name:</label>
+        <input type="text" id="name" name="name" required>
+        <button type="submit">Add Skill</button>
+    </form>
+    <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="skills" data-fields="id:number,name:text"></script>
+</body>
+
+</html>
