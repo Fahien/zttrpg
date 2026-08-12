@@ -92,7 +92,7 @@ async function fetchRoster() {
             if (field.type === 'icon') {
                 const span = document.createElement('span');
                 span.className = `icon`;
-                span.style.cssText = `--icon:url('icons/${value}.svg')`;
+                span.style.cssText = `--icon:url('/static/icons/${value}.svg')`;
                 cell.appendChild(span);
             } else {
                 if (value === null || value === undefined) {

@@ -3,37 +3,324 @@
  * SPDX-License-Identifier: MIT
  */
 
+/* Parchment theme: the light half of the palette. */
+:root {
+    /* Brand */
+    --gold: #8a5a00;
+    --gold-dim: #b39b6a;
+    --plate: #e8dcc0;
+    --plate-deep: #ded0ac;
+    --font-display: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    /* The one gradient in the stylesheet: gilt lettering for headings. */
+    --display-gradient: linear-gradient(180deg, #8a5a00, #4a3000);
+
+    /* Surfaces: the wall behind the page, and the light that carves it. */
+    --field: #cdbf9b;
+    --bevel: rgba(0, 0, 0, .18);
+    --vignette: rgba(0, 0, 0, .06);
+    --text-emboss: 0 1px 0 rgba(255, 255, 255, .6);
+
+    /* Item quality, darkened for readability on parchment. */
+    --q-poor: #5c5c5c;
+    --q-common: #3a2f1e;
+    --q-uncommon: #136000;
+    --q-rare: #0a4fa0;
+    --q-epic: #6b1fa8;
+    --q-legendary: #a34d00;
+    --q-artifact: #6b5416;
+
+    /* Faction */
+    --alliance: #003f8a;
+    --horde: #8b0000;
+
+    --danger: #8b0000;
+
+    /* water.css mappings */
+    --background-body: var(--plate);
+    --background: var(--plate-deep);
+    --background-alt: #f2e9d2;
+    --text-main: #3a2f1e;
+    --text-bright: #1c1710;
+    --text-muted: #6b5b3e;
+    --links: var(--gold);
+    --border: var(--gold-dim);
+    --selection: #c8aa6e;
+    --focus: #b8860bab;
+    --button-base: #d8c79c;
+    --button-hover: #c8b384;
+    --form-text: #3a2f1e;
+    --form-placeholder: #8a7a5c;
+    --code: #7a3b00;
+    --variable: var(--q-uncommon);
+    --highlight: #ffd100;
+    --scrollbar-thumb: var(--gold-dim);
+    --scrollbar-thumb-hover: #8a7a5c;
+}
+
+/* Stone theme: dark keep walls, gilded trim. */
 @media (prefers-color-scheme: dark) {
     :root {
-        --background-body: #222;
-        --background: #111;
-        --background-alt: #333;
-        --text-main: #D7CEA4;
+        --gold: #ffd100;
+        --gold-dim: #c8aa6e;
+        --plate: #1b1a17;
+        --plate-deep: #100f0d;
+
+        --display-gradient: linear-gradient(180deg, #ffe9a8, #c8930f);
+
+        --field: #0b0a08;
+        --bevel: rgba(0, 0, 0, .9);
+        --vignette: rgba(0, 0, 0, .55);
+        --text-emboss: 0 1px 0 #000;
+
+        /* In-game quality colours, unaltered. */
+        --q-poor: #9d9d9d;
+        --q-common: #ffffff;
+        --q-uncommon: #1eff00;
+        --q-rare: #0070dd;
+        --q-epic: #a335ee;
+        --q-legendary: #ff8000;
+        --q-artifact: #e6cc80;
+
+        --alliance: #0078ff;
+        --horde: #b30000;
+
+        --danger: #a83232;
+
+        --background-body: var(--plate);
+        --background: var(--plate-deep);
+        --background-alt: #262319;
+        --text-main: #d7cea4;
+        --text-bright: var(--gold);
+        --text-muted: #9c8f6b;
+        --links: #f8b700;
+        --border: #6b5a3a;
+        --selection: #6b4f1a;
+        --focus: #ffd10066;
+        --button-base: #2a2721;
+        --button-hover: #3a352b;
+        --form-text: #d7cea4;
+        --form-placeholder: #7d7359;
+        --code: #ffb86c;
+        --variable: var(--q-uncommon);
+        --highlight: var(--gold);
+        --scrollbar-thumb: #4a4438;
+        --scrollbar-thumb-hover: #6b5a3a;
     }
 }
 
-form {
-    padding: 1em;
-    border: 1px solid var(--background-alt);
-    border-radius: 4px;
+/* The wall the page hangs on. */
+html {
+    background-color: var(--field);
 }
 
-section {
-    padding: 1em;
+/* The page itself is a plate bolted to that wall. */
+body {
+    padding: 1.5em 2em;
     border-radius: 4px;
+    box-shadow:
+        inset 0 0 0 1px var(--bevel),
+        inset 0 0 4px var(--vignette),
+        0 2px 12px rgba(0, 0, 0, .35);
+}
+
+/* Gilt lettering: the gradient is clipped to the glyphs, so it fills the
+   letters instead of the box behind them. No text-shadow here — it would
+   paint over the gradient and muddy it. */
+h1,
+h2,
+h3 {
+    font-family: var(--font-display);
+    background-image: var(--display-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Drop cap, the way the old fansites opened a page. */
+.intro::first-letter {
+    float: left;
+    margin-right: .06em;
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 3.2em;
+    line-height: .8;
+    text-shadow: var(--text-emboss);
+}
+
+header nav {
+    padding: .4em 0;
+    border-block: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+}
+
+header nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0;
+    list-style: none;
+}
+
+header nav ul li {
+    margin-right: 1em;
+}
+
+/* Mark the current page server-side with aria-current="page". */
+header nav a:hover,
+header nav a[aria-current="page"] {
+    color: var(--gold);
+}
+
+/* Panels: raised fill, gilded edge, bevel line, corner rivets. */
+form,
+section {
+    position: relative;
+    padding: 1em;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background-color: var(--background-alt);
+    box-shadow:
+        inset 0 0 0 1px var(--bevel),
+        inset 0 0 4px var(--vignette);
+}
+
+form::before,
+section::before {
+    top: 4px;
+    left: 4px;
+}
+
+form::after,
+section::after {
+    right: 4px;
+    bottom: 4px;
+}
+
+thead {
+    text-transform: uppercase;
+    letter-spacing: .12em;
+}
+
+thead th {
+    color: var(--gold);
+    border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+    background-color: color-mix(in srgb, var(--gold) 12%, transparent);
+}
+
+/* Ornamental divider: hairline, diamond centre, no image. */
+hr {
+    position: relative;
+    overflow: visible;
+    height: 1px;
+    border: 0;
+    background-color: var(--gold-dim);
+}
+
+hr::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    background-color: var(--gold);
+    translate: -50% -50%;
+    rotate: 45deg;
+}
+
+button,
+input[type="submit"] {
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--bevel);
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+}
+
+button:active,
+input[type="submit"]:active {
+    translate: 0 1px;
+}
+
+/* Inputs read as recessed slots rather than raised cards. */
+input,
+select,
+textarea {
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 3px var(--bevel);
+}
+
+/* Item quality tints the text and any framed icon nested inside it,
+   because custom properties inherit. */
+[data-quality] {
+    color: var(--quality);
+}
+
+[data-quality="poor"] { --quality: var(--q-poor); }
+[data-quality="common"] { --quality: var(--q-common); }
+[data-quality="uncommon"] { --quality: var(--q-uncommon); }
+[data-quality="rare"] { --quality: var(--q-rare); }
+[data-quality="epic"] { --quality: var(--q-epic); }
+[data-quality="legendary"] { --quality: var(--q-legendary); }
+[data-quality="artifact"] { --quality: var(--q-artifact); }
+
+/* Tooltip text lives in data-tooltip; real newlines in the attribute
+   become stat lines thanks to pre-line. */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 12em;
+    padding: .5em .75em;
+    border: 1px solid var(--quality, var(--gold-dim));
+    background-color: var(--plate-deep);
+    color: var(--text-main);
+    font-size: .9rem;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: pre-line;
+    pointer-events: none;
 }
 
 .error {
-    border: 1px solid darkred;
+    border: 1px solid var(--danger);
 }
 
 .icon {
     display: inline-block;
-    width: 2em;
-    height: 2em;
+    width: var(--icon-size, 2em);
+    height: var(--icon-size, 2em);
     background-color: currentColor;
     mask-image: var(--icon);
     mask-repeat: no-repeat;
     mask-position: center;
     mask-size: contain;
+}
+
+/* The socket an ability icon sits in. */
+.icon-frame {
+    display: inline-block;
+    padding: 3px;
+    border: 1px solid var(--quality, var(--gold-dim));
+    background-color: var(--plate-deep);
+    box-shadow: inset 0 0 0 1px var(--bevel);
+    line-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --animation-duration: 0s;
+    }
 }
