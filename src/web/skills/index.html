@@ -14,13 +14,15 @@
     <form id="instance-form">
         <label for="name">Skill Name:</label>
         <input type="text" id="name" name="name" required>
+        <label for="icon">Icon:</label>
+        <select id="icon" name="icon" data-resource="icons" required></select>
         <button type="submit">Add Skill</button>
     </form>
     <table id="roster"></table>
 
     {{footer}}
 
-    <script src="/static/roster.js" data-resource="skills" data-fields="id:number,name:text,icon.name:text"></script>
+    <script src="/static/roster.js" data-resource="skills" data-fields="id:number,name:text,icon.name:icon"></script>
 </body>
 
 </html>
