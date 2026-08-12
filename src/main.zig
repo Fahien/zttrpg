@@ -205,6 +205,8 @@ fn servePath(
         content_type = "application/javascript";
     } else if (std.mem.endsWith(u8, sub_path, ".html")) {
         content_type = "text/html";
+    } else if (std.mem.endsWith(u8, sub_path, ".svg")) {
+        content_type = "image/svg+xml";
     }
 
     const content_type_header = std.http.Header{
