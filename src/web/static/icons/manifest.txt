@@ -1,9 +1,0 @@
-abacus
-dwarf-face
-orc-head
-wizard-face
-woman-elf-face
-goblin-head
-wolf-head
-troll
-half-dead

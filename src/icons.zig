@@ -65,13 +65,29 @@ pub fn main(init: std.process.Init) !void {
     const icons_out_dir = try std.Io.Dir.openDirAbsolute(init.io, icons_out, .{});
     defer icons_out_dir.close(init.io);
 
-    const manifest = try icons_out_dir.openFile(init.io, "manifest.txt", .{ .mode = .read_only });
-    defer manifest.close(init.io);
+    const icons_schema_file = try std.Io.Dir.cwd().openFile(
+        init.io,
+        "src/data/icon-names.schema.json",
+        .{ .mode = .read_only },
+    );
+    defer icons_schema_file.close(init.io);
 
     var manifest_staging_buffer: [1024]u8 = undefined;
-    var reader = manifest.reader(init.io, &manifest_staging_buffer);
+    var reader = icons_schema_file.reader(init.io, &manifest_staging_buffer);
 
-    const delimiter = "\n";
+    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
+    defer json_reader.deinit();
+    const icons_schema = std.json.parseFromTokenSourceLeaky(
+        IconsSchema,
+        init.gpa,
+        &json_reader,
+        .{ .ignore_unknown_fields = true },
+    ) catch |e| {
+        // Warn because malformed metadata can be a deeper symptom.
+        std.log.warn("{}", .{e});
+        return error.MalformedMetadata;
+    };
+    defer icons_schema.deinit(init.gpa);
 
     var line = std.Io.Writer.Allocating.init(init.gpa);
     defer line.deinit();
@@ -90,29 +106,19 @@ pub fn main(init: std.process.Init) !void {
         \\INSERT INTO icons (name) VALUES
     );
 
-    while (true) {
-        _ = reader.interface.streamDelimiter(&line.writer, delimiter[0]) catch |err| {
-            if (err == error.EndOfStream) break;
-            return err;
-        };
-        // Skip delimiter.
-        _ = reader.interface.toss(1);
-
-        const icon_name = line.written();
-
+    for (icons_schema.@"enum") |icon_name| {
         // Check if the icon exists in the registry.
         if (!icons_registry.contains(icon_name)) {
-            std.log.debug("Icon not found: {s}", .{icon_name});
+            std.log.err("Icon not found: {s}", .{icon_name});
             line.clearRetainingCapacity();
             continue;
         }
 
         const icon_sub_path = icons_registry.get(icon_name) orelse {
-            std.log.debug("Icon not found in registry: {s}", .{icon_name});
+            std.log.err("Icon not found in registry: {s}", .{icon_name});
             return error.IconNotFound;
         };
 
-        std.log.info("Copying {s}", .{icon_name});
         const input_icon_bytes = try icons_in_dir.readFileAlloc(init.io, icon_sub_path, init.gpa, .unlimited);
         defer init.gpa.free(input_icon_bytes);
 
@@ -151,3 +157,21 @@ pub fn main(init: std.process.Init) !void {
     // Overwrite the icons SQL file with the new content.
     try std.Io.Dir.cwd().writeFile(init.io, .{ .data = icons_sql.items, .sub_path = "db/0001-icons.sql", .flags = .{} });
 }
+
+const IconsSchema = struct {
+    title: []const u8,
+    type: []const u8,
+    description: []const u8,
+    @"enum": []const []const u8,
+
+    fn deinit(self: *const IconsSchema, gpa: std.mem.Allocator) void {
+        gpa.free(self.title);
+        gpa.free(self.type);
+        gpa.free(self.description);
+
+        for (self.@"enum") |icon_name| {
+            gpa.free(icon_name);
+        }
+        gpa.free(self.@"enum");
+    }
+};
