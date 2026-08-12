@@ -37,6 +37,7 @@ const Resource = enum {
     characters,
     kins,
     skills,
+    icons,
 };
 
 const ResourceItem = struct {
@@ -291,6 +292,7 @@ fn handleCollection(
                     .characters => try respondItems(gpa, writer, db, request, zttrpg.Character),
                     .kins => try respondItems(gpa, writer, db, request, zttrpg.Kin),
                     .skills => try respondItems(gpa, writer, db, request, zttrpg.Skill),
+                    .icons => try respondItems(gpa, writer, db, request, zttrpg.Icon),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, resource, Page.index);
@@ -301,6 +303,7 @@ fn handleCollection(
                 .characters => try insertItem(gpa, writer, db, request, zttrpg.Character),
                 .kins => try insertItem(gpa, writer, db, request, zttrpg.Kin),
                 .skills => try insertItem(gpa, writer, db, request, zttrpg.Skill),
+                .icons => try insertItem(gpa, writer, db, request, zttrpg.Icon),
             }
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -322,6 +325,7 @@ fn handleItem(
                     .characters => try respondItem(gpa, writer, db, request, zttrpg.Character, item.id),
                     .kins => try respondItem(gpa, writer, db, request, zttrpg.Kin, item.id),
                     .skills => try respondItem(gpa, writer, db, request, zttrpg.Skill, item.id),
+                    .icons => try respondItem(gpa, writer, db, request, zttrpg.Icon, item.id),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, item.resource, Page.item);
@@ -331,11 +335,13 @@ fn handleItem(
             .characters => try deleteItem(gpa, writer, db, request, zttrpg.Character, item.id),
             .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
             .skills => try deleteItem(gpa, writer, db, request, zttrpg.Skill, item.id),
+            .icons => try deleteItem(gpa, writer, db, request, zttrpg.Icon, item.id),
         },
         .PUT => switch (item.resource) {
             .characters => try updateItem(gpa, writer, db, request, zttrpg.Character, item.id),
             .kins => try updateItem(gpa, writer, db, request, zttrpg.Kin, item.id),
             .skills => try updateItem(gpa, writer, db, request, zttrpg.Skill, item.id),
+            .icons => try updateItem(gpa, writer, db, request, zttrpg.Icon, item.id),
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }

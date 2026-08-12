@@ -1,4 +1,4 @@
-CREATE TABLE kins (
+CREATE TABLE skills (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name TEXT NOT NULL,
     icon INTEGER NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE kins (
     FOREIGN KEY (icon) REFERENCES icons(id)
 );
 
-INSERT INTO kins (name, icon) VALUES
-    ('Human', 1),
-    ('Orc', 1),
-    ('Undead', 1);
+INSERT INTO skills (name, icon) VALUES
+    ('Fireball', 1),
+    ('Heal', 1),
+    ('Stealth', 1);

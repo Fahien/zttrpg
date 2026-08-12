@@ -62,7 +62,7 @@ test "Character.init copies the name and deinit frees it" {
     const gpa = std.testing.allocator;
 
     var name_buf = [_]u8{ 'G', 'r', 'o', 'g' };
-    const kin = Kin{ .id = 1, .name = "Elf" };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
     const character = try Character.init(gpa, 7, &name_buf, 3, kin);
     defer character.deinit(gpa);
 
@@ -98,12 +98,12 @@ test "Character serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf" };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
     const character = Character{ .id = 1, .name = "Alice", .level = 2, .kin = kin };
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf"}}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}}}
     , out.written());
 }
 

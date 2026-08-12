@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 const character = @import("character.zig");
-
-pub const BodyCharacter = character.BodyCharacter;
-pub const CreateCharacter = character.CreateCharacter;
-pub const UpdateCharacter = character.UpdateCharacter;
 pub const Character = character.Character;
+
+const icon = @import("icon.zig");
+pub const Icon = icon.Icon;
 
 const kin = @import("kin.zig");
 pub const Kin = kin.Kin;
@@ -20,4 +19,5 @@ test {
     _ = character;
     _ = kin;
     _ = skill;
+    _ = icon;
 }
