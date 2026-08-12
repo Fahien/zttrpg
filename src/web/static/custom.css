@@ -70,7 +70,7 @@
         --field: #0b0a08;
         --bevel: rgba(0, 0, 0, .9);
         --vignette: rgba(0, 0, 0, .55);
-        --text-emboss: 0 1px 0 #000;
+        --text-emboss: 1px 1px 1px #000;
 
         /* In-game quality colours, unaltered. */
         --q-poor: #9d9d9d;
@@ -97,7 +97,8 @@
         --selection: #6b4f1a;
         --focus: #ffd10066;
         --button-base: #2a2721;
-        --button-hover: #3a352b;
+        --button-hover: linear-gradient(#521818, #a73535, #521818);
+        --button-background: linear-gradient(#521818, #7c2727, #521818);
         --form-text: #d7cea4;
         --form-placeholder: #7d7359;
         --code: #ffb86c;
@@ -236,9 +237,15 @@ input[type="submit"] {
     border: 1px solid var(--border);
     border-radius: 2px;
     box-shadow: inset 0 0 0 1px var(--bevel);
-    color: var(--gold);
+    background-image: var(--button-background);
+    color: var(--form-text);
+    text-shadow: var(--text-emboss);
     text-transform: uppercase;
     letter-spacing: .08em;
+}
+
+button:hover {
+    background-image: var(--button-hover);
 }
 
 button:active,
