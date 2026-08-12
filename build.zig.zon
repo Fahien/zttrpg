@@ -8,6 +8,10 @@
             .url = "git+https://github.com/allyourcodebase/libpq?ref=5.18.4#ad2f65b2d91311f6d85c329e7551d902f67c31b5",
             .hash = "libpq-5.18.4-QME6aQMZAQCNCrTsnm7YktHJMqXvBdJ5MyXHWrdT-GR6",
         },
+        .@"game-icons" = .{
+            .url = "git+https://github.com/game-icons/icons#82d948812bfe3f269ef8f731dcdb07b08160edc4",
+            .hash = "N-V-__8AAJy6agBSw1h9fWXsRepoa4HCa2a-1opuKZFjZauE",
+        },
     },
     .paths = .{
         "build.zig",

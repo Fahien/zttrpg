@@ -7,6 +7,26 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const icons_dep = b.dependency("game-icons", .{});
+
+    const icons_mod = b.createModule(.{
+        .root_source_file = b.path("src/icons.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const icons_exe = b.addExecutable(.{
+        .name = "icons",
+        .root_module = icons_mod,
+    });
+    const run_icons = b.addRunArtifact(icons_exe);
+    run_icons.addDirectoryArg(icons_dep.path("."));
+    run_icons.addArg(b.pathFromRoot("src/web/static/icons"));
+    run_icons.has_side_effects = true;
+
+    const icons_step = b.step("icons", "Generate icons");
+    icons_step.dependOn(&run_icons.step);
+
     const libpq_dep = b.dependency("libpq", .{
         .target = target,
         .optimize = optimize,
