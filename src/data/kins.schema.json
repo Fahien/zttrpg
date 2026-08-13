@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "kins.schema.json",
+    "title": "Kins",
+    "description": "A list of kins",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the kins file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the kins file."
+        },
+        "kins": {
+            "type": "array",
+            "items": {
+                "$ref": "kin.schema.json"
+            }
+        }
+    }
+}

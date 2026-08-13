@@ -1,0 +1,5 @@
+CREATE TABLE icons (
+   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+   name TEXT NOT NULL,
+   CHECK (name <> '')
+);

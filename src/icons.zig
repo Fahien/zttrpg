@@ -72,11 +72,12 @@ pub fn main(init: std.process.Init) !void {
     );
     defer icons_schema_file.close(init.io);
 
-    var manifest_staging_buffer: [1024]u8 = undefined;
-    var reader = icons_schema_file.reader(init.io, &manifest_staging_buffer);
+    var icons_staging_buffer: [1024]u8 = undefined;
+    var reader = icons_schema_file.reader(init.io, &icons_staging_buffer);
 
     var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
     defer json_reader.deinit();
+
     const icons_schema = std.json.parseFromTokenSourceLeaky(
         IconsSchema,
         init.gpa,
@@ -84,33 +85,17 @@ pub fn main(init: std.process.Init) !void {
         .{ .ignore_unknown_fields = true },
     ) catch |e| {
         // Warn because malformed metadata can be a deeper symptom.
-        std.log.warn("{}", .{e});
+        std.log.err("{}", .{e});
         return error.MalformedMetadata;
     };
     defer icons_schema.deinit(init.gpa);
 
-    var line = std.Io.Writer.Allocating.init(init.gpa);
-    defer line.deinit();
-
     const black_background = "<path d=\"M0 0h512v512H0z\"/>";
-
-    var icons_sql = std.ArrayList(u8).empty;
-    defer icons_sql.deinit(init.gpa);
-    try icons_sql.appendUnalignedSlice(init.gpa,
-        \\CREATE TABLE icons (
-        \\   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        \\   name TEXT NOT NULL,
-        \\   CHECK (name <> '')
-        \\);
-        \\
-        \\INSERT INTO icons (name) VALUES
-    );
 
     for (icons_schema.@"enum") |icon_name| {
         // Check if the icon exists in the registry.
         if (!icons_registry.contains(icon_name)) {
-            std.log.err("Icon not found: {s}", .{icon_name});
-            line.clearRetainingCapacity();
+            std.log.warn("Icon not found: {s}", .{icon_name});
             continue;
         }
 
@@ -140,22 +125,7 @@ pub fn main(init: std.process.Init) !void {
         var writer = icon_out_file.writer(init.io, &staging_buffer);
         try writer.interface.writeAll(icon_bytes);
         try writer.flush();
-
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", icon_name, "'),\n" });
-        defer init.gpa.free(sql_element);
-        try icons_sql.appendUnalignedSlice(init.gpa, sql_element);
-
-        line.clearRetainingCapacity();
     }
-
-    if (line.written().len > 0) {
-        std.log.info("{s}\n", .{line.written()});
-    }
-
-    icons_sql.items[icons_sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
-
-    // Overwrite the icons SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = icons_sql.items, .sub_path = "db/0001-icons.sql", .flags = .{} });
 }
 
 const IconsSchema = struct {

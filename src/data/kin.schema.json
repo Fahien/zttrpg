@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "kin.schema.json",
+    "title": "Kin",
+    "description": "A kin",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the kin file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the kin file."
+        },
+        "name": {
+            "$ref": "kin-names.schema.json"
+        },
+        "icon": {
+            "$ref": "icon-names.schema.json",
+            "description": "The icon of the kin."
+        },
+        "description": {
+            "type": "string",
+            "description": "The description of the kin."
+        }
+    }
+}

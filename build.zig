@@ -7,25 +7,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const icons_dep = b.dependency("game-icons", .{});
-
-    const icons_mod = b.createModule(.{
-        .root_source_file = b.path("src/icons.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const icons_exe = b.addExecutable(.{
-        .name = "icons",
-        .root_module = icons_mod,
-    });
-    const run_icons = b.addRunArtifact(icons_exe);
-    run_icons.addDirectoryArg(icons_dep.path("."));
-    run_icons.addArg(b.pathFromRoot("src/web/static/icons"));
-    run_icons.has_side_effects = true;
-
-    const icons_step = b.step("icons", "Generate icons");
-    icons_step.dependOn(&run_icons.step);
+    buildIcons(b, target, optimize);
+    buildSqls(b, target, optimize);
 
     const libpq_dep = b.dependency("libpq", .{
         .target = target,
@@ -115,4 +98,45 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&exe.step);
     test_step.dependOn(&run_exe_tests.step);
     test_step.dependOn(&run_migration_tests.step);
+}
+
+fn buildIcons(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
+    const icons_dep = b.dependency("game-icons", .{});
+
+    const icons_mod = b.createModule(.{
+        .root_source_file = b.path("src/icons.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const icons_exe = b.addExecutable(.{
+        .name = "icons",
+        .root_module = icons_mod,
+    });
+    const run_icons = b.addRunArtifact(icons_exe);
+    run_icons.addDirectoryArg(icons_dep.path("."));
+    run_icons.addArg(b.pathFromRoot("src/web/static/icons"));
+    run_icons.has_side_effects = true;
+
+    const icons_step = b.step("icons", "Generate icons");
+    icons_step.dependOn(&run_icons.step);
+}
+
+fn buildSqls(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
+    const sqls_mod = b.createModule(.{
+        .root_source_file = b.path("src/sqls.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const sqls_exe = b.addExecutable(.{
+        .name = "sqls",
+        .root_module = sqls_mod,
+    });
+
+    const run_sqls = b.addRunArtifact(sqls_exe);
+    run_sqls.has_side_effects = true;
+
+    const sqls_step = b.step("sqls", "Generate SQLs");
+    sqls_step.dependOn(&run_sqls.step);
 }

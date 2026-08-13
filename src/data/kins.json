@@ -1,0 +1,21 @@
+{
+    "$schema": "kins.schema.json",
+    "version": "1.0",
+    "kins": [
+        {
+            "name": "Human",
+            "icon": "human-ear",
+            "description": "Humans are a versatile and adaptable kin, known for their resilience and resourcefulness. They have a strong sense of community and are often found in various roles within society."
+        },
+        {
+            "name": "Orc",
+            "icon": "orc-head",
+            "description": "Orcs are a fierce and proud kin, known for their strength and warrior culture. They value honor and loyalty, often living in tribal societies with a strong emphasis on combat skills."
+        },
+        {
+            "name": "Undead",
+            "icon": "half-dead",
+            "description": "Undead are a kin that has been reanimated from death, often retaining some of their former abilities and memories. They are typically shunned by other kins and are associated with dark magic and necromancy."
+        }
+    ]
+}
