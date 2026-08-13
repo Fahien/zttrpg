@@ -71,6 +71,23 @@ async function fetchRoster() {
 
     rosterTable.innerHTML = '';
 
+    // Colgroup header.
+    const colgroup = document.createElement("colgroup");
+    rosterTable.appendChild(colgroup);
+    for (const field of fields) {
+        const col = document.createElement('col');
+        if (field.type === 'icon') {
+            col.style.width = '4em'; // Set a fixed width for icon columns
+        }
+        else if (field.type === 'number') {
+            col.style.width = '6em'; // Set a fixed width for number columns
+        }
+        else if (field.name === 'name') {
+            col.style.width = '12em'; // Set a fixed width for number columns
+        }
+        colgroup.appendChild(col);
+    }
+
     // Table header.
     const tableHeader = rosterTable.createTHead();
     const headerRow = tableHeader.insertRow();

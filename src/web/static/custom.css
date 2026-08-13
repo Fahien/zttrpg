@@ -202,6 +202,10 @@ section::after {
     bottom: 4px;
 }
 
+table {
+    table-layout: fixed;
+}
+
 thead {
     text-transform: uppercase;
     letter-spacing: .12em;
