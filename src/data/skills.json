@@ -5,152 +5,536 @@
         {
             "name": "Acrobatics",
             "icon": "jump-across",
+            "type": "Core",
             "description": "Mastery of body movement and agility."
         },
         {
             "name": "Awareness",
             "icon": "awareness",
+            "type": "Core",
             "description": "Heightened perception and vigilance."
         },
         {
             "name": "Bartering",
             "icon": "scales",
+            "type": "Core",
             "description": "The art of negotiation and vigilance."
         },
         {
             "name": "Beast Lore",
             "icon": "paw",
+            "type": "Core",
             "description": "Skill in understanding and interacting with creatures."
         },
         {
             "name": "Bluffing",
             "icon": "double-face-mask",
+            "type": "Core",
             "description": "Deceptive communication and misdirection."
         },
         {
             "name": "Bushcraft",
             "icon": "campfire",
+            "type": "Core",
             "description": "Wilderness survival skills."
         },
         {
             "name": "Crafting",
             "icon": "crafting",
+            "type": "Core",
             "description": "The ability to repair, create, and modify items."
         },
         {
             "name": "Evade",
             "icon": "dodging",
+            "type": "Core",
             "description": "Quick reflexes and dodging capabilities."
         },
         {
             "name": "Healing",
             "icon": "healing",
+            "type": "Core",
             "description": "Knowledge of medicinal arts and first aid."
         },
         {
             "name": "Hunting and Fishing",
             "icon": "fishing",
+            "type": "Core",
             "description": "Expertise in procuring sustenance from the wild."
         },
         {
             "name": "Languages",
             "icon": "chat-bubble",
+            "type": "Core",
             "description": "Proficiency in additional languages."
         },
         {
             "name": "Myths and Legends",
             "icon": "book-cover",
+            "type": "Core",
             "description": "Knowledge of folklore, mythology, and historycal legends."
         },
         {
             "name": "Performance",
             "icon": "sing",
+            "type": "Core",
             "description": "Skill in entertaining and captivating an audience."
         },
         {
             "name": "Persuasion",
             "icon": "convince",
+            "type": "Core",
             "description": "The ability to influence and sway others."
         },
         {
             "name": "Riding",
             "icon": "cavalry",
+            "type": "Core",
             "description": "Proficiency in mounted travel."
         },
         {
             "name": "Seamanship",
             "icon": "sailboat",
+            "type": "Core",
             "description": "Proficiency in the maritime arts."
         },
         {
             "name": "Sleight of Hand",
             "icon": "coinflip",
+            "type": "Core",
             "description": "Dexterity and finesse in manual trickery."
         },
         {
             "name": "Sneaking",
             "icon": "sprint",
+            "type": "Core",
             "description": "Stealth and subtlety in movement."
         },
         {
             "name": "Spot Hidden",
             "icon": "magnifying-glass",
+            "type": "Core",
             "description": "The ability to notice concealed details and hidden objects."
         },
         {
             "name": "Swimming",
             "icon": "pool-dive",
+            "type": "Core",
             "description": "Proficiency in aquatic movement."
         },
         {
             "name": "Axes",
             "icon": "crossed-axes",
+            "type": "Core",
             "description": "Axes of all kinds, also when thrown."
         },
         {
             "name": "Bows",
             "icon": "bow-arrow",
+            "type": "Core",
             "description": "All types of bows, except crossbows."
         },
         {
             "name": "Brawling",
             "icon": "high-punch",
+            "type": "Core",
             "description": "Unarmed combat with fists, feet, teeth, or claws."
         },
         {
             "name": "Crossbows",
             "icon": "crossbow",
+            "type": "Core",
             "description": "Crossbows of all kinds."
         },
         {
             "name": "Hammers",
             "icon": "gavel",
+            "type": "Core",
             "description": "Blunt weapons, warhammers, clubs, flails and maces."
         },
         {
             "name": "Knives",
             "icon": "kitchen-knives",
+            "type": "Core",
             "description": "Knives and daggers, including when thrown."
         },
         {
             "name": "Slings",
             "icon": "sling",
+            "type": "Core",
             "description": "Attacking with a sling."
         },
         {
             "name": "Spears",
             "icon": "spears",
+            "type": "Core",
             "description": "Spears, lances, halberds and tridents, also when thrown."
         },
         {
             "name": "Staves",
             "icon": "wizard-staff",
+            "type": "Core",
             "description": "Fighting with a staff."
         },
         {
             "name": "Swords",
             "icon": "crossed-swords",
+            "type": "Core",
             "description": "All types of swords."
+        },
+        {
+            "name": "Adaptive",
+            "icon": "chameleon-glyph",
+            "type": "Innate",
+            "description": "When rolling for a skill, you can choose to make the roll using another skill of your choice. You must be able to justify how you use the selected skill instead of the normal one. The GM has the final word, but should be lenient."
+        },
+        {
+            "name": "Hard To Catch",
+            "icon": "swirl-ring",
+            "type": "Innate",
+            "description": "You can activate this ability when dodging an attack, getting a boon to the EVADE roll."
+        },
+        {
+            "name": "Unforgiving",
+            "icon": "enrage",
+            "type": "Innate",
+            "description": "You can activate this ability when attacking someone who harmed you in the past (at least 1 point of damage) and get a boon to the roll. It does not matter when the damage was inflicted. It may be wise to write down the names of everyone who harms you, so you do not forget them."
+        },
+        {
+            "name": "Inner Peace",
+            "icon": "meditation",
+            "type": "Innate",
+            "description": "As an elf, you can meditate deeply during a stretch rest. You heal an additional D6 HP and a D6 extra WP, and can recover from an additional condition. You are completely unresponsive during your meditation and cannot be awakened."
+        },
+        {
+            "name": "Ill Tempered",
+            "icon": "angry-eyes",
+            "type": "Innate",
+            "description": "Mallards tend to have a choleric temper. You can activate this ability (no action) when making a skill roll and get a boon to the roll. You also become Angry, if you're not already. This ability cannot be used for rolls against INT or IN-based skills."
+        },
+        {
+            "name": "Webbed Feet",
+            "icon": "duck-palm",
+            "type": "Innate",
+            "description": "As a mallard you also get a boon to all SWIMMING rolls. You always move at full speed in or under water."
+        },
+        {
+            "name": "Hunting Instinct",
+            "icon": "beast-eye",
+            "type": "Innate",
+            "description": "You can use this ability to designate a creature in sight, or a creature you can catch the scent of, as your prey. This counts as an action in combat. You can follow the scent of your prey for a full day, and you can spend 1 further WP (not an action) to gain a boon for an attack against your prey."
+        },
+        {
+            "name": "Resilient",
+            "icon": "diamond-hard",
+            "type": "Innate",
+            "description": "Goblins are resilient creatures capable of withstanding all kinds of hardships. By activating this ability, goblins get a boon on a CON roll for resisting poison or disease (pages 52–53 in the rulebook) or can make camp without rolling BUSHCRAFT (page 103 in the rulebook). In addition, goblins can always eat raw food without falling ill (no WP required)."
+        },
+        {
+            "name": "Body Slam",
+            "icon": "punch-blast",
+            "type": "Innate",
+            "description": "Ogres can use their large bodies to slam an opponent with tremendous force. This counts as an unarmed melee attack with a boon that inflicts 2D6 bludgeoning damage (excluding the damage bonus) and cannot be parried. The ogre can also dash before the attack (but does not have to). Humanoid targets of Normal size or smaller who are hit by the attack are automatically knocked down."
+        },
+        {
+            "name": "Tough",
+            "icon": "rock",
+            "type": "Innate",
+            "description": "Orcs can take extraordinary amounts of pain and keep on fighting. An orc with zero HP can activate this ability to automatically rally (page 50 in the rulebook), without rolling against WIL or being PERSUADED by someone else. Usually, this ability is only used by player characters and important NPCs."
+        },
+        {
+            "name": "Nine Lives",
+            "icon": "cat",
+            "type": "Innate",
+            "description": "Cat people have an incredible ability to emerge unscathed from even the worst of ordeals. Activating this ability grants a boon on a death roll (page 50 in the rulebook), at the cost of 3 WP. The ability can also be used to reduce the number of D6s rolled for fall damage by one per WP up to a maximum of three (after the ACROBATICS roll to mitigate the damage, see page 53 in the rulebook)."
+        },
+        {
+            "name": "Leaping",
+            "icon": "leapfrog",
+            "type": "Innate",
+            "description": "Frog people can activate this ability to jump as far as their movement rating horizontally, or up to half their movement rating vertically. No ACROBATICS roll is required. The jump can end with a melee attack, which is made with a boon."
+        },
+        {
+            "name": "Wings",
+            "icon": "spiky-wing",
+            "type": "Innate",
+            "description": "The bat-like wings of a karkion allow it to move freely through the air at the same speed as on foot, at the cost of 1 WP per round."
+        },
+        {
+            "name": "Camouflage",
+            "icon": "hidden",
+            "type": "Innate",
+            "description": "Lizard people who wish to stay hidden are hard to spot. Activating this ability grants a boon on a SNEAKING roll."
+        },
+        {
+            "name": "Raise Spirits",
+            "icon": "morbid-humour",
+            "type": "Innate",
+            "description": "Satyrs are cheerful and optimistic creatures who like to raise their friends' spirits with song or poetry. Activating this ability counts as an action and removes a chosen condition from a person within earshot and 10 meters. The ability cannot be used on the satyr itself."
+        },
+        {
+            "name": "Assassin",
+            "icon": "hooded-assassin",
+            "type": "Heroic",
+            "description": "Your sneak attack deals an extra D8 damage."
+        },
+        {
+            "name": "Backstabbing",
+            "icon": "backstab",
+            "type": "Heroic",
+            "description": "Melee attack against an enemy close to another player. Your sneak attack cannot be dodged or parried, have a boon and the number of dice rolled for the damage is increased by one."
+        },
+        {
+            "name": "Battle Cry",
+            "icon": "shouting",
+            "type": "Heroic",
+            "description": "All other player characters in combat within earshot immediately heal a condition of their choice."
+        },
+        {
+            "name": "Berserker",
+            "icon": "mighty-force",
+            "type": "Heroic",
+            "description": "You gain the Angry condition and a boon to melee attacks, but can not parry or dodge. After the fight you become Exhausted."
+        },
+        {
+            "name": "Catlike",
+            "icon": "cat",
+            "type": "Heroic",
+            "description": "The number of D6 rolled for damage from a fall decreases by one for each WP spent."
+        },
+        {
+            "name": "Companion",
+            "icon": "feline",
+            "type": "Heroic",
+            "description": "Turn one animal (not a monster) into your companion. The animal can scout and also attack for a WP cost of 3."
+        },
+        {
+            "name": "Contortionist",
+            "icon": "contortionist",
+            "type": "Heroic",
+            "description": "You escape from your shackles or squeeze through a narrow space without rolling for any skill."
+        },
+        {
+            "name": "Defensive",
+            "icon": "defensive-wall",
+            "type": "Heroic",
+            "description": "Try to Parry an attack without using your action for the round."
+        },
+        {
+            "name": "Deflect Arrow",
+            "icon": "shield-reflect",
+            "type": "Heroic",
+            "description": "You can try to Parry any ranged attack with a melee weapon."
+        },
+        {
+            "name": "Disguise",
+            "icon": "prank-glasses",
+            "type": "Heroic",
+            "description": "You can assume another person's looks, voice, and demeanor."
+        },
+        {
+            "name": "Double Slash",
+            "icon": "crossed-slashes",
+            "type": "Heroic",
+            "description": "Attack two enemies within 2 meters with a single slash."
+        },
+        {
+            "name": "Dragon Slayer",
+            "icon": "dragon-head",
+            "type": "Heroic",
+            "description": "Attack aimed at a monster deals an additional D8 damage."
+        },
+        {
+            "name": "Dual Wield",
+            "icon": "rogue",
+            "type": "Heroic",
+            "description": "Perform an extra attack with your second weapon. The second attack is done with a bane."
+        },
+        {
+            "name": "Eagle Eye",
+            "icon": "eagle-head",
+            "type": "Heroic",
+            "description": "See persons or objects up to 200 meters away for a stretch. Shoot at a target beyond the weapon's effective range without bane."
+        },
+        {
+            "name": "Fast Footwork",
+            "icon": "foot-trip",
+            "type": "Heroic",
+            "description": "Try to Dodge an attack without using your action for the round."
+        },
+        {
+            "name": "Fast Healer",
+            "icon": "health-increase",
+            "type": "Heroic",
+            "description": "You heal an extra D6 HP during a stretch rest."
+        },
+        {
+            "name": "Fearless",
+            "icon": "lion",
+            "type": "Heroic",
+            "description": "You automatically resist fear, without a WIL roll."
+        },
+        {
+            "name": "Focused",
+            "icon": "rear-aura",
+            "type": "Heroic",
+            "description": "Max number of WP is permanently increased by 2."
+        },
+        {
+            "name": "Guardian",
+            "icon": "guarded-tower",
+            "type": "Heroic",
+            "description": "Force the enemy to attack you instead of a close player."
+        },
+        {
+            "name": "Insight",
+            "icon": "inspiration",
+            "type": "Heroic",
+            "description": "Roll AWARENESS to determine whether that person is telling the truth. You cannot tell exactly what a person is lying about."
+        },
+        {
+            "name": "Intuition",
+            "icon": "idea",
+            "type": "Heroic",
+            "description": "Ask a question directly to the GM and receive a helpful answer."
+        },
+        {
+            "name": "Iron Fist",
+            "icon": "fist",
+            "type": "Heroic",
+            "description": "The damage of an unarmed attack increases to 2D6."
+        },
+        {
+            "name": "Iron Grip",
+            "icon": "grab",
+            "type": "Heroic",
+            "description": "You get a boon to your BRAWLING roll when grappling."
+        },
+        {
+            "name": "Lightning Fast",
+            "icon": "running-ninja",
+            "type": "Heroic",
+            "description": "You may draw two initiative cards instead of one and choose which one you want."
+        },
+        {
+            "name": "Lone Wolf",
+            "icon": "wolf-howl",
+            "type": "Heroic",
+            "description": "Take a shift rest without a roll for BUSHCRAFT."
+        },
+        {
+            "name": "Magic Talent",
+            "icon": "embrassed-energy",
+            "type": "Heroic",
+            "description": "You can learn a new school of magic."
+        },
+        {
+            "name": "Massive Blow",
+            "icon": "corner-explosion",
+            "type": "Heroic",
+            "description": "A strike with a two-handed melee weapon inflicts D* additional points of damage, but you cannot move in the same round."
+        },
+        {
+            "name": "Master Blacksmith",
+            "icon": "blacksmith",
+            "type": "Heroic",
+            "description": "Sharpen weapons and craft metal weapons and armor."
+        },
+        {
+            "name": "Master Carpenter",
+            "icon": "hand-saw",
+            "type": "Heroic",
+            "description": "Do D12 damage to objects and craft wood weapons and tools."
+        },
+        {
+            "name": "Master Chef",
+            "icon": "chef-toque",
+            "type": "Heroic",
+            "description": "You automatically succeed at cooking without BUSHCRAFT."
+        },
+        {
+            "name": "Master SpellCaster",
+            "icon": "pointy-hat",
+            "type": "Heroic",
+            "description": "You can cast two different spells in a single action. It must be two different spells."
+        },
+        {
+            "name": "Master Tanner",
+            "icon": "animal-hide",
+            "type": "Heroic",
+            "description": "Craft leather armor from animals and monsters."
+        },
+        {
+            "name": "Master Hunter",
+            "icon": "hunting-horn",
+            "type": "Heroic",
+            "description": "At a crossroads of some kind, you can activate this ability to learn the direction of the most dangerous enemies."
+        },
+        {
+            "name": "Musician",
+            "icon": "musical-notes",
+            "type": "Heroic",
+            "description": "Give all allies within 10 meters a boon to all rolls, or a bane to all enemies within the same range. Lasts one turn."
+        },
+        {
+            "name": "Pathfinder",
+            "icon": "trail",
+            "type": "Heroic",
+            "description": "You get a boon to your BUSHCRAFT roll when trying to find the right direction in the wilderness."
+        },
+        {
+            "name": "Quartermaster",
+            "icon": "barracks-tent",
+            "type": "Heroic",
+            "description": "You automatically succeed at making camp during journeys."
+        },
+        {
+            "name": "Robust",
+            "icon": "muscle-fat",
+            "type": "Heroic",
+            "description": "Your max HP increases by 2."
+        },
+        {
+            "name": "Sea Legs",
+            "icon": "wave-surfer",
+            "type": "Heroic",
+            "description": "You are safe from all negative effects of being in water for one round, including the risk of drowning."
+        },
+        {
+            "name": "Shield Block",
+            "icon": "roman-shield",
+            "type": "Heroic",
+            "description": "Parrying with a shield rolls with a boon. You can also parry physical monster attacks (not area effects) that normally cannot be parried."
+        },
+        {
+            "name": "Throwing Arm",
+            "icon": "throwing-ball",
+            "type": "Heroic",
+            "description": "Throw a melee weapon at an enemy within your STR meters. It must be a onehanded weapon."
+        },
+        {
+            "name": "Treasure Hunter",
+            "icon": "treasure-map",
+            "type": "Heroic",
+            "description": "At a crossroads of some kind, you can activate this ability to learn the direction of the greatest treasure."
+        },
+        {
+            "name": "Twin Shot",
+            "icon": "double-shot",
+            "type": "Heroic",
+            "description": "When attacking with a bow (not crossbow), you shoot two arrows instead of one. Roll just once to hit, with a bane."
+        },
+        {
+            "name": "Veteran",
+            "icon": "wisdom",
+            "type": "Heroic",
+            "description": "You may retain your initiative card from the previous round."
+        },
+        {
+            "name": "Weasel",
+            "icon": "two-shadows",
+            "type": "Heroic",
+            "description": "If attacked and another player is within 2 meters, you can let the attack hit that player instead of you."
         }
     ]
 }

@@ -4,6 +4,12 @@
     "title": "Skill",
     "description": "A skill",
     "type": "object",
+    "required": [
+        "name",
+        "icon",
+        "type",
+        "description"
+    ],
     "properties": {
         "$schema": {
             "type": "string",
@@ -19,6 +25,9 @@
         "icon": {
             "$ref": "icon-names.schema.json",
             "description": "The icon of the skill."
+        },
+        "type": {
+            "$ref": "skill-types.schema.json"
         },
         "description": {
             "type": "string",

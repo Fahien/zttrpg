@@ -154,16 +154,12 @@ fn gen_skills(init: std.process.Init) !void {
     var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
     defer json_reader.deinit();
 
-    const skills = std.json.parseFromTokenSourceLeaky(
+    const skills = try std.json.parseFromTokenSourceLeaky(
         Skills,
         init.gpa,
         &json_reader,
         .{ .ignore_unknown_fields = true },
-    ) catch |e| {
-        // Warn because malformed metadata can be a deeper symptom.
-        std.log.warn("{}", .{e});
-        return error.MalformedMetadata;
-    };
+    );
     defer skills.deinit(init.gpa);
 
     var sql = std.ArrayList(u8).empty;
@@ -174,7 +170,7 @@ fn gen_skills(init: std.process.Init) !void {
         const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", skill.icon, "' LIMIT 1)" });
         defer init.gpa.free(icon_id_query);
 
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", '", skill.description, "'),\n" });
+        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", $desc$", skill.description, "$desc$),\n" });
         defer init.gpa.free(sql_element);
 
         try sql.appendUnalignedSlice(init.gpa, sql_element);
@@ -189,11 +185,13 @@ fn gen_skills(init: std.process.Init) !void {
 const Skill = struct {
     name: []const u8,
     icon: []const u8,
+    type: []const u8,
     description: []const u8,
 
     fn deinit(self: *const Skill, gpa: std.mem.Allocator) void {
         gpa.free(self.name);
         gpa.free(self.icon);
+        gpa.free(self.type);
         gpa.free(self.description);
     }
 };

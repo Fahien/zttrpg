@@ -20,7 +20,7 @@ pub fn main(init: std.process.Init) !void {
     const port = 8080;
 
     const ip_address = try Io.net.IpAddress.parse(address, port);
-    var server = try ip_address.listen(init.io, .{ .mode = .stream });
+    var server = try ip_address.listen(init.io, .{ .mode = .stream, .reuse_address = true });
     defer server.deinit(init.io);
 
     while (true) {
