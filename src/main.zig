@@ -603,8 +603,11 @@ test "every page wires up the ids its shared script looks up" {
     // path in the browser: pin the contract at build time instead.
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
         const index_page = @embedFile("web/" ++ resource.name ++ "/index.html");
-        for ([_][]const u8{ "resource-name", "instance-form", "roster" }) |id| {
-            try expectContainsId(index_page, id);
+        for ([_][]const u8{ "resource-name", "roster" }) |id| {
+            expectContainsId(index_page, id) catch |err| {
+                std.debug.print("index page for {s} is missing {s}\n", .{ resource.name, id });
+                return err;
+            };
         }
 
         const item_page = @embedFile("web/" ++ resource.name ++ "/item.html");

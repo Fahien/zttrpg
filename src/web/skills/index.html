@@ -16,13 +16,15 @@
         <input type="text" id="name" name="name" required>
         <label for="icon">Icon:</label>
         <select id="icon" name="icon" data-resource="icons" required></select>
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" required>
         <button type="submit">Add Skill</button>
     </form>
     <table id="roster"></table>
 
     {{footer}}
 
-    <script src="/static/roster.js" data-resource="skills" data-fields="id:number,name:text,icon.name:icon"></script>
+    <script src="/static/roster.js" data-resource="skills" data-fields="icon.name:icon,name:text,description:text"></script>
 </body>
 
 </html>

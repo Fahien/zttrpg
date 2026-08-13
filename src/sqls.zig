@@ -8,6 +8,7 @@ const Io = std.Io;
 pub fn main(init: std.process.Init) !void {
     try gen_icons(init);
     try gen_kin(init);
+    try gen_skills(init);
 }
 
 fn gen_icons(init: std.process.Init) !void {
@@ -136,5 +137,74 @@ const Kins = struct {
             kin.deinit(gpa);
         }
         gpa.free(self.kins);
+    }
+};
+
+fn gen_skills(init: std.process.Init) !void {
+    const skill_schema_file = try std.Io.Dir.cwd().openFile(
+        init.io,
+        "src/data/skills.json",
+        .{ .mode = .read_only },
+    );
+    defer skill_schema_file.close(init.io);
+
+    var staging_buffer: [1024]u8 = undefined;
+    var reader = skill_schema_file.reader(init.io, &staging_buffer);
+
+    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
+    defer json_reader.deinit();
+
+    const skills = std.json.parseFromTokenSourceLeaky(
+        Skills,
+        init.gpa,
+        &json_reader,
+        .{ .ignore_unknown_fields = true },
+    ) catch |e| {
+        // Warn because malformed metadata can be a deeper symptom.
+        std.log.warn("{}", .{e});
+        return error.MalformedMetadata;
+    };
+    defer skills.deinit(init.gpa);
+
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(init.gpa);
+    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO skills (name, icon, description) VALUES\n");
+
+    for (skills.skills) |skill| {
+        const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", skill.icon, "' LIMIT 1)" });
+        defer init.gpa.free(icon_id_query);
+
+        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", '", skill.description, "'),\n" });
+        defer init.gpa.free(sql_element);
+
+        try sql.appendUnalignedSlice(init.gpa, sql_element);
+    }
+
+    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
+
+    // Overwrite the skills SQL file with the new content.
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0004-1-skills.sql", .flags = .{} });
+}
+
+const Skill = struct {
+    name: []const u8,
+    icon: []const u8,
+    description: []const u8,
+
+    fn deinit(self: *const Skill, gpa: std.mem.Allocator) void {
+        gpa.free(self.name);
+        gpa.free(self.icon);
+        gpa.free(self.description);
+    }
+};
+
+const Skills = struct {
+    skills: []const Skill,
+
+    fn deinit(self: *const Skills, gpa: std.mem.Allocator) void {
+        for (self.skills) |skill| {
+            skill.deinit(gpa);
+        }
+        gpa.free(self.skills);
     }
 };

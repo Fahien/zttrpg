@@ -1,0 +1,156 @@
+{
+    "$schema": "skills.schema.json",
+    "version": "1.0",
+    "skills": [
+        {
+            "name": "Acrobatics",
+            "icon": "jump-across",
+            "description": "Mastery of body movement and agility."
+        },
+        {
+            "name": "Awareness",
+            "icon": "awareness",
+            "description": "Heightened perception and vigilance."
+        },
+        {
+            "name": "Bartering",
+            "icon": "scales",
+            "description": "The art of negotiation and vigilance."
+        },
+        {
+            "name": "Beast Lore",
+            "icon": "paw",
+            "description": "Skill in understanding and interacting with creatures."
+        },
+        {
+            "name": "Bluffing",
+            "icon": "double-face-mask",
+            "description": "Deceptive communication and misdirection."
+        },
+        {
+            "name": "Bushcraft",
+            "icon": "campfire",
+            "description": "Wilderness survival skills."
+        },
+        {
+            "name": "Crafting",
+            "icon": "crafting",
+            "description": "The ability to repair, create, and modify items."
+        },
+        {
+            "name": "Evade",
+            "icon": "dodging",
+            "description": "Quick reflexes and dodging capabilities."
+        },
+        {
+            "name": "Healing",
+            "icon": "healing",
+            "description": "Knowledge of medicinal arts and first aid."
+        },
+        {
+            "name": "Hunting and Fishing",
+            "icon": "fishing",
+            "description": "Expertise in procuring sustenance from the wild."
+        },
+        {
+            "name": "Languages",
+            "icon": "chat-bubble",
+            "description": "Proficiency in additional languages."
+        },
+        {
+            "name": "Myths and Legends",
+            "icon": "book-cover",
+            "description": "Knowledge of folklore, mythology, and historycal legends."
+        },
+        {
+            "name": "Performance",
+            "icon": "sing",
+            "description": "Skill in entertaining and captivating an audience."
+        },
+        {
+            "name": "Persuasion",
+            "icon": "convince",
+            "description": "The ability to influence and sway others."
+        },
+        {
+            "name": "Riding",
+            "icon": "cavalry",
+            "description": "Proficiency in mounted travel."
+        },
+        {
+            "name": "Seamanship",
+            "icon": "sailboat",
+            "description": "Proficiency in the maritime arts."
+        },
+        {
+            "name": "Sleight of Hand",
+            "icon": "coinflip",
+            "description": "Dexterity and finesse in manual trickery."
+        },
+        {
+            "name": "Sneaking",
+            "icon": "sprint",
+            "description": "Stealth and subtlety in movement."
+        },
+        {
+            "name": "Spot Hidden",
+            "icon": "magnifying-glass",
+            "description": "The ability to notice concealed details and hidden objects."
+        },
+        {
+            "name": "Swimming",
+            "icon": "pool-dive",
+            "description": "Proficiency in aquatic movement."
+        },
+        {
+            "name": "Axes",
+            "icon": "crossed-axes",
+            "description": "Axes of all kinds, also when thrown."
+        },
+        {
+            "name": "Bows",
+            "icon": "bow-arrow",
+            "description": "All types of bows, except crossbows."
+        },
+        {
+            "name": "Brawling",
+            "icon": "high-punch",
+            "description": "Unarmed combat with fists, feet, teeth, or claws."
+        },
+        {
+            "name": "Crossbows",
+            "icon": "crossbow",
+            "description": "Crossbows of all kinds."
+        },
+        {
+            "name": "Hammers",
+            "icon": "gavel",
+            "description": "Blunt weapons, warhammers, clubs, flails and maces."
+        },
+        {
+            "name": "Knives",
+            "icon": "kitchen-knives",
+            "description": "Knives and daggers, including when thrown."
+        },
+        {
+            "name": "Slings",
+            "icon": "sling",
+            "description": "Attacking with a sling."
+        },
+        {
+            "name": "Spears",
+            "icon": "spears",
+            "description": "Spears, lances, halberds and tridents, also when thrown."
+        },
+        {
+            "name": "Staves",
+            "icon": "wizard-staff",
+            "description": "Fighting with a staff."
+        },
+        {
+            "name": "Swords",
+            "icon": "crossed-swords",
+            "description": "All types of swords."
+        }
+    ]
+}

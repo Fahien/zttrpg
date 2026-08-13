@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "skills.schema.json",
+    "title": "Skills",
+    "description": "A list of skills",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the skills file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the skills file."
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "$ref": "skill.schema.json"
+            }
+        }
+    }
+}
