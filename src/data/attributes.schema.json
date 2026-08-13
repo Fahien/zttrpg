@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "attributes.schema.json",
+    "title": "Attributes",
+    "description": "A list of attributes",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the attributes file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the attributes file."
+        },
+        "attributes": {
+            "type": "array",
+            "items": {
+                "$ref": "attribute.schema.json"
+            }
+        }
+    }
+}

@@ -10,23 +10,23 @@
 <body>
     {{header}}
 
-    <h1 id="resource-name">Skills</h1>
+    <h1 id="resource-name">Attributes</h1>
     <form id="instance-form">
-        <label for="name">Skill Name:</label>
+        <label for="name">Attribute Name:</label>
         <input type="text" id="name" name="name" required>
         <label for="icon">Icon:</label>
         <select id="icon" name="icon" data-resource="icons" required></select>
-        <label for="type">Type:</label>
-        <input type="text" id="type" name="type" required>
+        <label for="short">Short Name:</label>
+        <input type="text" id="short" name="short" required>
         <label for="description">Description:</label>
         <input type="text" id="description" name="description" required>
-        <button type="submit">Add Skill</button>
+        <button type="submit">Add Attribute</button>
     </form>
     <table id="roster"></table>
 
     {{footer}}
 
-    <script src="/static/roster.js" data-resource="skills" data-fields="icon.name:icon,name:text,description:text"></script>
+    <script src="/static/roster.js" data-resource="attributes" data-fields="icon.name:icon,name:text,description:text"></script>
 </body>
 
 </html>

@@ -1,0 +1,42 @@
+{
+    "$schema": "attributes.schema.json",
+    "version": "1.0",
+    "attributes": [
+        {
+            "name": "Strength",
+            "icon": "fist",
+            "short": "STR",
+            "description": "Raw muscle power."
+        },
+        {
+            "name": "Constitution",
+            "icon": "muscle-up",
+            "short": "CON",
+            "description": "Physical fitness and resilience."
+        },
+        {
+            "name": "Agility",
+            "short": "AGL",
+            "icon": "wingfoot",
+            "description": "Body control, speed, and fine motor skills."
+        },
+        {
+            "name": "Intelligence",
+            "short": "INT",
+            "icon": "brain",
+            "description": "Mental acuity, intellect, and reasoning skills."
+        },
+        {
+            "name": "Willpower",
+            "short": "WIL",
+            "icon": "suspicious",
+            "description": "Self-discipline and focus."
+        },
+        {
+            "name": "Charisma",
+            "short": "CHA",
+            "icon": "polar-star",
+            "description": "Force of personality and empathy."
+        }
+    ]
+}

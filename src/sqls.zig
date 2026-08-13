@@ -7,6 +7,7 @@ const Io = std.Io;
 /// Generate insertion sql files in the `db` directory.
 pub fn main(init: std.process.Init) !void {
     try gen_icons(init);
+    try gen_attributes(init);
     try gen_kin(init);
     try gen_skills(init);
 }
@@ -50,7 +51,7 @@ fn gen_icons(init: std.process.Init) !void {
     icons_sql.items[icons_sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
 
     // Overwrite the icons SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = icons_sql.items, .sub_path = "db/0001-1-icons.sql", .flags = .{} });
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = icons_sql.items, .sub_path = "db/0011-icons.sql", .flags = .{} });
 }
 
 const IconsSchema = struct {
@@ -114,7 +115,7 @@ fn gen_kin(init: std.process.Init) !void {
     sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
 
     // Overwrite the kins SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0002-1-kins.sql", .flags = .{} });
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0021-kins.sql", .flags = .{} });
 }
 
 const Kin = struct {
@@ -137,6 +138,77 @@ const Kins = struct {
             kin.deinit(gpa);
         }
         gpa.free(self.kins);
+    }
+};
+
+fn gen_attributes(init: std.process.Init) !void {
+    const attribute_schema_file = try std.Io.Dir.cwd().openFile(
+        init.io,
+        "src/data/attributes.json",
+        .{ .mode = .read_only },
+    );
+    defer attribute_schema_file.close(init.io);
+
+    var staging_buffer: [1024]u8 = undefined;
+    var reader = attribute_schema_file.reader(init.io, &staging_buffer);
+
+    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
+    defer json_reader.deinit();
+
+    const attributes = std.json.parseFromTokenSourceLeaky(
+        Attributes,
+        init.gpa,
+        &json_reader,
+        .{ .ignore_unknown_fields = true },
+    ) catch |e| {
+        // Warn because malformed metadata can be a deeper symptom.
+        std.log.warn("{}", .{e});
+        return error.MalformedMetadata;
+    };
+    defer attributes.deinit(init.gpa);
+
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(init.gpa);
+    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO attributes (name, icon, short, description) VALUES\n");
+
+    for (attributes.attributes) |attribute| {
+        const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", attribute.icon, "' LIMIT 1)" });
+        defer init.gpa.free(icon_id_query);
+
+        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", attribute.name, "', ", icon_id_query, ", '", attribute.short, "', '", attribute.description, "'),\n" });
+        defer init.gpa.free(sql_element);
+
+        try sql.appendUnalignedSlice(init.gpa, sql_element);
+    }
+
+    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
+
+    // Overwrite the attributes SQL file with the new content.
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0031-attributes.sql", .flags = .{} });
+}
+
+const Attribute = struct {
+    name: []const u8,
+    icon: []const u8,
+    short: []const u8,
+    description: []const u8,
+
+    fn deinit(self: *const Attribute, gpa: std.mem.Allocator) void {
+        gpa.free(self.name);
+        gpa.free(self.icon);
+        gpa.free(self.short);
+        gpa.free(self.description);
+    }
+};
+
+const Attributes = struct {
+    attributes: []const Attribute,
+
+    fn deinit(self: *const Attributes, gpa: std.mem.Allocator) void {
+        for (self.attributes) |attribute| {
+            attribute.deinit(gpa);
+        }
+        gpa.free(self.attributes);
     }
 };
 
@@ -164,13 +236,13 @@ fn gen_skills(init: std.process.Init) !void {
 
     var sql = std.ArrayList(u8).empty;
     defer sql.deinit(init.gpa);
-    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO skills (name, icon, description) VALUES\n");
+    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO skills (name, icon, type, description) VALUES\n");
 
     for (skills.skills) |skill| {
         const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", skill.icon, "' LIMIT 1)" });
         defer init.gpa.free(icon_id_query);
 
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", $desc$", skill.description, "$desc$),\n" });
+        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", '", skill.type, "', $desc$", skill.description, "$desc$),\n" });
         defer init.gpa.free(sql_element);
 
         try sql.appendUnalignedSlice(init.gpa, sql_element);
@@ -179,7 +251,7 @@ fn gen_skills(init: std.process.Init) !void {
     sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
 
     // Overwrite the skills SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0004-1-skills.sql", .flags = .{} });
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0041-skills.sql", .flags = .{} });
 }
 
 const Skill = struct {

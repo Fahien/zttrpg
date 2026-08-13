@@ -7,6 +7,9 @@ pub const Character = character.Character;
 const icon = @import("icon.zig");
 pub const Icon = icon.Icon;
 
+const attribute = @import("attribute.zig");
+pub const Attribute = attribute.Attribute;
+
 const kin = @import("kin.zig");
 pub const Kin = kin.Kin;
 

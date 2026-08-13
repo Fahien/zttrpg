@@ -51,6 +51,29 @@ function parseSpec(spec) {
 
 const fields = parseSpec(spec_string);
 
+
+/**
+ * @param {string} message
+ */
+async function reportError(message) {
+    console.error(message);
+    const statusMessage = document.getElementById('status-message');
+    if (!statusMessage) {
+        console.error('No status message element found in the DOM.');
+        return;
+    }
+    statusMessage.hidden = false;
+    statusMessage.classList.add('error');
+    statusMessage.textContent = message;
+
+    const itemDetails = document.getElementById('instance-details');
+    if (!itemDetails) {
+        console.error('No instance details element found in the DOM.');
+        return;
+    }
+    itemDetails.hidden = true;
+}
+
 async function fetchRoster() {
     const response = await fetch(`/${resource}`, {
         headers: {
@@ -59,6 +82,7 @@ async function fetchRoster() {
     });
     if (!response.ok) {
         console.error('Failed to fetch roster:', response.statusText);
+        reportError(`Failed to fetch roster: ${response.statusText}`);
         return;
     }
 
@@ -198,6 +222,7 @@ function initializeForm() {
             });
 
             if (!response.ok) {
+                reportError(`Failed to add instance: ${response.statusText}`);
                 throw new Error(`Failed to add instance: ${response.statusText}`);
             }
 

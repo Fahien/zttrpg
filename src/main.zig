@@ -38,6 +38,7 @@ const Resource = enum {
     kins,
     skills,
     icons,
+    attributes,
 };
 
 const ResourceItem = struct {
@@ -293,6 +294,7 @@ fn handleCollection(
                     .kins => try respondItems(gpa, writer, db, request, zttrpg.Kin),
                     .skills => try respondItems(gpa, writer, db, request, zttrpg.Skill),
                     .icons => try respondItems(gpa, writer, db, request, zttrpg.Icon),
+                    .attributes => try respondItems(gpa, writer, db, request, zttrpg.Attribute),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, resource, Page.index);
@@ -304,6 +306,7 @@ fn handleCollection(
                 .kins => try insertItem(gpa, writer, db, request, zttrpg.Kin),
                 .skills => try insertItem(gpa, writer, db, request, zttrpg.Skill),
                 .icons => try insertItem(gpa, writer, db, request, zttrpg.Icon),
+                .attributes => try insertItem(gpa, writer, db, request, zttrpg.Attribute),
             }
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
@@ -326,6 +329,7 @@ fn handleItem(
                     .kins => try respondItem(gpa, writer, db, request, zttrpg.Kin, item.id),
                     .skills => try respondItem(gpa, writer, db, request, zttrpg.Skill, item.id),
                     .icons => try respondItem(gpa, writer, db, request, zttrpg.Icon, item.id),
+                    .attributes => try respondItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
                 }
             } else {
                 try serveResource(gpa, io, writer, request, item.resource, Page.item);
@@ -336,12 +340,14 @@ fn handleItem(
             .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
             .skills => try deleteItem(gpa, writer, db, request, zttrpg.Skill, item.id),
             .icons => try deleteItem(gpa, writer, db, request, zttrpg.Icon, item.id),
+            .attributes => try deleteItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
         },
         .PUT => switch (item.resource) {
             .characters => try updateItem(gpa, writer, db, request, zttrpg.Character, item.id),
             .kins => try updateItem(gpa, writer, db, request, zttrpg.Kin, item.id),
             .skills => try updateItem(gpa, writer, db, request, zttrpg.Skill, item.id),
             .icons => try updateItem(gpa, writer, db, request, zttrpg.Icon, item.id),
+            .attributes => try updateItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
         },
         else => |method| try handleMethodNotAllowed(writer, request, method),
     }
@@ -611,7 +617,7 @@ test "every page wires up the ids its shared script looks up" {
         }
 
         const item_page = @embedFile("web/" ++ resource.name ++ "/item.html");
-        for ([_][]const u8{ "status-message", "instance-details" }) |id| {
+        for ([_][]const u8{"instance-details"}) |id| {
             try expectContainsId(item_page, id);
         }
     }

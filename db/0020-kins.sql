@@ -1,8 +1,7 @@
-CREATE TABLE skills (
+CREATE TABLE kins (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     icon INTEGER NOT NULL,
-    description TEXT NOT NULL,
     CHECK (name <> ''),
     FOREIGN KEY (icon) REFERENCES icons(id)
 );

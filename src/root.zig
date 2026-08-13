@@ -12,6 +12,7 @@ pub const Skill = model.Skill;
 pub const Kin = model.Kin;
 pub const Character = model.Character;
 pub const Icon = model.Icon;
+pub const Attribute = model.Attribute;
 
 pub const Database = struct {
     conn: pq.Connection,
@@ -132,12 +133,17 @@ pub const Database = struct {
             Skill => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
-                return Skill.init(gpa, inner.id, inner.name, icon.?, inner.description);
+                return Skill.init(gpa, inner.id, inner.name, icon.?, inner.type, inner.description);
             },
             Character => {
                 const kin = try self.readItem(gpa, Kin, inner.kin);
                 if (kin == null) return error.KinNotFound;
                 return Character.init(gpa, inner.id, inner.name, inner.level, kin.?);
+            },
+            Attribute => {
+                const icon = try self.readItem(gpa, Icon, inner.icon);
+                if (icon == null) return error.IconNotFound;
+                return Attribute.init(gpa, inner.id, inner.name, icon.?, inner.short, inner.description);
             },
             else => @compileError("Unsupported conversion from " ++ @typeName(Inner) ++ " to " ++ @typeName(T)),
         }
@@ -282,12 +288,12 @@ const all_models = .{ Character, Kin, Skill };
 test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon", comptime Database.getCols(Kin));
-    try std.testing.expectEqualStrings("id, name, icon, description", comptime Database.getCols(Skill));
+    try std.testing.expectEqualStrings("id, name, icon, type, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
     try std.testing.expectEqualStrings("name, level, kin", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon", comptime Database.getCols(Kin.Create));
-    try std.testing.expectEqualStrings("name, icon, description", comptime Database.getCols(Skill.Create));
+    try std.testing.expectEqualStrings("name, icon, type, description", comptime Database.getCols(Skill.Create));
 }
 
 test "no Create type carries an id column" {
@@ -311,7 +317,7 @@ test "every model names the table it is stored in" {
 test "getPlaceholders numbers parameters from $1" {
     try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1, $2", comptime Database.getPlaceholders(Kin.Create));
-    try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Skill.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Skill.Create));
 }
 
 test "getSetClauses derives the id placeholder from the field count" {
@@ -326,7 +332,7 @@ test "getSetClauses derives the id placeholder from the field count" {
         comptime Database.getSetClauses(Kin.Update),
     );
     try std.testing.expectEqualStrings(
-        "name = $1, icon = $2, description = $3 WHERE id = $4",
+        "name = $1, icon = $2, type = $3, description = $4 WHERE id = $5",
         comptime Database.getSetClauses(Skill.Update),
     );
 }

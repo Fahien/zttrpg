@@ -1,6 +1,6 @@
 CREATE TABLE characters (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     level INTEGER NOT NULL,
     kin INTEGER NOT NULL,
     CHECK (level >= 1 AND level <= 100),
