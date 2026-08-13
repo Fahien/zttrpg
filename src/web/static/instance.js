@@ -75,16 +75,30 @@ function initItemPage() {
 
         const dataFields =  /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('[data-field]'));
         for (const field of dataFields) {
-            const fieldName = /** @type {string} */ (field.dataset.field);
-            if (!fieldName) {
+            if (!field.dataset.field) {
                 console.warn('No data-field attribute found for element:', field);
                 continue;
             }
-            if (!(fieldName in item)) {
+
+            const [fieldName, fieldType] = field.dataset.field.split(':');
+            if (!fieldName) {
+                console.warn(`No value found for field "${fieldName}" in element:`, field);
+                continue;
+            }
+            
+            const path = fieldName.split('.'); // Handle nested fields like "kin.name"
+            const value = path.reduce((obj, key) => (obj && obj[key] !== undefined) ? obj[key] : null, item);
+            if (value === null || value === undefined) {
                 console.warn(`Field "${fieldName}" not found in item data:`, item);
                 continue;
             }
-            field.textContent = item[fieldName];
+
+            if (fieldType === 'icon') {
+                field.className = `icon`;
+                field.style.cssText = `--icon:url('/static/icons/${value}.svg'); color: var(--text-main);`;
+            } else {
+                field.textContent = value;
+            }
         }
     }
 

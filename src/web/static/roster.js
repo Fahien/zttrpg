@@ -89,17 +89,29 @@ async function fetchRoster() {
             const path = field.name.split('.'); // Handle nested fields like "kin.name"
             const value = path.reduce((obj, key) => (obj && obj[key] !== undefined) ? obj[key] : null, item);
 
+            if (value === null || value === undefined) {
+                cell.textContent = '<error>';
+                continue;
+            }
+
             if (field.type === 'icon') {
+                const span_frame = document.createElement('span');
+                span_frame.className = `icon-frame`;
+                cell.appendChild(span_frame);
+
                 const span = document.createElement('span');
                 span.className = `icon`;
                 span.style.cssText = `--icon:url('/static/icons/${value}.svg')`;
-                cell.appendChild(span);
-            } else {
-                if (value === null || value === undefined) {
-                    cell.textContent = '<error>';
-                } else {
-                    cell.textContent = value;
-                }
+                span_frame.appendChild(span);
+            }
+            else if (field.name == "name") {
+                const link = document.createElement('a');
+                link.href = `/${resource}/${item.id}`;
+                link.textContent = value;
+                cell.appendChild(link);
+            }
+            else {
+                cell.textContent = value;
             }
         }
     }
