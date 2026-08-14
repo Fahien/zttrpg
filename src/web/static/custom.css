@@ -104,6 +104,8 @@
         --button-base: #2a2721;
         --button-hover: linear-gradient(#521818, #a73535, #521818);
         --button-background: linear-gradient(#521818, #7c2727, #521818);
+        --button-hover-secondary: linear-gradient(#38342d, #514941, #38342d);
+        --button-background-secondary: linear-gradient(#282623, #45413a, #282623);
         --form-text: #d7cea4;
         --form-placeholder: #7d7359;
         --code: #ffb86c;
@@ -178,10 +180,9 @@ header nav a[aria-current="page"] {
 }
 
 /* Panels: raised fill, gilded edge, bevel line, corner rivets. */
-form,
+dialog,
 section {
     position: relative;
-    padding: 1em;
     border: 1px solid var(--border);
     border-radius: 4px;
     background-color: var(--background-alt);
@@ -251,6 +252,7 @@ input[type="submit"] {
     text-shadow: var(--text-emboss);
     text-transform: uppercase;
     letter-spacing: .08em;
+    margin: 3px;
 }
 
 button:hover {
@@ -350,4 +352,31 @@ textarea {
     :root {
         --animation-duration: 0s;
     }
+}
+
+.dialog-buttons div {
+    display: inline-block;
+    margin: 0;
+}
+
+.size-50 {
+    width: 50%;
+}
+
+.float-right {
+    float: right;
+}
+
+.align-right {
+    text-align: right;
+}
+
+.button-secondary {
+    background-image: var(--button-background-secondary);
+    background-color: var(--plate-deep);
+    color: var(--text-main);
+}
+
+.button-secondary:hover {
+    background-image: var(--button-hover-secondary);
 }

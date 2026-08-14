@@ -238,3 +238,30 @@ function initializeForm() {
 }
 
 initializeForm();
+
+function initializeDialog() {
+    const dialog = /** @type {HTMLDialogElement | null} */ (document.getElementById('dialog'));
+    if (!dialog) {
+        throw new Error('No dialog element found in the DOM.');
+    }
+
+    const dialogTrigger = document.getElementById('dialog-trigger');
+    if (!dialogTrigger) {
+        throw new Error('No dialog trigger element found in the DOM.');
+    }
+
+    const dialogClose = document.getElementById('dialog-close');
+    if (!dialogClose) {
+        throw new Error('No dialog close element found in the DOM.');
+    }
+
+    dialogTrigger.addEventListener('click', () => {
+        dialog.showModal();
+    });
+    dialogClose.addEventListener('click', () => {
+        dialog.close();
+    });
+}
+
+initializeDialog();
+
