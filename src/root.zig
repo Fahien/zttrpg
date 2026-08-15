@@ -9,6 +9,7 @@ const Allocator = std.mem.Allocator;
 const model = @import("model/model.zig");
 
 pub const Skill = model.Skill;
+pub const SkillKind = model.SkillKind;
 pub const Kin = model.Kin;
 pub const Character = model.Character;
 pub const Icon = model.Icon;
@@ -133,7 +134,9 @@ pub const Database = struct {
             Skill => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
-                return Skill.init(gpa, inner.id, inner.name, icon.?, inner.type, inner.description);
+                const kind = try self.readItem(gpa, SkillKind, inner.kind);
+                if (kind == null) return error.SkillKindNotFound;
+                return Skill.init(gpa, inner.id, inner.name, icon.?, kind.?, inner.description);
             },
             Character => {
                 const kin = try self.readItem(gpa, Kin, inner.kin);
@@ -288,12 +291,12 @@ const all_models = .{ Character, Kin, Skill };
 test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon", comptime Database.getCols(Kin));
-    try std.testing.expectEqualStrings("id, name, icon, type, description", comptime Database.getCols(Skill));
+    try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
     try std.testing.expectEqualStrings("name, level, kin", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon", comptime Database.getCols(Kin.Create));
-    try std.testing.expectEqualStrings("name, icon, type, description", comptime Database.getCols(Skill.Create));
+    try std.testing.expectEqualStrings("name, icon, kind, description", comptime Database.getCols(Skill.Create));
 }
 
 test "no Create type carries an id column" {

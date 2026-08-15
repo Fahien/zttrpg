@@ -15,6 +15,7 @@ pub const Kin = kin.Kin;
 
 const skill = @import("skill.zig");
 pub const Skill = skill.Skill;
+pub const SkillKind = skill.SkillKind;
 
 test {
     // Test discovery is lazy: a file's tests are only collected when the file

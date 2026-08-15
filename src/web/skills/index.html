@@ -16,8 +16,8 @@
         <input type="text" id="name" name="name" required>
         <label for="icon">Icon:</label>
         <select id="icon" name="icon" data-resource="icons" required></select>
-        <label for="type">Type:</label>
-        <input type="text" id="type" name="type" required>
+        <label for="kind">Kind:</label>
+        <select id="kind" name="kind" data-resource="skill_kinds" required></select>
         <label for="description">Description:</label>
         <input type="text" id="description" name="description" required>
         <button type="submit">Add Skill</button>
@@ -26,7 +26,7 @@
 
     {{footer}}
 
-    <script src="/static/roster.js" data-resource="skills" data-fields="icon.name:icon,name:text,description:text"></script>
+    <script src="/static/roster.js" data-resource="skills" data-fields="icon.name:icon,name:text,kind.name:text,description:text"></script>
 </body>
 
 </html>

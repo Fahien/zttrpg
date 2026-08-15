@@ -36,6 +36,7 @@ pub fn main(init: std.process.Init) !void {
 const Resource = enum {
     characters,
     kins,
+    skill_kinds,
     skills,
     icons,
     attributes,
@@ -292,6 +293,7 @@ fn handleCollection(
                 switch (resource) {
                     .characters => try respondItems(gpa, writer, db, request, zttrpg.Character),
                     .kins => try respondItems(gpa, writer, db, request, zttrpg.Kin),
+                    .skill_kinds => try respondItems(gpa, writer, db, request, zttrpg.SkillKind),
                     .skills => try respondItems(gpa, writer, db, request, zttrpg.Skill),
                     .icons => try respondItems(gpa, writer, db, request, zttrpg.Icon),
                     .attributes => try respondItems(gpa, writer, db, request, zttrpg.Attribute),
@@ -304,6 +306,7 @@ fn handleCollection(
             switch (resource) {
                 .characters => try insertItem(gpa, writer, db, request, zttrpg.Character),
                 .kins => try insertItem(gpa, writer, db, request, zttrpg.Kin),
+                .skill_kinds => try insertItem(gpa, writer, db, request, zttrpg.SkillKind),
                 .skills => try insertItem(gpa, writer, db, request, zttrpg.Skill),
                 .icons => try insertItem(gpa, writer, db, request, zttrpg.Icon),
                 .attributes => try insertItem(gpa, writer, db, request, zttrpg.Attribute),
@@ -327,6 +330,7 @@ fn handleItem(
                 switch (item.resource) {
                     .characters => try respondItem(gpa, writer, db, request, zttrpg.Character, item.id),
                     .kins => try respondItem(gpa, writer, db, request, zttrpg.Kin, item.id),
+                    .skill_kinds => try respondItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
                     .skills => try respondItem(gpa, writer, db, request, zttrpg.Skill, item.id),
                     .icons => try respondItem(gpa, writer, db, request, zttrpg.Icon, item.id),
                     .attributes => try respondItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
@@ -338,6 +342,7 @@ fn handleItem(
         .DELETE => switch (item.resource) {
             .characters => try deleteItem(gpa, writer, db, request, zttrpg.Character, item.id),
             .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
+            .skill_kinds => try deleteItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
             .skills => try deleteItem(gpa, writer, db, request, zttrpg.Skill, item.id),
             .icons => try deleteItem(gpa, writer, db, request, zttrpg.Icon, item.id),
             .attributes => try deleteItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
@@ -345,6 +350,7 @@ fn handleItem(
         .PUT => switch (item.resource) {
             .characters => try updateItem(gpa, writer, db, request, zttrpg.Character, item.id),
             .kins => try updateItem(gpa, writer, db, request, zttrpg.Kin, item.id),
+            .skill_kinds => try updateItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
             .skills => try updateItem(gpa, writer, db, request, zttrpg.Skill, item.id),
             .icons => try updateItem(gpa, writer, db, request, zttrpg.Icon, item.id),
             .attributes => try updateItem(gpa, writer, db, request, zttrpg.Attribute, item.id),

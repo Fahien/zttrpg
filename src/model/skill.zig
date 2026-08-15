@@ -6,17 +6,50 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+pub const SkillKindBody = struct {
+    name: []const u8,
+
+    pub fn validate(self: *const SkillKindBody) !void {
+        if (self.name.len == 0) return error.EmptyName;
+    }
+};
+
+pub const SkillKindCreate = SkillKindBody;
+pub const SkillKindUpdate = SkillKindBody;
+
+pub const SkillKind = struct {
+    pub const Create = SkillKindCreate;
+    pub const Update = SkillKindUpdate;
+
+    pub const Id = u32;
+    pub const table_name: []const u8 = "skill_kinds";
+
+    id: Id = 0,
+    name: []const u8,
+
+    pub fn init(gpa: Allocator, id: u32, name: []const u8) !SkillKind {
+        const name_copy = try gpa.dupe(u8, name);
+        return SkillKind{
+            .id = id,
+            .name = name_copy,
+        };
+    }
+
+    pub fn deinit(self: *const SkillKind, gpa: Allocator) void {
+        gpa.free(self.name);
+    }
+};
+
 const Icon = @import("icon.zig").Icon;
 
 pub const SkillBody = struct {
     name: []const u8,
     icon: Icon.Id,
-    type: []const u8,
+    kind: SkillKind.Id,
     description: []const u8,
 
     pub fn validate(self: *const SkillBody) !void {
         if (self.name.len == 0) return error.EmptyName;
-        if (self.type.len == 0) return error.EmptyType;
         if (self.description.len == 0) return error.EmptyDescription;
     }
 };
@@ -28,7 +61,7 @@ pub const SkillRow = struct {
     id: Skill.Id,
     name: []const u8,
     icon: Icon.Id,
-    type: []const u8,
+    kind: SkillKind.Id,
     description: []const u8,
 };
 
@@ -42,25 +75,25 @@ pub const Skill = struct {
     id: Id = 0,
     name: []const u8,
     icon: Icon,
-    type: []const u8,
+    kind: SkillKind,
     description: []const u8,
 
-    pub fn init(gpa: Allocator, id: u32, name: []const u8, icon: Icon, type_: []const u8, description: []const u8) !Skill {
+    pub fn init(gpa: Allocator, id: u32, name: []const u8, icon: Icon, kind: SkillKind, description: []const u8) !Skill {
         const name_copy = try gpa.dupe(u8, name);
-        const type_copy = try gpa.dupe(u8, type_);
         const description_copy = try gpa.dupe(u8, description);
         return Skill{
             .id = id,
             .name = name_copy,
             .icon = icon,
-            .type = type_copy,
+            .kind = kind,
             .description = description_copy,
         };
     }
 
     pub fn deinit(self: *const Skill, gpa: Allocator) void {
         gpa.free(self.name);
-        gpa.free(self.type);
+        self.icon.deinit(gpa);
+        self.kind.deinit(gpa);
         gpa.free(self.description);
     }
 };

@@ -1,9 +1,9 @@
 {
     "$schema": "https://json-schema.org/draft-07/schema#",
-    "$id": "skill-types.schema.json",
-    "title": "Skill Types",
+    "$id": "skill-kinds.schema.json",
+    "title": "Skill Kinds",
     "type": "string",
-    "description": "The type of the skill.",
+    "description": "The kind of the skill.",
     "enum": [
         "Core",
         "Secondary",

@@ -175,7 +175,7 @@ function initializeSelect(selectElement, resourceName) {
     })
         .then(response => {
             if (!response.ok) {
-                throw new Error(`Failed to fetch ${resourceName}: ${response.statusText}`);
+                throw new Error(response.statusText);
             }
             return response.json();
         })
@@ -188,6 +188,7 @@ function initializeSelect(selectElement, resourceName) {
             }
         })
         .catch(error => {
+            reportError(`Error fetching ${resourceName}: ${error.message}`);
             console.error(`Error fetching ${resourceName}:`, error);
         });
 }

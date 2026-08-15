@@ -380,3 +380,7 @@ textarea {
 .button-secondary:hover {
     background-image: var(--button-hover-secondary);
 }
+
+#status-message {
+    margin-top: 1em;
+}
