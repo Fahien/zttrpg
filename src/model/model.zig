@@ -24,4 +24,5 @@ test {
     _ = kin;
     _ = skill;
     _ = icon;
+    _ = attribute;
 }

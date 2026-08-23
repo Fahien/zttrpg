@@ -10,5 +10,4 @@ CREATE TABLE characters (
 
 INSERT INTO characters (name, level, kin) VALUES
     ('Alice', 1, 3),
-    ('Bob', 2, 2),
-    ('Charlie', 3, 1);
+    ('Bob', 2, 2);

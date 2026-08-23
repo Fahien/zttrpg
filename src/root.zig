@@ -141,7 +141,7 @@ pub const Database = struct {
             Character => {
                 const kin = try self.readItem(gpa, Kin, inner.kin);
                 if (kin == null) return error.KinNotFound;
-                return Character.init(gpa, inner.id, inner.name, inner.level, kin.?);
+                return Character.init(gpa, inner.id, inner.name, inner.level, kin.?, &.{}, &.{});
             },
             Attribute => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
@@ -289,7 +289,7 @@ test {
 const all_models = .{ Character, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
