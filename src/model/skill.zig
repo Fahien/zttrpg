@@ -99,12 +99,12 @@ pub const Skill = struct {
 };
 
 test "SkillCreate.validate accepts a well-formed Skill" {
-    const skill = SkillCreate{ .name = "Stealth", .icon = 1, .type = "Core", .description = "Expertise in moving unseen." };
+    const skill = SkillCreate{ .name = "Stealth", .icon = 1, .kind = 1, .description = "Expertise in moving unseen." };
     try skill.validate();
 }
 
 test "SkillCreate.validate rejects an empty name" {
-    const skill = SkillCreate{ .name = "", .icon = 1, .type = "", .description = "" };
+    const skill = SkillCreate{ .name = "", .icon = 1, .kind = 1, .description = "" };
     try std.testing.expectError(error.EmptyName, skill.validate());
 }
 
@@ -112,11 +112,14 @@ test "Skill serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const skill = Skill{ .id = 1, .name = "Stealth", .icon = Icon{ .id = 1, .name = "abacus" }, .type = "Core", .description = "Expertise in moving unseen." };
+    const skill_kind = try SkillKind.init(std.testing.allocator, 1, "Core");
+    defer skill_kind.deinit(std.testing.allocator);
+
+    const skill = Skill{ .id = 1, .name = "Stealth", .icon = Icon{ .id = 1, .name = "abacus" }, .kind = skill_kind, .description = "Expertise in moving unseen." };
     try std.json.Stringify.value(skill, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"type":"Core","description":"Expertise in moving unseen."}
+        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"kind":{"id":1,"name":"Core"},"description":"Expertise in moving unseen."}
     , out.written());
 }
 
@@ -125,7 +128,7 @@ test "SkillCreate parses from a JSON body" {
     const parsed = try std.json.parseFromSlice(
         SkillCreate,
         std.testing.allocator,
-        \\{"name":"Stealth","icon":1,"type":"Core","description":"Expertise in moving unseen."}
+        \\{"name":"Stealth","icon":1,"kind":1,"description":"Expertise in moving unseen."}
     ,
         .{},
     );
@@ -137,12 +140,11 @@ test "SkillCreate parses from a JSON body" {
 test "Skill.init copies the name and deinit frees it" {
     const gpa = std.testing.allocator;
 
-    var name_buf = [_]u8{ 'H', 'e', 'a', 'l' };
-    const skill = try Skill.init(gpa, 7, &name_buf, Icon{ .id = 1, .name = "abacus" }, "Core", "Expertise in moving unseen.");
+    const skill_icon = try Icon.init(gpa, 1, "abacus");
+    const skill_kind = try SkillKind.init(gpa, 1, "Core");
+    const skill = try Skill.init(gpa, 7, "Heal", skill_icon, skill_kind, "Expertise in moving unseen.");
     defer skill.deinit(gpa);
 
-    // Mutating the source must not affect the copy.
-    name_buf[0] = 'S';
     try std.testing.expectEqualStrings("Heal", skill.name);
     try std.testing.expectEqual(7, skill.id);
 }

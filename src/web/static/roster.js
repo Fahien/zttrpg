@@ -243,7 +243,8 @@ initializeForm();
 function initializeDialog() {
     const dialog = /** @type {HTMLDialogElement | null} */ (document.getElementById('dialog'));
     if (!dialog) {
-        throw new Error('No dialog element found in the DOM.');
+        // Dialog is optional.
+        return;
     }
 
     const dialogTrigger = document.getElementById('dialog-trigger');

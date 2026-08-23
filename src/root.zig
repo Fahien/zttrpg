@@ -335,7 +335,7 @@ test "getSetClauses derives the id placeholder from the field count" {
         comptime Database.getSetClauses(Kin.Update),
     );
     try std.testing.expectEqualStrings(
-        "name = $1, icon = $2, type = $3, description = $4 WHERE id = $5",
+        "name = $1, icon = $2, kind = $3, description = $4 WHERE id = $5",
         comptime Database.getSetClauses(Skill.Update),
     );
 }
