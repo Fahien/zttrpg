@@ -189,6 +189,7 @@ section {
     box-shadow:
         inset 0 0 0 1px var(--bevel),
         inset 0 0 4px var(--vignette);
+    padding: 0em 1em;
 }
 
 form::before,

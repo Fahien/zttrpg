@@ -14,6 +14,8 @@ pub const Kin = model.Kin;
 pub const Character = model.Character;
 pub const Icon = model.Icon;
 pub const Attribute = model.Attribute;
+pub const CharacterAttribute = model.CharacterAttribute;
+pub const CharacterSkill = model.CharacterSkill;
 
 pub const Database = struct {
     conn: pq.Connection,
@@ -70,13 +72,24 @@ pub const Database = struct {
         return cols;
     }
 
-    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
+    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type, comptime where: ?[]const u8, value: ?u32) ![]T {
         const QueryType = RowOfT(T);
 
         // Build the SELECT query dynamically based on the fields of the struct T.
         const cols = comptime Database.getCols(QueryType);
-        const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
-        const result = try self.conn.exec(query);
+
+        var result: pq.Result = undefined;
+
+        if (where) |w| {
+            const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " WHERE " ++ w ++ " = $1";
+            const v = value.?;
+            const value_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{v}, 0);
+            defer gpa.free(value_cstr);
+            result = try self.conn.execParams(query, &.{value_cstr});
+        } else {
+            const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
+            result = try self.conn.exec(query);
+        }
         defer result.deinit();
 
         const count = result.len();
@@ -141,12 +154,30 @@ pub const Database = struct {
             Character => {
                 const kin = try self.readItem(gpa, Kin, inner.kin);
                 if (kin == null) return error.KinNotFound;
-                return Character.init(gpa, inner.id, inner.name, inner.level, kin.?, &.{}, &.{});
+                const attributes = try self.readAllAlloc(gpa, CharacterAttribute, "character", inner.id);
+                const skills = try self.readAllAlloc(gpa, CharacterSkill, "character", inner.id);
+                return Character.init(gpa, inner.id, inner.name, inner.level, kin.?, attributes, skills);
             },
             Attribute => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
                 return Attribute.init(gpa, inner.id, inner.name, icon.?, inner.short, inner.description);
+            },
+            CharacterAttribute => {
+                const skill = try self.readItem(gpa, Attribute, inner.attribute);
+                if (skill == null) return error.AttributeNotFound;
+                return CharacterAttribute{
+                    .attribute = skill.?,
+                    .value = inner.value,
+                };
+            },
+            CharacterSkill => {
+                const skill = try self.readItem(gpa, Skill, inner.skill);
+                if (skill == null) return error.SkillNotFound;
+                return CharacterSkill{
+                    .skill = skill.?,
+                    .value = inner.value,
+                };
             },
             else => @compileError("Unsupported conversion from " ++ @typeName(Inner) ++ " to " ++ @typeName(T)),
         }

@@ -3,6 +3,8 @@
 
 const character = @import("character.zig");
 pub const Character = character.Character;
+pub const CharacterAttribute = character.CharacterAttribute;
+pub const CharacterSkill = character.CharacterSkill;
 
 const icon = @import("icon.zig");
 pub const Icon = icon.Icon;

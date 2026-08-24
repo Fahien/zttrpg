@@ -451,7 +451,7 @@ fn respondItems(
     request: *std.http.Server.Request,
     comptime T: type,
 ) !void {
-    const items = try db.readAllAlloc(gpa, T);
+    const items = try db.readAllAlloc(gpa, T, null, 0);
     try std.json.Stringify.value(items, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",

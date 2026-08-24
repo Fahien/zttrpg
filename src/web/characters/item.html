@@ -13,6 +13,7 @@
     <main id="instance-details">
         <header>
             <h1 data-field="name">Name</h1>
+            <p><span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span> <span data-field="kin.name">Kin icon</span></p>
         </header>
 
         <section id="instance-stats">
@@ -20,6 +21,13 @@
             <ul>
                 <li>Level: <span data-field="level">1</span></li>
             </ul>
+
+            <ul data-list="attributes">
+                <template>
+                    <li><span class="icon-frame" data-icon-size="1"><span data-field="attribute.icon.name:icon"></span></span> <span data-field="attribute.name"></span> <span data-field="value"></span></li>
+                </template>
+            </ul>
+
         </section>
         <section id="instance-equipment">
             <h2>Equipment</h2>
