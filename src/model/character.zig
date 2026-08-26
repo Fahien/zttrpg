@@ -10,12 +10,36 @@ const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
 
+pub const BodyError = error{ ValueOutOfRange, DuplicateEntry };
+
+/// Validates a whole request body: each element on its own, plus the one rule
+/// no element can check by itself. A repeated key is not a constraint
+/// violation for these tables -- the UPDATE would simply run twice, last one
+/// winning -- so Postgres never sees it and the check has to live here.
+fn validateBodyList(comptime Body: type, comptime key: []const u8, items: []const Body) BodyError!void {
+    for (items, 0..) |item, i| {
+        try item.validate();
+
+        // Bounded by the number of attributes or skills, so a scan beats a map.
+        for (items[i + 1 ..]) |other| {
+            if (@field(item, key) == @field(other, key)) return error.DuplicateEntry;
+        }
+    }
+}
+
 pub const BodyCharacterAttribute = struct {
+    pub const key_name: []const u8 = Attribute.resource_name;
+
     attribute: Attribute.Id,
     value: u32,
 
     pub fn validate(self: *const BodyCharacterAttribute) error{ValueOutOfRange}!void {
-        if (self.value > 1024) return error.ValueOutOfRange;
+        if (self.value >= 1024) return error.ValueOutOfRange;
+    }
+
+    /// An empty body is a legal no-op: saving a sheet nobody edited.
+    pub fn validateAll(items: []const BodyCharacterAttribute) BodyError!void {
+        return validateBodyList(BodyCharacterAttribute, BodyCharacterAttribute.key_name, items);
     }
 };
 
@@ -40,11 +64,18 @@ pub const CharacterAttribute = struct {
 };
 
 pub const BodyCharacterSkill = struct {
+    pub const key_name: []const u8 = Skill.resource_name;
+
     skill: Skill.Id,
     value: u32,
 
     pub fn validate(self: *const BodyCharacterSkill) error{ValueOutOfRange}!void {
-        if (self.value > 1024) return error.ValueOutOfRange;
+        if (self.value >= 1024) return error.ValueOutOfRange;
+    }
+
+    /// An empty body is a legal no-op: saving a sheet nobody edited.
+    pub fn validateAll(items: []const BodyCharacterSkill) BodyError!void {
+        return validateBodyList(BodyCharacterSkill, BodyCharacterSkill.key_name, items);
     }
 };
 
@@ -250,4 +281,65 @@ test "a request body carries no character id: the URL already named it" {
     try std.testing.expect(@hasField(RowCharacterAttribute, "character"));
     try std.testing.expect(!@hasField(BodyCharacterAttribute, "character"));
     try std.testing.expect(!@hasField(BodyCharacterSkill, "character"));
+}
+
+test "validateAll accepts a well-formed body" {
+    try BodyCharacterAttribute.validateAll(&.{
+        .{ .attribute = 1, .value = 0 },
+        .{ .attribute = 2, .value = 7 },
+    });
+}
+
+test "validateAll accepts an empty body" {
+    // Saving a sheet nobody edited is a no-op, not an error.
+    try BodyCharacterAttribute.validateAll(&.{});
+    try BodyCharacterSkill.validateAll(&.{});
+}
+
+test "validate rejects values the CHECK constraint would reject" {
+    // db/0060-character-attributes.sql says `value >= 0 AND value < 1024`, so
+    // 1023 is the largest legal value and 1024 must never reach Postgres.
+    const highest_legal = BodyCharacterAttribute{ .attribute = 1, .value = 1023 };
+    try highest_legal.validate();
+
+    const one_too_many = BodyCharacterAttribute{ .attribute = 1, .value = 1024 };
+    try std.testing.expectError(error.ValueOutOfRange, one_too_many.validate());
+
+    const skill_one_too_many = BodyCharacterSkill{ .skill = 1, .value = 1024 };
+    try std.testing.expectError(error.ValueOutOfRange, skill_one_too_many.validate());
+}
+
+test "validateAll rejects an out-of-range value anywhere in the body" {
+    try std.testing.expectError(error.ValueOutOfRange, BodyCharacterAttribute.validateAll(&.{
+        .{ .attribute = 1, .value = 3 },
+        .{ .attribute = 2, .value = 1024 },
+    }));
+}
+
+test "validateAll rejects a repeated key" {
+    // Postgres cannot catch this: two UPDATEs against the same row both
+    // succeed and the last one wins. Silently accepting it would hide a
+    // client bug, so it is a 400 instead.
+    try std.testing.expectError(error.DuplicateEntry, BodyCharacterAttribute.validateAll(&.{
+        .{ .attribute = 1, .value = 3 },
+        .{ .attribute = 1, .value = 9 },
+    }));
+    try std.testing.expectError(error.DuplicateEntry, BodyCharacterSkill.validateAll(&.{
+        .{ .skill = 7, .value = 3 },
+        .{ .skill = 2, .value = 1 },
+        .{ .skill = 7, .value = 9 },
+    }));
+}
+
+test "a body element rejects unknown fields" {
+    // parseFromSlice is called with .{}, so ignore_unknown_fields stays false.
+    // A client sending `character` in the body gets a 400 rather than having
+    // it quietly dropped.
+    try std.testing.expectError(error.UnknownField, std.json.parseFromSlice(
+        []const BodyCharacterAttribute,
+        std.testing.allocator,
+        \\[{"character":1,"attribute":1,"value":4}]
+    ,
+        .{},
+    ));
 }

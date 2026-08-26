@@ -37,6 +37,7 @@ pub const Attribute = struct {
     pub const Update = AttributeUpdate;
     pub const Row = AttributeRow;
     pub const table_name: []const u8 = "attributes";
+    pub const resource_name: []const u8 = "attribute";
 
     id: Id = 0,
     name: []const u8,

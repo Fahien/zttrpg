@@ -71,6 +71,7 @@ pub const Skill = struct {
     pub const Update = SkillUpdate;
     pub const Row = SkillRow;
     pub const table_name: []const u8 = "skills";
+    pub const resource_name: []const u8 = "skill";
 
     id: Id = 0,
     name: []const u8,

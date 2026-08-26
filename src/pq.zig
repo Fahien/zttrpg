@@ -96,6 +96,11 @@ pub const Connection = struct {
         const res = try self.exec("COMMIT");
         defer res.deinit();
     }
+
+    pub fn rollbackTransaction(self: *const Connection) !void {
+        const res = try self.exec("ROLLBACK");
+        defer res.deinit();
+    }
 };
 
 pub const Result = struct {

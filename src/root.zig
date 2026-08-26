@@ -96,6 +96,62 @@ pub const Database = struct {
         return items;
     }
 
+    /// The update below binds Body's fields to $2 and $3, and getParams renders
+    /// them in declaration order. Both are integers, so a reordered struct would
+    /// swap the key with the value without any type error: pin the layout here.
+    fn requireBodyLayout(comptime Child: type) void {
+        const fields = @typeInfo(Child.Body).@"struct".fields;
+        const ordered = fields.len == 2 and
+            std.mem.eql(u8, fields[0].name, Child.Body.key_name) and
+            std.mem.eql(u8, fields[1].name, "value");
+
+        if (!ordered) {
+            @compileError(@typeName(Child.Body) ++ " must declare `" ++ Child.Body.key_name ++
+                "` then `value`: updateSubResourceQuery binds them to $2 and $3 in that order.");
+        }
+    }
+
+    fn updateSubResourceQuery(comptime Parent: type, comptime Child: type) [:0]const u8 {
+        requireBodyLayout(Child);
+
+        return "UPDATE " ++ Child.table_name ++ " SET value = $3 WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Child.Body.key_name ++ " = $2";
+    }
+
+    pub fn updateSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
+        const query = comptime Database.updateSubResourceQuery(Parent, Child);
+
+        const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
+        defer gpa.free(parent_id_cstr);
+
+        try self.conn.beginTransaction();
+        errdefer self.conn.rollbackTransaction() catch {
+            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
+        };
+
+        for (bodies) |body| {
+            const params = try Database.getParams(gpa, Child.Body, body);
+            defer {
+                for (params) |param| gpa.free(std.mem.span(param));
+            }
+
+            // $1 is the parent id, then Body's fields in declaration order.
+            var all_params: [1 + params.len][*:0]const u8 = undefined;
+            all_params[0] = parent_id_cstr;
+            for (params, 0..) |param, i| {
+                all_params[i + 1] = param;
+            }
+
+            const result = try self.conn.execParams(query, &all_params);
+            defer result.deinit();
+
+            if (try result.affectedRows() != 1) {
+                return error.ItemNotFound;
+            }
+        }
+
+        try self.conn.commitTransaction();
+    }
+
     fn getCols(comptime T: type) []const u8 {
         comptime var cols: []const u8 = "";
         const field_count = @typeInfo(T).@"struct".fields.len;
@@ -411,6 +467,34 @@ test "getSetClauses derives the id placeholder from the field count" {
         "name = $1, icon = $2, kind = $3, description = $4 WHERE id = $5",
         comptime Database.getSetClauses(Skill.Update),
     );
+}
+
+test "updateSubResourceQuery keys the update on both halves of the composite key" {
+    // These tables have no id, so the WHERE clause names the whole primary key.
+    // $1 is the parent and never changes across a batch, which is why it comes
+    // first even though it appears last in the text.
+    try std.testing.expectEqualStrings(
+        "UPDATE character_attributes SET value = $3 WHERE character = $1 AND attribute = $2",
+        comptime Database.updateSubResourceQuery(Character, CharacterAttribute),
+    );
+    try std.testing.expectEqualStrings(
+        "UPDATE character_skills SET value = $3 WHERE character = $1 AND skill = $2",
+        comptime Database.updateSubResourceQuery(Character, CharacterSkill),
+    );
+}
+
+test "a sub-resource body renders its params in the order the update binds them" {
+    const gpa = std.testing.allocator;
+
+    // The seam between updateSubResourceQuery and getParams: $2 is the key and
+    // $3 is the value, and nothing but declaration order makes that true.
+    const params = try Database.getParams(gpa, CharacterAttribute.Body, .{ .attribute = 5, .value = 9 });
+    defer {
+        for (params) |param| gpa.free(std.mem.span(param));
+    }
+
+    try std.testing.expectEqualStrings("5", std.mem.span(params[0]));
+    try std.testing.expectEqualStrings("9", std.mem.span(params[1]));
 }
 
 test "a model without a Row type queries its own fields" {
