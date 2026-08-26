@@ -75,6 +75,7 @@ pub const Character = struct {
     pub const Row = RowCharacter;
 
     pub const table_name: []const u8 = "characters";
+    pub const resource_name: []const u8 = "character";
 
     id: Id,
     name: []const u8,

@@ -60,6 +60,28 @@ pub const Database = struct {
         return try self.innerToT(T, QueryType, gpa, inner);
     }
 
+    pub fn readSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32) ![]Child {
+        const QueryType = RowOfT(Child);
+
+        const cols = comptime Database.getCols(QueryType);
+        const query = "SELECT " ++ cols ++ " FROM " ++ Child.table_name ++ " WHERE " ++ Parent.resource_name ++ " = $1";
+        const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
+        defer gpa.free(parent_id_cstr);
+
+        const result = try self.conn.execParams(query, &.{parent_id_cstr});
+        defer result.deinit();
+
+        const count = result.len();
+        var items = try gpa.alloc(Child, count);
+
+        for (0..count) |row| {
+            const inner = try Database.rowToT(QueryType, gpa, &result, row);
+            items[row] = try self.innerToT(Child, QueryType, gpa, inner);
+        }
+
+        return items;
+    }
+
     fn getCols(comptime T: type) []const u8 {
         comptime var cols: []const u8 = "";
         const field_count = @typeInfo(T).@"struct".fields.len;

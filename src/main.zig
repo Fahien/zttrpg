@@ -47,10 +47,26 @@ const ResourceItem = struct {
     id: u32,
 };
 
+/// SubResource is a subset of Resource that can be used to identify sub-resources of a resource.
+/// For example, a character can have attributes and skills.
+const SubResource = enum {
+    attributes,
+    skills,
+};
+
+/// SubCollection represents a sub-resource collection of a resource item.
+/// For example, a character can have a collection of attributes or skills.
+const SubCollection = struct {
+    resource: Resource,
+    id: u32,
+    subresource: SubResource,
+};
+
 const Route = union(enum) {
     root,
     collection: Resource,
     item: ResourceItem,
+    sub_collection: SubCollection,
     static: []const u8,
     not_found,
 
@@ -92,15 +108,27 @@ const Route = union(enum) {
             return .{ .collection = resource };
         }
 
+        // Item.
         const next_segment = sequence.next() orelse unreachable;
         const id = std.fmt.parseInt(u32, next_segment, 10) catch return Route.not_found;
 
         const maybe_next_after_id = sequence.peek();
-        if (maybe_next_after_id != null) {
+        if (maybe_next_after_id == null) {
+            return .{ .item = .{ .resource = resource, .id = id } };
+        }
+
+        // Sub-collection.
+        const next_after_id = sequence.next() orelse unreachable;
+        const subresource = std.meta.stringToEnum(SubResource, next_after_id) orelse return Route.not_found;
+
+        // Values are written a whole sub-collection at a time, so a single one
+        // has no URL of its own: /characters/3/skills/7 stays a 404.
+        const maybe_next_after_sub = sequence.peek();
+        if (maybe_next_after_sub != null) {
             return Route.not_found;
         }
 
-        return .{ .item = .{ .resource = resource, .id = id } };
+        return .{ .sub_collection = .{ .resource = resource, .id = id, .subresource = subresource } };
     }
 };
 
@@ -141,6 +169,7 @@ fn handleConnection(
         .root => try handleRoot(gpa, init.io, &writer, &request),
         .collection => |resource| try handleCollection(resource, gpa, init.io, &writer, db, &request),
         .item => |item| try handleItem(item, gpa, init.io, &writer, db, &request),
+        .sub_collection => |sub| try handleSubCollection(sub, gpa, &writer, db, &request),
         .static => |path| try handleStatic(gpa, init.io, &writer, &request, path),
         .not_found => try handleNotFound(&writer, &request),
     }
@@ -527,6 +556,51 @@ fn insertItem(
     try respondItem(gpa, writer, db, request, T, item_id);
 }
 
+fn handleSubCollection(
+    sub: SubCollection,
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+) !void {
+    if (request.head.method == .GET and wantsJson(request)) {
+        switch (sub.resource) {
+            .characters => switch (sub.subresource) {
+                .attributes => try respondSubCollection(gpa, writer, db, request, zttrpg.Character, zttrpg.CharacterAttribute, sub.id),
+                .skills => try respondSubCollection(gpa, writer, db, request, zttrpg.Character, zttrpg.CharacterSkill, sub.id),
+            },
+            else => {
+                try handleNotFound(writer, request);
+            },
+        }
+    } else {
+        try handleMethodNotAllowed(writer, request, request.head.method);
+    }
+}
+
+fn respondSubCollection(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+    comptime ParentResource: type,
+    comptime ChildSubResource: type,
+    parent_id: u32,
+) !void {
+    const children = db.readSubResource(gpa, ParentResource, ChildSubResource, parent_id) catch {
+        try writer.writer.print("Failed to read " ++ @typeName(ChildSubResource) ++ " for " ++ @typeName(ParentResource) ++ " with ID {d}.\n", .{parent_id});
+        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
+        return;
+    };
+
+    try std.json.Stringify.value(children, .{}, &writer.writer);
+    const extra_header = std.http.Header{
+        .name = "Content-Type",
+        .value = "application/json",
+    };
+    try request.respond(writer.written(), .{ .keep_alive = false, .extra_headers = &.{extra_header} });
+}
+
 test "parseRoute: root" {
     try std.testing.expectEqual(Route.root, Route.parseRoute("/"));
     try std.testing.expectEqual(Route.root, Route.parseRoute(""));
@@ -547,6 +621,45 @@ test "parseRoute: single character by id" {
     try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 3 } }, Route.parseRoute("/characters/3/"));
     try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 3 } }, Route.parseRoute("/characters/3?verbose=1"));
     try std.testing.expectEqual(Route{ .item = .{ .resource = .characters, .id = 0 } }, Route.parseRoute("/characters/0"));
+}
+
+test "parseRoute: character sub-collections" {
+    const skills = Route{ .sub_collection = .{ .resource = .characters, .id = 3, .subresource = .skills } };
+
+    try std.testing.expectEqual(skills, Route.parseRoute("/characters/3/skills"));
+    // Same trailing-slash and query-string policy as every other route.
+    try std.testing.expectEqual(skills, Route.parseRoute("/characters/3/skills/"));
+    try std.testing.expectEqual(skills, Route.parseRoute("/characters/3/skills?sort=name"));
+
+    try std.testing.expectEqual(
+        Route{ .sub_collection = .{ .resource = .characters, .id = 3, .subresource = .attributes } },
+        Route.parseRoute("/characters/3/attributes"),
+    );
+}
+
+test "parseRoute: nothing routes below a sub-collection" {
+    // Values are written a whole sub-collection at a time, so a single value
+    // has no URL of its own. Dropping this guard would quietly route
+    // /characters/3/skills/7 to the whole collection instead of a 404.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/skills/7"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/skills/7/extra"));
+}
+
+test "parseRoute: only SubResource names route below an id" {
+    // 'kins' is a Resource but not a SubResource, so the separate enum is what
+    // keeps /characters/3/kins from parsing.
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/kins"));
+    try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/bogus"));
+}
+
+test "parseRoute: a sub-collection on the wrong resource still parses" {
+    // SubResource says which names *are* sub-collections, not which resources
+    // *have* them, so nothing here rejects /kins/3/skills. Pinning the current
+    // behaviour makes the leftover check a handler's job, not an oversight.
+    try std.testing.expectEqual(
+        Route{ .sub_collection = .{ .resource = .kins, .id = 3, .subresource = .skills } },
+        Route.parseRoute("/kins/3/skills"),
+    );
 }
 
 test "parseRoute: static assets" {
@@ -608,6 +721,19 @@ test "every resource routes as a collection and as an item" {
     }
 }
 
+test "every sub-resource routes under a character" {
+    // As with Resource above: looping the enum means a new sub-resource is
+    // covered the moment it joins SubResource, instead of being forgotten here.
+    inline for (@typeInfo(SubResource).@"enum".fields) |field| {
+        const subresource: SubResource = @enumFromInt(field.value);
+
+        try std.testing.expectEqual(
+            Route{ .sub_collection = .{ .resource = .characters, .id = 7, .subresource = subresource } },
+            Route.parseRoute("/characters/7/" ++ field.name),
+        );
+    }
+}
+
 test "every page wires up the ids its shared script looks up" {
     // roster.js and instance.js are shared by every resource and find their
     // elements by id. A page that names an element after its own resource
@@ -645,6 +771,6 @@ test "parseRoute: rejections" {
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/alice"));
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/-1"));
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/99999999999"));
-    // Nothing is routed below a character id.
+    // Only SubResource names route below a character id.
     try std.testing.expectEqual(Route.not_found, Route.parseRoute("/characters/3/junk"));
 }
