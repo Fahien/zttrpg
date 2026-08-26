@@ -31,6 +31,7 @@ pub const Database = struct {
         self.conn.close();
     }
 
+    /// Returns the structure that descrives the table's columns for the given type T.
     fn RowOfT(comptime T: type) type {
         if (@hasDecl(T, "Row")) {
             return @field(T, "Row");
@@ -39,7 +40,20 @@ pub const Database = struct {
         }
     }
 
+    /// Guards the queries that address a single row by `id`. A join table keyed
+    /// by a composite primary key has no such column, so reject it here instead
+    /// of letting Postgres reject the query at runtime.
+    fn requireIdColumn(comptime T: type) void {
+        const QueryType = RowOfT(T);
+        if (!@hasField(QueryType, "id")) {
+            @compileError(@typeName(T) ++ " cannot be addressed by id: " ++ @typeName(QueryType) ++
+                " has no `id` field. A table keyed by a composite primary key needs a hand-written query.");
+        }
+    }
+
     pub fn readItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !?T {
+        comptime requireIdColumn(T);
+
         const QueryType = RowOfT(T);
 
         const cols = comptime Database.getCols(QueryType);
@@ -270,6 +284,8 @@ pub const Database = struct {
     }
 
     pub fn insertItem(self: *const Database, gpa: Allocator, comptime T: type, item: T.Create) !u32 {
+        comptime requireIdColumn(T);
+
         const cols = comptime Database.getCols(T.Create);
         const placeholders = comptime Database.getPlaceholders(T.Create);
 
@@ -304,6 +320,8 @@ pub const Database = struct {
     }
 
     pub fn updateItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32, item: T.Update) !void {
+        comptime requireIdColumn(T);
+
         const set_clauses = comptime Database.getSetClauses(T.Update);
         const query = "UPDATE " ++ T.table_name ++ " SET " ++ set_clauses;
 
@@ -318,6 +336,8 @@ pub const Database = struct {
     }
 
     pub fn deleteItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !void {
+        comptime requireIdColumn(T);
+
         const query = "DELETE FROM " ++ T.table_name ++ " WHERE id = $1";
 
         const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);

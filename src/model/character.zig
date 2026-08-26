@@ -10,6 +10,16 @@ const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
 
+pub const BodyCharacterAttribute = struct {
+    attribute: Attribute.Id,
+    value: u32,
+
+    pub fn validate(self: *const BodyCharacterAttribute) error{ValueOutOfRange}!void {
+        if (self.value > 1024) return error.ValueOutOfRange;
+    }
+};
+
+/// Flat SQL row for the character_attributes table.
 pub const RowCharacterAttribute = struct {
     character: Character.Id,
     attribute: Attribute.Id,
@@ -18,6 +28,7 @@ pub const RowCharacterAttribute = struct {
 
 pub const CharacterAttribute = struct {
     pub const table_name: []const u8 = "character_attributes";
+    pub const Body = BodyCharacterAttribute;
     pub const Row = RowCharacterAttribute;
 
     attribute: Attribute,
@@ -28,6 +39,16 @@ pub const CharacterAttribute = struct {
     }
 };
 
+pub const BodyCharacterSkill = struct {
+    skill: Skill.Id,
+    value: u32,
+
+    pub fn validate(self: *const BodyCharacterSkill) error{ValueOutOfRange}!void {
+        if (self.value > 1024) return error.ValueOutOfRange;
+    }
+};
+
+/// Flat SQL row for the character_skills table.
 pub const RowCharacterSkill = struct {
     character: Character.Id,
     skill: Skill.Id,
@@ -36,6 +57,7 @@ pub const RowCharacterSkill = struct {
 
 pub const CharacterSkill = struct {
     pub const table_name: []const u8 = "character_skills";
+    pub const Body = BodyCharacterSkill;
     pub const Row = RowCharacterSkill;
 
     skill: Skill,
@@ -46,6 +68,7 @@ pub const CharacterSkill = struct {
     }
 };
 
+/// What arrives in a request.
 pub const BodyCharacter = struct {
     name: []const u8,
     level: u32,
@@ -181,4 +204,50 @@ test "CreateCharacter parses from a JSON body" {
 
     try std.testing.expectEqualStrings("Grog", parsed.value.name);
     try std.testing.expectEqual(3, parsed.value.level);
+}
+
+test "sub-resources name the type their request body parses into" {
+    // The write handler is generic over the child type, so it reaches the body
+    // shape through this decl rather than naming each struct itself.
+    try std.testing.expectEqual(BodyCharacterAttribute, CharacterAttribute.Body);
+    try std.testing.expectEqual(BodyCharacterSkill, CharacterSkill.Body);
+}
+
+test "BodyCharacterAttribute parses from a JSON array" {
+    const parsed = try std.json.parseFromSlice(
+        []const BodyCharacterAttribute,
+        std.testing.allocator,
+        \\[{"attribute":1,"value":4},{"attribute":2,"value":0}]
+    ,
+        .{},
+    );
+    defer parsed.deinit();
+
+    try std.testing.expectEqual(2, parsed.value.len);
+    try std.testing.expectEqual(1, parsed.value[0].attribute);
+    try std.testing.expectEqual(4, parsed.value[0].value);
+    try std.testing.expectEqual(0, parsed.value[1].value);
+}
+
+test "BodyCharacterSkill parses from a JSON array" {
+    const parsed = try std.json.parseFromSlice(
+        []const BodyCharacterSkill,
+        std.testing.allocator,
+        \\[{"skill":7,"value":3}]
+    ,
+        .{},
+    );
+    defer parsed.deinit();
+
+    try std.testing.expectEqual(1, parsed.value.len);
+    try std.testing.expectEqual(7, parsed.value[0].skill);
+    try std.testing.expectEqual(3, parsed.value[0].value);
+}
+
+test "a request body carries no character id: the URL already named it" {
+    // RowCharacterAttribute is the body plus `character`. Keeping identity out
+    // of the body means the two can never disagree.
+    try std.testing.expect(@hasField(RowCharacterAttribute, "character"));
+    try std.testing.expect(!@hasField(BodyCharacterAttribute, "character"));
+    try std.testing.expect(!@hasField(BodyCharacterSkill, "character"));
 }
