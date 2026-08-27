@@ -4,6 +4,7 @@
 const std = @import("std");
 
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 
@@ -35,6 +36,22 @@ pub const Kin = struct {
     id: Id = 0,
     name: []const u8,
     icon: Icon,
+
+    /// Builds a Kin from its stored row, resolving the icon the row names by id.
+    ///
+    /// `db` is anything that can `readItem`; taking it as `anytype` is what lets
+    /// the model own this step without importing the query layer that calls it.
+    /// The strings come straight from `row`, which the caller already copied
+    /// into `gpa` -- see Database.rowToT.
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Kin {
+        const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
+
+        return .{
+            .id = row.id,
+            .name = row.name,
+            .icon = icon,
+        };
+    }
 };
 
 test "KinCreate.validate accepts a well-formed kin" {

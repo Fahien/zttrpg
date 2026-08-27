@@ -4,6 +4,7 @@
 const std = @import("std");
 
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
@@ -56,6 +57,18 @@ pub const CharacterAttribute = struct {
 
     attribute: Attribute,
     value: u32,
+
+    /// The row carries `character` as well, but the value is served as part of
+    /// that character, so the id is dropped here rather than repeated.
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterAttribute {
+        const attribute = (try db.readItem(gpa, Attribute, row.attribute)) orelse
+            return error.AttributeNotFound;
+
+        return .{
+            .attribute = attribute,
+            .value = row.value,
+        };
+    }
 };
 
 pub const BodyCharacterSkill = struct {
@@ -88,6 +101,15 @@ pub const CharacterSkill = struct {
 
     skill: Skill,
     value: u32,
+
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSkill {
+        const skill = (try db.readItem(gpa, Skill, row.skill)) orelse return error.SkillNotFound;
+
+        return .{
+            .skill = skill,
+            .value = row.value,
+        };
+    }
 };
 
 /// What arrives in a request.
@@ -128,6 +150,25 @@ pub const Character = struct {
     kin: Kin,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
+
+    /// Unlike the other models, a character is not one row: its attributes and
+    /// skills live in their own tables and are fetched here, keyed by this
+    /// character's id.
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Character {
+        const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
+
+        const attributes = try db.readAllAlloc(gpa, CharacterAttribute, resource_name, row.id);
+        const skills = try db.readAllAlloc(gpa, CharacterSkill, resource_name, row.id);
+
+        return .{
+            .id = row.id,
+            .name = row.name,
+            .level = row.level,
+            .kin = kin,
+            .attributes = attributes,
+            .skills = skills,
+        };
+    }
 };
 
 test "CreateCharacter.validate accepts a well-formed character" {

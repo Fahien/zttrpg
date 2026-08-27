@@ -4,6 +4,7 @@
 const std = @import("std");
 
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
 pub const SkillKindBody = struct {
     name: []const u8,
@@ -65,6 +66,19 @@ pub const Skill = struct {
     icon: Icon,
     kind: SkillKind,
     description: []const u8,
+
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Skill {
+        const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
+        const kind = (try db.readItem(gpa, SkillKind, row.kind)) orelse return error.SkillKindNotFound;
+
+        return .{
+            .id = row.id,
+            .name = row.name,
+            .icon = icon,
+            .kind = kind,
+            .description = row.description,
+        };
+    }
 };
 
 test "SkillCreate.validate accepts a well-formed Skill" {

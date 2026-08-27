@@ -34,6 +34,18 @@ test {
 /// Every model a query can return, including the two join-table rows.
 const all_models = .{ Character, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
 
+test "a model that splits its stored shape says how to rebuild itself" {
+    // Database.hydrate is generic: for any model whose Row differs from the
+    // model itself, it calls fromRow and knows nothing else about it. Declaring
+    // one without the other is the mistake this catches -- and it catches it
+    // for every model, not just the ones some query happens to instantiate.
+    inline for (all_models) |Model| {
+        if (@hasDecl(Model, "Row")) {
+            try std.testing.expect(@hasDecl(Model, "fromRow"));
+        }
+    }
+}
+
 test "models are plain data" {
     // A query result lives in the request's arena and is released with it, so
     // a model owns nothing. An `init` here would copy strings that rowToT has

@@ -70,8 +70,8 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        const inner = try Database.rowToT(QueryType, gpa, &result, 0);
-        return try self.innerToT(T, QueryType, gpa, inner);
+        const row = try Database.rowToT(QueryType, gpa, &result, 0);
+        return try self.hydrate(T, gpa, row);
     }
 
     pub fn readSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32) ![]Child {
@@ -89,8 +89,8 @@ pub const Database = struct {
         var items = try gpa.alloc(Child, count);
 
         for (0..count) |row| {
-            const inner = try Database.rowToT(QueryType, gpa, &result, row);
-            items[row] = try self.innerToT(Child, QueryType, gpa, inner);
+            const child_row = try Database.rowToT(QueryType, gpa, &result, row);
+            items[row] = try self.hydrate(Child, gpa, child_row);
         }
 
         return items;
@@ -188,8 +188,8 @@ pub const Database = struct {
         var items = try gpa.alloc(T, count);
 
         for (0..count) |row| {
-            const inner = try Database.rowToT(QueryType, gpa, &result, row);
-            items[row] = try self.innerToT(T, QueryType, gpa, inner);
+            const item_row = try Database.rowToT(QueryType, gpa, &result, row);
+            items[row] = try self.hydrate(T, gpa, item_row);
         }
 
         return items;
@@ -199,7 +199,7 @@ pub const Database = struct {
     /// string is allocated: libpq frees the result buffer on PQclear, so the
     /// bytes have to be duplicated, and everything built from the row borrows
     /// that copy rather than making another. The allocator is the request's
-    /// arena, so nothing here is freed individually -- see innerToT.
+    /// arena, so nothing here is freed individually -- see hydrate.
     fn rowToT(comptime T: type, gpa: Allocator, result: *const pq.Result, row: usize) !T {
         var ret: T = undefined;
 
@@ -227,86 +227,34 @@ pub const Database = struct {
         return ret;
     }
 
-    /// Turns a flat row into the model it is served as, resolving the ids the
-    /// row carries into the records they name.
+    /// Turns a stored row into the model it is served as.
     ///
-    /// Every model is plain data: the strings come straight from `inner`, which
-    /// rowToT already copied into `gpa`. Nothing is duplicated a second time and
-    /// nothing owns anything, because `gpa` is the request's arena and the whole
-    /// graph is released when the connection is done with it.
-    fn innerToT(
-        self: *const Database,
-        comptime T: type,
-        comptime Inner: type,
-        gpa: Allocator,
-        inner: Inner,
-    ) !T {
-        switch (T) {
-            Inner => return inner,
-            Kin => {
-                const icon = try self.readItem(gpa, Icon, inner.icon);
-                if (icon == null) return error.IconNotFound;
-                return Kin{
-                    .id = inner.id,
-                    .name = inner.name,
-                    .icon = icon.?,
-                };
-            },
-            Skill => {
-                const icon = try self.readItem(gpa, Icon, inner.icon);
-                if (icon == null) return error.IconNotFound;
-                const kind = try self.readItem(gpa, SkillKind, inner.kind);
-                if (kind == null) return error.SkillKindNotFound;
-                return Skill{
-                    .id = inner.id,
-                    .name = inner.name,
-                    .icon = icon.?,
-                    .kind = kind.?,
-                    .description = inner.description,
-                };
-            },
-            Character => {
-                const kin = try self.readItem(gpa, Kin, inner.kin);
-                if (kin == null) return error.KinNotFound;
-                const attributes = try self.readAllAlloc(gpa, CharacterAttribute, "character", inner.id);
-                const skills = try self.readAllAlloc(gpa, CharacterSkill, "character", inner.id);
-                return Character{
-                    .id = inner.id,
-                    .name = inner.name,
-                    .level = inner.level,
-                    .kin = kin.?,
-                    .attributes = attributes,
-                    .skills = skills,
-                };
-            },
-            Attribute => {
-                const icon = try self.readItem(gpa, Icon, inner.icon);
-                if (icon == null) return error.IconNotFound;
-                return Attribute{
-                    .id = inner.id,
-                    .name = inner.name,
-                    .icon = icon.?,
-                    .short = inner.short,
-                    .description = inner.description,
-                };
-            },
-            CharacterAttribute => {
-                const skill = try self.readItem(gpa, Attribute, inner.attribute);
-                if (skill == null) return error.AttributeNotFound;
-                return CharacterAttribute{
-                    .attribute = skill.?,
-                    .value = inner.value,
-                };
-            },
-            CharacterSkill => {
-                const skill = try self.readItem(gpa, Skill, inner.skill);
-                if (skill == null) return error.SkillNotFound;
-                return CharacterSkill{
-                    .skill = skill.?,
-                    .value = inner.value,
-                };
-            },
-            else => @compileError("Unsupported conversion from " ++ @typeName(Inner) ++ " to " ++ @typeName(T)),
+    /// The query layer knows nothing about any particular model: a model whose
+    /// stored shape differs from its served shape says how to bridge the two in
+    /// its own `fromRow`, and this just calls it. Adding a model therefore
+    /// touches only that model.
+    ///
+    /// Models are plain data. Their strings come straight from `row`, which
+    /// rowToT already copied into `gpa`, so nothing is copied twice and nothing
+    /// owns anything: `gpa` is the request's arena and the whole graph is
+    /// released with it.
+    fn hydrate(self: *const Database, comptime T: type, gpa: Allocator, row: RowOfT(T)) !T {
+        comptime requireFromRow(T);
+
+        // A model that declares no Row is stored exactly as it is served.
+        if (comptime RowOfT(T) == T) return row;
+
+        return T.fromRow(self, gpa, row);
+    }
+
+    /// Guards the seam above. A model that splits its stored shape from its
+    /// served shape has to say how to get from one to the other; without this
+    /// the omission surfaces as a missing-declaration error inside hydrate,
+    /// pointing at the query layer rather than at the model that is missing it.
+    fn requireFromRow(comptime T: type) void {
+        if (RowOfT(T) != T and !@hasDecl(T, "fromRow")) {
+            @compileError(@typeName(T) ++ " declares Row but no fromRow: the query layer" ++
+                " cannot know how to turn " ++ @typeName(RowOfT(T)) ++ " into " ++ @typeName(T) ++ ".");
         }
     }
 
