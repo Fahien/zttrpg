@@ -393,6 +393,20 @@ fn autoReplace(gpa: Allocator, source: []const u8, placeholder: []const u8, repl
     return new_buffer;
 }
 
+/// The model each resource is stored and served as. This is the one place a URL
+/// name and a Zig type are tied together: every handler reaches the type here,
+/// so a new resource costs one line in `Resource` and one line below.
+fn ModelOf(comptime resource: Resource) type {
+    return switch (resource) {
+        .characters => zttrpg.Character,
+        .kins => zttrpg.Kin,
+        .skill_kinds => zttrpg.SkillKind,
+        .skills => zttrpg.Skill,
+        .icons => zttrpg.Icon,
+        .attributes => zttrpg.Attribute,
+    };
+}
+
 fn handleCollection(
     resource: Resource,
     gpa: Allocator,
@@ -401,32 +415,24 @@ fn handleCollection(
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    switch (request.head.method) {
-        .GET => {
-            if (wantsJson(request)) {
-                switch (resource) {
-                    .characters => try respondItems(gpa, writer, db, request, zttrpg.Character),
-                    .kins => try respondItems(gpa, writer, db, request, zttrpg.Kin),
-                    .skill_kinds => try respondItems(gpa, writer, db, request, zttrpg.SkillKind),
-                    .skills => try respondItems(gpa, writer, db, request, zttrpg.Skill),
-                    .icons => try respondItems(gpa, writer, db, request, zttrpg.Icon),
-                    .attributes => try respondItems(gpa, writer, db, request, zttrpg.Attribute),
-                }
-            } else {
-                try serveResource(gpa, io, writer, request, resource, Page.index);
+    // `inline else` generates one arm per resource with the tag comptime-known,
+    // which is what lets a single switch serve every method: without it each
+    // method needs its own copy of the resource list.
+    switch (resource) {
+        inline else => |r| {
+            const Model = ModelOf(r);
+
+            switch (request.head.method) {
+                .GET => if (wantsJson(request))
+                    try respondItems(gpa, writer, db, request, Model)
+                else
+                    try serveResource(gpa, io, writer, request, r, Page.index),
+
+                .POST => try insertItem(gpa, writer, db, request, Model),
+
+                else => |method| try handleMethodNotAllowed(writer, request, method),
             }
         },
-        .POST => {
-            switch (resource) {
-                .characters => try insertItem(gpa, writer, db, request, zttrpg.Character),
-                .kins => try insertItem(gpa, writer, db, request, zttrpg.Kin),
-                .skill_kinds => try insertItem(gpa, writer, db, request, zttrpg.SkillKind),
-                .skills => try insertItem(gpa, writer, db, request, zttrpg.Skill),
-                .icons => try insertItem(gpa, writer, db, request, zttrpg.Icon),
-                .attributes => try insertItem(gpa, writer, db, request, zttrpg.Attribute),
-            }
-        },
-        else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
@@ -438,38 +444,23 @@ fn handleItem(
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    switch (request.head.method) {
-        .GET => {
-            if (wantsJson(request)) {
-                switch (item.resource) {
-                    .characters => try respondItem(gpa, writer, db, request, zttrpg.Character, item.id),
-                    .kins => try respondItem(gpa, writer, db, request, zttrpg.Kin, item.id),
-                    .skill_kinds => try respondItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
-                    .skills => try respondItem(gpa, writer, db, request, zttrpg.Skill, item.id),
-                    .icons => try respondItem(gpa, writer, db, request, zttrpg.Icon, item.id),
-                    .attributes => try respondItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
-                }
-            } else {
-                try serveResource(gpa, io, writer, request, item.resource, Page.item);
+    switch (item.resource) {
+        inline else => |r| {
+            const Model = ModelOf(r);
+
+            switch (request.head.method) {
+                .GET => if (wantsJson(request))
+                    try respondItem(gpa, writer, db, request, Model, item.id)
+                else
+                    try serveResource(gpa, io, writer, request, r, Page.item),
+
+                .DELETE => try deleteItem(gpa, writer, db, request, Model, item.id),
+
+                .PUT => try updateItem(gpa, writer, db, request, Model, item.id),
+
+                else => |method| try handleMethodNotAllowed(writer, request, method),
             }
         },
-        .DELETE => switch (item.resource) {
-            .characters => try deleteItem(gpa, writer, db, request, zttrpg.Character, item.id),
-            .kins => try deleteItem(gpa, writer, db, request, zttrpg.Kin, item.id),
-            .skill_kinds => try deleteItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
-            .skills => try deleteItem(gpa, writer, db, request, zttrpg.Skill, item.id),
-            .icons => try deleteItem(gpa, writer, db, request, zttrpg.Icon, item.id),
-            .attributes => try deleteItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
-        },
-        .PUT => switch (item.resource) {
-            .characters => try updateItem(gpa, writer, db, request, zttrpg.Character, item.id),
-            .kins => try updateItem(gpa, writer, db, request, zttrpg.Kin, item.id),
-            .skill_kinds => try updateItem(gpa, writer, db, request, zttrpg.SkillKind, item.id),
-            .skills => try updateItem(gpa, writer, db, request, zttrpg.Skill, item.id),
-            .icons => try updateItem(gpa, writer, db, request, zttrpg.Icon, item.id),
-            .attributes => try updateItem(gpa, writer, db, request, zttrpg.Attribute, item.id),
-        },
-        else => |method| try handleMethodNotAllowed(writer, request, method),
     }
 }
 
@@ -829,6 +820,27 @@ test "every resource routes as a collection and as an item" {
             Route{ .item = .{ .resource = resource, .id = 7 } },
             Route.parseRoute("/" ++ field.name ++ "/7"),
         );
+    }
+}
+
+test "every resource maps to a model the handlers can serve" {
+    // handleCollection and handleItem reach the database through ModelOf, so a
+    // resource whose model is missing any of this would compile and then fail
+    // the first time someone hit that route.
+    inline for (@typeInfo(Resource).@"enum".fields) |field| {
+        const Model = ModelOf(@enumFromInt(field.value));
+
+        try std.testing.expect(@hasDecl(Model, "table_name"));
+        try std.testing.expect(@hasDecl(Model, "Create"));
+        try std.testing.expect(@hasDecl(Model, "Update"));
+
+        // Every body is validated before it reaches a query.
+        try std.testing.expect(@hasDecl(Model.Create, "validate"));
+        try std.testing.expect(@hasDecl(Model.Update, "validate"));
+
+        // Ids are generated by the database: an `id` on a Create type would
+        // build INSERT INTO t (id, ...) and be rejected at runtime.
+        try std.testing.expect(!@hasField(Model.Create, "id"));
     }
 }
 
