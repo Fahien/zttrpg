@@ -288,10 +288,10 @@ fn servePage(
         return;
     };
 
-    file_content = try autoReplace(file_content, "{{head}}", head_partial);
-    file_content = try autoReplace(file_content, "{{header}}", header_partial);
-    file_content = try autoReplace(file_content, "{{footer}}", footer_partial);
-    file_content = try autoReplace(file_content, "{{title}}", title);
+    file_content = try autoReplace(gpa, file_content, "{{head}}", head_partial);
+    file_content = try autoReplace(gpa, file_content, "{{header}}", header_partial);
+    file_content = try autoReplace(gpa, file_content, "{{footer}}", footer_partial);
+    file_content = try autoReplace(gpa, file_content, "{{title}}", title);
 
     const content_type_header = std.http.Header{
         .name = "Content-Type",
@@ -301,9 +301,9 @@ fn servePage(
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false, .extra_headers = &.{content_type_header} });
 }
 
-fn autoReplace(source: []const u8, placeholder: []const u8, replacement: []const u8) ![]u8 {
+fn autoReplace(gpa: Allocator, source: []const u8, placeholder: []const u8, replacement: []const u8) ![]u8 {
     const new_size = std.mem.replacementSize(u8, source, placeholder, replacement);
-    const new_buffer = try std.heap.page_allocator.alloc(u8, new_size);
+    const new_buffer = try gpa.alloc(u8, new_size);
     _ = std.mem.replace(u8, source, placeholder, replacement, new_buffer);
     return new_buffer;
 }
