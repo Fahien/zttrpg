@@ -195,6 +195,11 @@ pub const Database = struct {
         return items;
     }
 
+    /// Copies one row out of the result. This is the only place a queried
+    /// string is allocated: libpq frees the result buffer on PQclear, so the
+    /// bytes have to be duplicated, and everything built from the row borrows
+    /// that copy rather than making another. The allocator is the request's
+    /// arena, so nothing here is freed individually -- see innerToT.
     fn rowToT(comptime T: type, gpa: Allocator, result: *const pq.Result, row: usize) !T {
         var ret: T = undefined;
 
@@ -222,6 +227,13 @@ pub const Database = struct {
         return ret;
     }
 
+    /// Turns a flat row into the model it is served as, resolving the ids the
+    /// row carries into the records they name.
+    ///
+    /// Every model is plain data: the strings come straight from `inner`, which
+    /// rowToT already copied into `gpa`. Nothing is duplicated a second time and
+    /// nothing owns anything, because `gpa` is the request's arena and the whole
+    /// graph is released when the connection is done with it.
     fn innerToT(
         self: *const Database,
         comptime T: type,
@@ -234,26 +246,49 @@ pub const Database = struct {
             Kin => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
-                return Kin.init(gpa, inner.id, inner.name, icon.?);
+                return Kin{
+                    .id = inner.id,
+                    .name = inner.name,
+                    .icon = icon.?,
+                };
             },
             Skill => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
                 const kind = try self.readItem(gpa, SkillKind, inner.kind);
                 if (kind == null) return error.SkillKindNotFound;
-                return Skill.init(gpa, inner.id, inner.name, icon.?, kind.?, inner.description);
+                return Skill{
+                    .id = inner.id,
+                    .name = inner.name,
+                    .icon = icon.?,
+                    .kind = kind.?,
+                    .description = inner.description,
+                };
             },
             Character => {
                 const kin = try self.readItem(gpa, Kin, inner.kin);
                 if (kin == null) return error.KinNotFound;
                 const attributes = try self.readAllAlloc(gpa, CharacterAttribute, "character", inner.id);
                 const skills = try self.readAllAlloc(gpa, CharacterSkill, "character", inner.id);
-                return Character.init(gpa, inner.id, inner.name, inner.level, kin.?, attributes, skills);
+                return Character{
+                    .id = inner.id,
+                    .name = inner.name,
+                    .level = inner.level,
+                    .kin = kin.?,
+                    .attributes = attributes,
+                    .skills = skills,
+                };
             },
             Attribute => {
                 const icon = try self.readItem(gpa, Icon, inner.icon);
                 if (icon == null) return error.IconNotFound;
-                return Attribute.init(gpa, inner.id, inner.name, icon.?, inner.short, inner.description);
+                return Attribute{
+                    .id = inner.id,
+                    .name = inner.name,
+                    .icon = icon.?,
+                    .short = inner.short,
+                    .description = inner.description,
+                };
             },
             CharacterAttribute => {
                 const skill = try self.readItem(gpa, Attribute, inner.attribute);

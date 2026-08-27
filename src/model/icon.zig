@@ -4,7 +4,6 @@
 const std = @import("std");
 
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
 
 pub const IconBody = struct {
     name: []const u8,
@@ -25,18 +24,6 @@ pub const Icon = struct {
 
     id: Id = 0,
     name: []const u8,
-
-    pub fn init(gpa: Allocator, id: u32, name: []const u8) !Icon {
-        const name_copy = try gpa.dupe(u8, name);
-        return Icon{
-            .id = id,
-            .name = name_copy,
-        };
-    }
-
-    pub fn deinit(self: *const Icon, gpa: Allocator) void {
-        gpa.free(self.name);
-    }
 };
 
 test "IconCreate.validate accepts a well-formed Icon" {

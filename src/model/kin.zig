@@ -4,7 +4,6 @@
 const std = @import("std");
 
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 
@@ -36,19 +35,6 @@ pub const Kin = struct {
     id: Id = 0,
     name: []const u8,
     icon: Icon,
-
-    pub fn init(gpa: Allocator, id: u32, name: []const u8, icon: Icon) !Kin {
-        const name_copy = try gpa.dupe(u8, name);
-        return Kin{
-            .id = id,
-            .name = name_copy,
-            .icon = icon,
-        };
-    }
-
-    pub fn deinit(self: *const Kin, gpa: Allocator) void {
-        gpa.free(self.name);
-    }
 };
 
 test "KinCreate.validate accepts a well-formed kin" {

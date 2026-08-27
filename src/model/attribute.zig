@@ -4,7 +4,6 @@
 const std = @import("std");
 
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 
@@ -44,24 +43,6 @@ pub const Attribute = struct {
     icon: Icon,
     short: []const u8,
     description: []const u8,
-
-    pub fn init(gpa: Allocator, id: u32, name: []const u8, icon: Icon, short: []const u8, description: []const u8) !Attribute {
-        const name_copy = try gpa.dupe(u8, name);
-        const description_copy = try gpa.dupe(u8, description);
-        return Attribute{
-            .id = id,
-            .name = name_copy,
-            .icon = icon,
-            .short = try gpa.dupe(u8, short),
-            .description = description_copy,
-        };
-    }
-
-    pub fn deinit(self: *const Attribute, gpa: Allocator) void {
-        gpa.free(self.name);
-        gpa.free(self.short);
-        gpa.free(self.description);
-    }
 };
 
 test "AttributeCreate.validate accepts a well-formed Attribute" {
@@ -100,15 +81,3 @@ test "AttributeCreate parses from a JSON body" {
     try std.testing.expectEqualStrings("Stealth", parsed.value.name);
 }
 
-test "Attribute.init copies the name and deinit frees it" {
-    const gpa = std.testing.allocator;
-
-    var name_buf = [_]u8{ 'H', 'e', 'a', 'l' };
-    const attribute = try Attribute.init(gpa, 7, &name_buf, Icon{ .id = 1, .name = "abacus" }, "STL.", "Expertise in moving unseen.");
-    defer attribute.deinit(gpa);
-
-    // Mutating the source must not affect the copy.
-    name_buf[0] = 'S';
-    try std.testing.expectEqualStrings("Heal", attribute.name);
-    try std.testing.expectEqual(7, attribute.id);
-}

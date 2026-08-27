@@ -4,7 +4,6 @@
 const std = @import("std");
 
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
 
 pub const SkillKindBody = struct {
     name: []const u8,
@@ -26,18 +25,6 @@ pub const SkillKind = struct {
 
     id: Id = 0,
     name: []const u8,
-
-    pub fn init(gpa: Allocator, id: u32, name: []const u8) !SkillKind {
-        const name_copy = try gpa.dupe(u8, name);
-        return SkillKind{
-            .id = id,
-            .name = name_copy,
-        };
-    }
-
-    pub fn deinit(self: *const SkillKind, gpa: Allocator) void {
-        gpa.free(self.name);
-    }
 };
 
 const Icon = @import("icon.zig").Icon;
@@ -78,25 +65,6 @@ pub const Skill = struct {
     icon: Icon,
     kind: SkillKind,
     description: []const u8,
-
-    pub fn init(gpa: Allocator, id: u32, name: []const u8, icon: Icon, kind: SkillKind, description: []const u8) !Skill {
-        const name_copy = try gpa.dupe(u8, name);
-        const description_copy = try gpa.dupe(u8, description);
-        return Skill{
-            .id = id,
-            .name = name_copy,
-            .icon = icon,
-            .kind = kind,
-            .description = description_copy,
-        };
-    }
-
-    pub fn deinit(self: *const Skill, gpa: Allocator) void {
-        gpa.free(self.name);
-        self.icon.deinit(gpa);
-        self.kind.deinit(gpa);
-        gpa.free(self.description);
-    }
 };
 
 test "SkillCreate.validate accepts a well-formed Skill" {
@@ -113,8 +81,7 @@ test "Skill serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const skill_kind = try SkillKind.init(std.testing.allocator, 1, "Core");
-    defer skill_kind.deinit(std.testing.allocator);
+    const skill_kind = SkillKind{ .id = 1, .name = "Core" };
 
     const skill = Skill{ .id = 1, .name = "Stealth", .icon = Icon{ .id = 1, .name = "abacus" }, .kind = skill_kind, .description = "Expertise in moving unseen." };
     try std.json.Stringify.value(skill, .{}, &out.writer);
@@ -138,14 +105,3 @@ test "SkillCreate parses from a JSON body" {
     try std.testing.expectEqualStrings("Stealth", parsed.value.name);
 }
 
-test "Skill.init copies the name and deinit frees it" {
-    const gpa = std.testing.allocator;
-
-    const skill_icon = try Icon.init(gpa, 1, "abacus");
-    const skill_kind = try SkillKind.init(gpa, 1, "Core");
-    const skill = try Skill.init(gpa, 7, "Heal", skill_icon, skill_kind, "Expertise in moving unseen.");
-    defer skill.deinit(gpa);
-
-    try std.testing.expectEqualStrings("Heal", skill.name);
-    try std.testing.expectEqual(7, skill.id);
-}

@@ -4,7 +4,6 @@
 const std = @import("std");
 
 const Io = std.Io;
-const Allocator = std.mem.Allocator;
 
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
@@ -57,10 +56,6 @@ pub const CharacterAttribute = struct {
 
     attribute: Attribute,
     value: u32,
-
-    pub fn deinit(self: *const CharacterAttribute, gpa: Allocator) void {
-        self.attribute.deinit(gpa);
-    }
 };
 
 pub const BodyCharacterSkill = struct {
@@ -93,10 +88,6 @@ pub const CharacterSkill = struct {
 
     skill: Skill,
     value: u32,
-
-    pub fn deinit(self: *const CharacterSkill, gpa: Allocator) void {
-        self.skill.deinit(gpa);
-    }
 };
 
 /// What arrives in a request.
@@ -137,57 +128,7 @@ pub const Character = struct {
     kin: Kin,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
-
-    pub fn init(
-        gpa: Allocator,
-        id: u32,
-        name: []const u8,
-        level: u32,
-        kin: Kin,
-        attributes: []const CharacterAttribute,
-        skills: []const CharacterSkill,
-    ) !Character {
-        const name_copy = try gpa.dupe(u8, name);
-
-        return Character{
-            .id = id,
-            .name = name_copy,
-            .level = level,
-            .kin = kin,
-            .attributes = attributes,
-            .skills = skills,
-        };
-    }
-
-    pub fn deinit(self: *const Character, gpa: Allocator) void {
-        gpa.free(self.name);
-
-        for (self.attributes) |*attr| {
-            attr.deinit(gpa);
-        }
-        gpa.free(self.attributes);
-
-        for (self.skills) |*skill| {
-            skill.deinit(gpa);
-        }
-        gpa.free(self.skills);
-    }
 };
-
-test "Character.init copies the name and deinit frees it" {
-    const gpa = std.testing.allocator;
-
-    var name_buf = [_]u8{ 'G', 'r', 'o', 'g' };
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
-    const character = try Character.init(gpa, 7, &name_buf, 3, kin, &.{}, &.{});
-    defer character.deinit(gpa);
-
-    // Mutating the source must not affect the copy.
-    name_buf[0] = 'F';
-    try std.testing.expectEqualStrings("Grog", character.name);
-    try std.testing.expectEqual(7, character.id);
-    try std.testing.expectEqual(3, character.level);
-}
 
 test "CreateCharacter.validate accepts a well-formed character" {
     const character = CreateCharacter{ .name = "Grog", .level = 1, .kin = 1 };
