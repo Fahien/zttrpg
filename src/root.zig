@@ -410,7 +410,8 @@ pub const Database = struct {
 
 test {
     // Test discovery is lazy: without this reference the model files' tests
-    // are silently skipped.
+    // are silently skipped. This only reaches files inside this module --
+    // `pq` is a module of its own, so build.zig gives it its own test step.
     _ = model;
 }
 

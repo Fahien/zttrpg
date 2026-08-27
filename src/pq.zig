@@ -38,6 +38,10 @@ extern fn PQgetvalue(res: *PGresult, row: c_int, col: c_int) [*:0]const u8;
 
 extern fn PQcmdTuples(res: *PGresult) [*:0]const u8;
 
+/// Field code for PQresultErrorField, from postgres_ext.h.
+const PG_DIAG_SQLSTATE: c_int = 'C';
+extern fn PQresultErrorField(res: *PGresult, fieldcode: c_int) ?[*:0]const u8;
+
 pub const Connection = struct {
     conn: *PGconn,
 
@@ -103,20 +107,69 @@ pub const Connection = struct {
     }
 };
 
+/// What a failed command can report. The named variants are the integrity
+/// violations a client can provoke, so the layer above can answer 4xx instead
+/// of blaming itself with a 500; anything else stays PqResultError.
+pub const ResultError = error{
+    UniqueViolation,
+    ForeignKeyViolation,
+    NotNullViolation,
+    CheckViolation,
+    PqResultError,
+};
+
+/// SQLSTATE codes are five characters and stable across Postgres versions,
+/// which is what makes them safe to branch on -- the message text is not.
+/// Class 23 is "integrity constraint violation".
+const sqlstate_errors = .{
+    .{ "23502", ResultError.NotNullViolation },
+    .{ "23503", ResultError.ForeignKeyViolation },
+    .{ "23505", ResultError.UniqueViolation },
+    .{ "23514", ResultError.CheckViolation },
+};
+
+/// Maps a SQLSTATE to the error the caller sees. An unlisted code is not a
+/// failure of this function: it means nothing above cares to tell that failure
+/// apart from any other, so it collapses into PqResultError.
+fn errorFromSqlState(code: []const u8) ResultError {
+    inline for (sqlstate_errors) |entry| {
+        if (std.mem.eql(u8, code, entry[0])) return entry[1];
+    }
+    return ResultError.PqResultError;
+}
+
 pub const Result = struct {
     res: *PGresult,
 
-    fn check(conn: *PGconn, res: *PGresult) !void {
-        if (PQresultStatus(res) != PGExecStatusType.PGRES_COMMAND_OK and
-            PQresultStatus(res) != PGExecStatusType.PGRES_TUPLES_OK)
+    /// Reads the SQLSTATE attached to this result, or null when there is none
+    /// (a successful command, or a failure that never reached the server).
+    pub fn sqlState(self: *const Result) ?[]const u8 {
+        const code = PQresultErrorField(self.res, PG_DIAG_SQLSTATE) orelse return null;
+        return std.mem.span(code);
+    }
+
+    fn check(conn: *PGconn, res: *PGresult) ResultError!void {
+        const exec_status = PQresultStatus(res);
+        if (exec_status == PGExecStatusType.PGRES_COMMAND_OK or
+            exec_status == PGExecStatusType.PGRES_TUPLES_OK)
         {
-            const err = PQerrorMessage(conn);
-            std.debug.print("PQ error: {s}\n", .{err});
-            return error.PqResultError;
+            return;
         }
+
+        const err = PQerrorMessage(conn);
+        const sqlstate = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+        std.debug.print("PQ error [{s}]: {s}\n", .{ sqlstate orelse "-----", err });
+
+        if (sqlstate) |code| {
+            return errorFromSqlState(std.mem.span(code));
+        }
+        return ResultError.PqResultError;
     }
 
     fn init(conn: *PGconn, res: *PGresult) !Result {
+        // A failed result still owns memory: clearing it here means neither
+        // caller of init has to unwind a result it never received.
+        errdefer PQclear(res);
         try Result.check(conn, res);
         return Result{ .res = res };
     }
@@ -143,3 +196,21 @@ pub const Result = struct {
         return try std.fmt.parseInt(usize, row_count, 10);
     }
 };
+
+test "errorFromSqlState names the violations a client can provoke" {
+    // A duplicate character name is the one that motivated this: without the
+    // code it looks exactly like a server fault and answers 500.
+    try std.testing.expectEqual(ResultError.UniqueViolation, errorFromSqlState("23505"));
+    try std.testing.expectEqual(ResultError.ForeignKeyViolation, errorFromSqlState("23503"));
+    try std.testing.expectEqual(ResultError.NotNullViolation, errorFromSqlState("23502"));
+    try std.testing.expectEqual(ResultError.CheckViolation, errorFromSqlState("23514"));
+}
+
+test "errorFromSqlState collapses codes nothing above distinguishes" {
+    // 40001 is a serialization failure and 42P01 an undefined table: both are
+    // real, neither has a distinct answer at the HTTP layer today.
+    try std.testing.expectEqual(ResultError.PqResultError, errorFromSqlState("40001"));
+    try std.testing.expectEqual(ResultError.PqResultError, errorFromSqlState("42P01"));
+    // Not a code at all.
+    try std.testing.expectEqual(ResultError.PqResultError, errorFromSqlState(""));
+}

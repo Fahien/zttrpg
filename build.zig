@@ -93,11 +93,20 @@ pub fn build(b: *std.Build) void {
 
     const run_migration_tests = b.addRunArtifact(migration_tests);
 
+    // A module's tests are only collected when that module is the test root:
+    // importing pq from zttrpg compiles it but never runs its tests.
+    const pq_tests = b.addTest(.{
+        .root_module = pq_mod,
+    });
+
+    const run_pq_tests = b.addRunArtifact(pq_tests);
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&exe.step);
     test_step.dependOn(&run_exe_tests.step);
     test_step.dependOn(&run_migration_tests.step);
+    test_step.dependOn(&run_pq_tests.step);
 }
 
 fn buildIcons(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {

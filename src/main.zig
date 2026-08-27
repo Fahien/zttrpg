@@ -180,6 +180,86 @@ fn handleNotFound(writer: *Io.Writer.Allocating, request: *std.http.Server.Reque
     try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
 }
 
+const ErrorResponse = struct {
+    status: std.http.Status,
+    message: []const u8,
+};
+
+/// The single place an error becomes an HTTP status. Deciding this per handler
+/// is how a duplicate character name -- a client mistake Postgres reports as
+/// SQLSTATE 23505 -- ended up answering 500 instead of 409.
+///
+/// The method matters for one code: Postgres raises a foreign key violation
+/// both when a body references a row that does not exist (the client sent bad
+/// input) and when a DELETE would orphan rows that do (the client asked for
+/// something the current state forbids).
+fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
+    return switch (err) {
+        error.ItemNotFound => .{ .status = .not_found, .message = "Not found." },
+
+        error.InvalidJsonBody => .{ .status = .bad_request, .message = "Invalid JSON body." },
+
+        error.UniqueViolation => .{
+            .status = .conflict,
+            .message = "A record with that value already exists.",
+        },
+
+        error.ForeignKeyViolation => switch (method) {
+            .DELETE => .{
+                .status = .conflict,
+                .message = "Other records still reference this one.",
+            },
+            else => .{
+                .status = .bad_request,
+                .message = "The request references a record that does not exist.",
+            },
+        },
+
+        // Reachable only when the model's validation and the CHECK constraints
+        // in db/ have drifted apart: the request passed the first and not the
+        // second. Still the client's input, so still a 400.
+        error.NotNullViolation, error.CheckViolation => .{
+            .status = .bad_request,
+            .message = "The request violates a constraint on this resource.",
+        },
+
+        // Domain errors raised by the model layer's validate(). The model says
+        // what is wrong; choosing the status is this layer's job.
+        error.EmptyName,
+        error.EmptyShort,
+        error.EmptyDescription,
+        error.LevelOutOfRange,
+        error.ValueOutOfRange,
+        error.DuplicateEntry,
+        => .{ .status = .bad_request, .message = "The request body is not valid." },
+
+        else => .{ .status = .internal_server_error, .message = "Internal server error." },
+    };
+}
+
+/// Answers a failed request. The client gets a stable message and the real
+/// error goes to the log, so internal names never travel over the wire.
+fn respondError(
+    writer: *Io.Writer.Allocating,
+    request: *std.http.Server.Request,
+    err: anyerror,
+) !void {
+    const response = responseForError(err, request.head.method);
+
+    // Not request.head.target: reading a body calls Head.invalidateStrings,
+    // which sets target to undefined, and printing it then crashes the server.
+    // The target is already on the "Received request" line above this one.
+    // `method` survives, being an enum rather than a slice into the buffer.
+    std.debug.print("{} -> {d}: {}\n", .{
+        request.head.method,
+        @intFromEnum(response.status),
+        err,
+    });
+
+    try writer.writer.print("{s}\n", .{response.message});
+    try request.respond(writer.written(), .{ .status = response.status, .keep_alive = false });
+}
+
 fn handleMethodNotAllowed(writer: *Io.Writer.Allocating, request: *std.http.Server.Request, method: std.http.Method) !void {
     try writer.writer.print("Method {} not allowed for this path.\n", .{method});
     try request.respond(writer.written(), .{ .status = .method_not_allowed, .keep_alive = false });
@@ -405,31 +485,16 @@ fn updateItem(
         gpa,
         body,
         .{},
-    ) catch {
-        try writer.writer.print("Invalid JSON body.\n", .{});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
+    ) catch |err| {
+        // std.json's error set is wide and none of it changes the answer, so
+        // it collapses into one error the mapping knows.
+        std.debug.print("Malformed " ++ @typeName(T) ++ " body: {}\n", .{err});
+        return respondError(writer, request, error.InvalidJsonBody);
     };
 
-    update.validate() catch {
-        try writer.writer.print("Invalid update\n", .{});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
-    };
+    update.validate() catch |err| return respondError(writer, request, err);
 
-    db.updateItem(gpa, T, id, update) catch |err| {
-        switch (err) {
-            error.ItemNotFound => {
-                try writer.writer.print("Item with ID {d} not found.\n", .{id});
-                try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-            },
-            else => {
-                try writer.writer.print("Failed to update item with ID {d}: {}\n", .{ id, err });
-                try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
-            },
-        }
-        return;
-    };
+    db.updateItem(gpa, T, id, update) catch |err| return respondError(writer, request, err);
 
     try writer.writer.print("Updated item with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
@@ -443,21 +508,9 @@ fn deleteItem(
     comptime T: type,
     id: u32,
 ) !void {
-    db.deleteItem(gpa, T, id) catch |err| {
-        switch (err) {
-            error.ItemNotFound => {
-                try writer.writer.print(@typeName(T) ++ " with ID {d} not found.\n", .{id});
-                try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-            },
-            else => {
-                try writer.writer.print("Failed to delete " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
-                try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
-            },
-        }
-        return;
-    };
+    db.deleteItem(gpa, T, id) catch |err| return respondError(writer, request, err);
 
-    try writer.writer.print("Deleted " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
+    try writer.writer.print("Deleted item with ID {d}.\n", .{id});
     try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
@@ -480,7 +533,7 @@ fn respondItems(
     request: *std.http.Server.Request,
     comptime T: type,
 ) !void {
-    const items = try db.readAllAlloc(gpa, T, null, 0);
+    const items = db.readAllAlloc(gpa, T, null, 0) catch |err| return respondError(writer, request, err);
     try std.json.Stringify.value(items, .{}, &writer.writer);
     const extra_header = std.http.Header{
         .name = "Content-Type",
@@ -497,16 +550,12 @@ fn respondItem(
     comptime T: type,
     id: u32,
 ) !void {
-    const item = db.readItem(gpa, T, id) catch {
-        try writer.writer.print("Failed to read " ++ @typeName(T) ++ " with ID {d}.\n", .{id});
-        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
-        return;
-    };
+    const item = db.readItem(gpa, T, id) catch |err| return respondError(writer, request, err);
 
+    // readItem reports a missing row as null rather than an error; the answer
+    // is the same 404 a delete or update of that row would give.
     if (item == null) {
-        try writer.writer.print(@typeName(T) ++ " with ID {d} not found.\n", .{id});
-        try request.respond(writer.written(), .{ .status = .not_found, .keep_alive = false });
-        return;
+        return respondError(writer, request, error.ItemNotFound);
     }
 
     try std.json.Stringify.value(item.?, .{}, &writer.writer);
@@ -533,23 +582,16 @@ fn insertItem(
         gpa,
         body,
         .{},
-    ) catch {
-        try writer.writer.print("Invalid JSON body.\n", .{});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
+    ) catch |err| {
+        std.debug.print("Malformed " ++ @typeName(T) ++ " body: {}\n", .{err});
+        return respondError(writer, request, error.InvalidJsonBody);
     };
 
-    item.validate() catch |err| {
-        try writer.writer.print("Invalid " ++ @typeName(T) ++ ": {}\n", .{err});
-        try request.respond(writer.written(), .{ .status = .bad_request, .keep_alive = false });
-        return;
-    };
+    item.validate() catch |err| return respondError(writer, request, err);
 
-    const item_id = db.insertItem(gpa, T, item) catch {
-        try writer.writer.print("Failed to insert " ++ @typeName(T) ++ ".\n", .{});
-        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
-        return;
-    };
+    // A name that is already taken arrives here as UniqueViolation, and a kin
+    // that does not exist as ForeignKeyViolation: both are the client's doing.
+    const item_id = db.insertItem(gpa, T, item) catch |err| return respondError(writer, request, err);
 
     std.debug.print("Inserted " ++ @typeName(T) ++ " with ID {d}\n", .{item_id});
 
@@ -587,11 +629,8 @@ fn respondSubCollection(
     comptime ChildSubResource: type,
     parent_id: u32,
 ) !void {
-    const children = db.readSubResource(gpa, ParentResource, ChildSubResource, parent_id) catch {
-        try writer.writer.print("Failed to read " ++ @typeName(ChildSubResource) ++ " for " ++ @typeName(ParentResource) ++ " with ID {d}.\n", .{parent_id});
-        try request.respond(writer.written(), .{ .status = .internal_server_error, .keep_alive = false });
-        return;
-    };
+    const children = db.readSubResource(gpa, ParentResource, ChildSubResource, parent_id) catch |err|
+        return respondError(writer, request, err);
 
     try std.json.Stringify.value(children, .{}, &writer.writer);
     const extra_header = std.http.Header{
