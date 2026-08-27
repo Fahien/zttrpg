@@ -199,6 +199,11 @@ fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
 
         error.InvalidJsonBody => .{ .status = .bad_request, .message = "Invalid JSON body." },
 
+        error.StreamTooLong => .{
+            .status = .payload_too_large,
+            .message = "The request body is too large.",
+        },
+
         error.UniqueViolation => .{
             .status = .conflict,
             .message = "A record with that value already exists.",
@@ -598,6 +603,15 @@ fn insertItem(
     try respondItem(gpa, writer, db, request, T, item_id);
 }
 
+/// The type a sub-collection's rows are read and written as. Naming the mapping
+/// once is what keeps the read path and the write path from drifting apart.
+fn ChildOf(comptime subresource: SubResource) type {
+    return switch (subresource) {
+        .attributes => zttrpg.CharacterAttribute,
+        .skills => zttrpg.CharacterSkill,
+    };
+}
+
 fn handleSubCollection(
     sub: SubCollection,
     gpa: Allocator,
@@ -605,19 +619,77 @@ fn handleSubCollection(
     db: *const zttrpg.Database,
     request: *std.http.Server.Request,
 ) !void {
-    if (request.head.method == .GET and wantsJson(request)) {
-        switch (sub.resource) {
-            .characters => switch (sub.subresource) {
-                .attributes => try respondSubCollection(gpa, writer, db, request, zttrpg.Character, zttrpg.CharacterAttribute, sub.id),
-                .skills => try respondSubCollection(gpa, writer, db, request, zttrpg.Character, zttrpg.CharacterSkill, sub.id),
-            },
-            else => {
-                try handleNotFound(writer, request);
-            },
-        }
-    } else {
-        try handleMethodNotAllowed(writer, request, request.head.method);
+    // SubResource says which names are sub-collections, not which resources
+    // have them, so /kins/3/skills parses. This is where it stops.
+    if (sub.resource != .characters) {
+        return handleNotFound(writer, request);
     }
+
+    // `inline else` makes the tag comptime-known inside the arm, so one switch
+    // serves every method instead of one switch per method.
+    switch (sub.subresource) {
+        inline else => |subresource| {
+            const Child = ChildOf(subresource);
+
+            switch (request.head.method) {
+                // No HTML page lives at this URL: a browser asking for one gets
+                // a 404 rather than being told GET is not allowed.
+                .GET => if (wantsJson(request))
+                    try respondSubCollection(gpa, writer, db, request, zttrpg.Character, Child, sub.id)
+                else
+                    try handleNotFound(writer, request),
+
+                .PUT => try updateSubCollection(gpa, writer, db, request, zttrpg.Character, Child, sub.id),
+
+                else => |method| try handleMethodNotAllowed(writer, request, method),
+            }
+        },
+    }
+}
+
+/// A full sheet of skills is roughly 2 KB of compact JSON; this leaves room for
+/// a body a human formatted without letting one request allocate without bound.
+const max_sub_collection_body = 4096 * 16;
+
+/// Writes a whole sub-collection at once: the body is the complete list of
+/// values for this character, which is why a single value has no URL of its own.
+fn updateSubCollection(
+    gpa: Allocator,
+    writer: *Io.Writer.Allocating,
+    db: *const zttrpg.Database,
+    request: *std.http.Server.Request,
+    comptime Parent: type,
+    comptime Child: type,
+    parent_id: u32,
+) !void {
+    const scratch_buffer = try gpa.alloc(u8, 4096);
+    const reader = try request.readerExpectContinue(scratch_buffer);
+
+    const body = reader.allocRemaining(gpa, .limited(max_sub_collection_body)) catch |err|
+        return respondError(writer, request, err);
+
+    const bodies = std.json.parseFromSliceLeaky(
+        []const Child.Body,
+        gpa,
+        body,
+        .{},
+    ) catch |err| {
+        std.debug.print("Malformed " ++ @typeName(Child) ++ " body: {}\n", .{err});
+        return respondError(writer, request, error.InvalidJsonBody);
+    };
+
+    // Checks every value against the CHECK constraint, and rejects a repeated
+    // key -- the one rule Postgres cannot catch, because two UPDATEs against
+    // the same row both succeed and the last one silently wins.
+    Child.Body.validateAll(bodies) catch |err| return respondError(writer, request, err);
+
+    // One transaction for the whole sheet: a body that names a value this
+    // character does not have leaves the other values unchanged.
+    db.updateSubResource(gpa, Parent, Child, parent_id, bodies) catch |err|
+        return respondError(writer, request, err);
+
+    try writer.writer.print("Updated {d} value(s).\n", .{bodies.len});
+    try request.respond(writer.written(), .{ .status = .ok, .keep_alive = false });
 }
 
 fn respondSubCollection(
@@ -757,6 +829,23 @@ test "every resource routes as a collection and as an item" {
             Route{ .item = .{ .resource = resource, .id = 7 } },
             Route.parseRoute("/" ++ field.name ++ "/7"),
         );
+    }
+}
+
+test "every sub-collection can be written, not only read" {
+    // The PUT path reaches the database through ChildOf, Child.Body and
+    // validateAll. A sub-resource whose model is missing any of them would
+    // only break when someone sent a PUT, so pin it at build time instead.
+    inline for (@typeInfo(SubResource).@"enum".fields) |field| {
+        const Child = ChildOf(@enumFromInt(field.value));
+
+        try std.testing.expect(@hasDecl(Child, "table_name"));
+        try std.testing.expect(@hasDecl(Child, "Body"));
+        try std.testing.expect(@hasDecl(Child.Body, "validateAll"));
+
+        // The URL already names the character, so the body must not repeat it:
+        // the two could disagree.
+        try std.testing.expect(!@hasField(Child.Body, "character"));
     }
 }
 
