@@ -1,0 +1,83 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Leather",
+            "icon": "leather-armor",
+            "kind": "Armor",
+            "description": "A basic leather armor that provides minimal protection.",
+            "armor": 1,
+            "cost": 200,
+            "supply": "common",
+            "equip_slots": [
+                "armor"
+            ]
+        },
+        {
+            "name": "Studded Leather",
+            "icon": "abdominal-armor",
+            "kind": "Armor",
+            "description": "A leather armor reinforced with metal studs, offering better protection.",
+            "armor": 2,
+            "cost": 1000,
+            "supply": "uncommon",
+            "effect": "Bane on SNEAKING rolls.",
+            "equip_slots": [
+                "armor"
+            ]
+        },
+        {
+            "name": "Chainmail",
+            "icon": "chain-mail",
+            "kind": "Armor",
+            "description": "A type of armor consisting of small metal rings linked together in a pattern to form a mesh.",
+            "armor": 4,
+            "cost": 5000,
+            "supply": "uncommon",
+            "effect": "Bane on EVADE and SNEAKING rolls.",
+            "equip_slots": [
+                "armor"
+            ]
+        },
+        {
+            "name": "Plate Armor",
+            "icon": "breastplate",
+            "kind": "Armor",
+            "description": "A type of armor made from large metal plates, providing excellent protection.",
+            "armor": 6,
+            "cost": 50000,
+            "supply": "rare",
+            "effect": "Bane on ACROBATICS, EVADE, and SNEAKING rolls.",
+            "equip_slots": [
+                "armor"
+            ]
+        },
+        {
+            "name": "Open Helmet",
+            "icon": "light-helm",
+            "kind": "Armor",
+            "description": "A helmet that provides basic head protection.",
+            "armor": 1,
+            "cost": 1200,
+            "supply": "common",
+            "effect": "Bane on AWARENESS rolls.",
+            "equip_slots": [
+                "helmet"
+            ]
+        },
+        {
+            "name": "Great Helm",
+            "icon": "visored-helm",
+            "kind": "Armor",
+            "description": "A helmet that provides better head protection.",
+            "armor": 2,
+            "cost": 10000,
+            "supply": "rare",
+            "effect": "Bane on AWARENESS and all ranged attacks.",
+            "equip_slots": [
+                "helmet"
+            ]
+        }
+    ]
+}

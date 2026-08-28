@@ -1,0 +1,154 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-template.schema.json",
+    "title": "Item template",
+    "description": "An item template is not a concrete item, but a definition of an item.",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the items file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the items file."
+        },
+        "name": {
+            "$ref": "item-names.schema.json"
+        },
+        "icon": {
+            "$ref": "../icon-names.schema.json",
+            "description": "The icon of the item."
+        },
+        "kind": {
+            "$ref": "item-kinds.schema.json"
+        },
+        "cost": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The cost of the item in copper coins, the smallest coin."
+        },
+        "supply": {
+            "type": "string",
+            "description": "The supply level of the item.",
+            "enum": [
+                "common",
+                "uncommon",
+                "rare",
+                "unique"
+            ]
+        },
+        "weight": {
+            "type": "number",
+            "minimum": 0,
+            "default": 1,
+            "description": "How much of a character's carrying capacity the item takes. Most take one, a tiny or worn thing none, a ration a quarter, a chest three."
+        },
+        "description": {
+            "type": "string",
+            "description": "A description of the item."
+        },
+        "armor": {
+            "type": "integer",
+            "description": "The armor value of the item."
+        },
+        "effect": {
+            "type": "string",
+            "description": "What the item does for whoever has it. Absent when it does nothing in particular."
+        },
+        "grip": {
+            "type": "string",
+            "description": "The grip of the item.",
+            "enum": [
+                "one-handed",
+                "two-handed"
+            ]
+        },
+        "strength_requirement": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The strength a character needs to wield the item without a bane."
+        },
+        "damage": {
+            "type": "string",
+            "description": "The damage value of the item."
+        },
+        "durability": {
+            "type": "integer",
+            "description": "The durability of the item."
+        },
+        "features": {
+            "type": "array",
+            "description": "The features of the item.",
+            "items": {
+                "type": "string",
+                "description": "A feature of the item.",
+                "enum": [
+                    "throwable",
+                    "subtle",
+                    "toppling",
+                    "cannot-parry",
+                    "long",
+                    "requires-combat-trained-mount",
+                    "tiny-item",
+                    "requires-quiver",
+                    "no-damage-bonus"
+                ]
+            }
+        },
+        "damage_types": {
+            "type": "array",
+            "description": "The types of damage the item deals.",
+            "items": {
+                "type": "string",
+                "description": "A type of damage.",
+                "enum": [
+                    "bludgeon",
+                    "pierce",
+                    "slash"
+                ]
+            }
+        },
+        "range": {
+            "type": "string",
+            "description": "The range of the item.",
+            "enum": [
+                "2",
+                "4",
+                "STR",
+                "STRx2",
+                "20",
+                "30",
+                "40",
+                "60",
+                "100"
+            ]
+        },
+        "equip_slots": {
+            "type": "array",
+            "description": "The equipslots of the item.",
+            "items": {
+                "type": "string",
+                "description": "An equipslot.",
+                "enum": [
+                    "main-hand",
+                    "off-hand",
+                    "helmet",
+                    "back",
+                    "cloak",
+                    "shirt",
+                    "armor",
+                    "boots"
+                ]
+            }
+        }
+    },
+    "required": [
+        "name",
+        "icon",
+        "kind",
+        "cost",
+        "supply",
+        "description"
+    ]
+}

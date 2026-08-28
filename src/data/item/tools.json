@@ -1,0 +1,106 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Crowbar",
+            "icon": "crowbar",
+            "kind": "Tool",
+            "cost": 200,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Autohit 2D6 damage against a door or wall. Takes no damage.",
+            "description": "A heavy metal bar with a curved end, used for prying open doors or crates."
+        },
+        {
+            "name": "Hammer",
+            "icon": "claw-hammer",
+            "kind": "Tool",
+            "cost": 100,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Autohit 2D4 damage against a door or wall. Takes no damage.",
+            "description": "A heavy metal hammer, used for driving nails or breaking things."
+        },
+        {
+            "name": "Needle & Thread",
+            "icon": "sewing-needle",
+            "kind": "Tool",
+            "cost": 30,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Mends clothes with a CRAFTING roll.",
+            "description": "A small needle and a spool of thread, used for sewing or mending clothes."
+        },
+        {
+            "name": "Pickaxe",
+            "icon": "war-pick",
+            "kind": "Tool",
+            "cost": 300,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Autohit 2D8 damage against a door or wall. Takes no damage.",
+            "description": "A heavy metal pickaxe, used for breaking rocks or digging."
+        },
+        {
+            "name": "Saw",
+            "icon": "hand-saw",
+            "kind": "Tool",
+            "cost": 500,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Cuts metal or wood in one stretch.",
+            "description": "A sharp saw, used for cutting wood or other materials."
+        },
+        {
+            "name": "Shovel",
+            "icon": "spade",
+            "kind": "Tool",
+            "cost": 200,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Reduces the time spent digging by half.",
+            "description": "A heavy shovel, used for digging or moving dirt."
+        },
+        {
+            "name": "Sledgehammer",
+            "icon": "trample",
+            "kind": "Tool",
+            "cost": 300,
+            "supply": "common",
+            "weight": 2,
+            "effect": "Autohit 2D10 damage against a door or wall. Takes no damage.",
+            "description": "A heavy sledgehammer, used for breaking down walls or doors."
+        },
+        {
+            "name": "Blacksmithing Tools",
+            "icon": "anvil-impact",
+            "kind": "Tool",
+            "cost": 2000,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Used for CRAFTING (page 34).",
+            "description": "A set of tools used for blacksmithing, including a hammer, tongs, and anvil."
+        },
+        {
+            "name": "Carpentry Tools",
+            "icon": "toolbox",
+            "kind": "Tool",
+            "cost": 800,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Used for CRAFTING (page 34).",
+            "description": "A set of tools used for carpentry, including saws, hammers, and chisels."
+        },
+        {
+            "name": "Tanning Tools",
+            "icon": "hair-strands",
+            "kind": "Tool",
+            "cost": 500,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Used for CRAFTING (page 34).",
+            "description": "A set of tools used for tanning hides, including knives and scrapers."
+        }
+    ]
+}

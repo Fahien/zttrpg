@@ -1,0 +1,578 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Knife",
+            "icon": "bowie-knife",
+            "kind": "Melee weapon",
+            "description": "A small, sharp knife used for close combat.",
+            "armor": 1,
+            "damage": "D8",
+            "cost": 50,
+            "supply": "common",
+            "grip": "one-handed",
+            "durability": 3,
+            "features": [
+                "throwable",
+                "subtle"
+            ],
+            "range": "STR",
+            "damage_types": [
+                "pierce"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Dagger",
+            "icon": "plain-dagger",
+            "kind": "Melee weapon",
+            "description": "A small, pointed weapon used for stabbing.",
+            "damage": "D8",
+            "cost": 100,
+            "supply": "common",
+            "grip": "one-handed",
+            "durability": 9,
+            "features": [
+                "throwable",
+                "subtle"
+            ],
+            "range": "STR",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Parrying Dagger",
+            "icon": "broad-dagger",
+            "kind": "Melee weapon",
+            "description": "A dagger designed for parrying attacks.",
+            "damage": "D6",
+            "cost": 200,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "durability": 15,
+            "features": [
+                "subtle"
+            ],
+            "range": "2",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Short Sword",
+            "icon": "stiletto",
+            "kind": "Melee weapon",
+            "description": "A short, double-edged sword.",
+            "cost": 800,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "D10",
+            "durability": 12,
+            "range": "2",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Broad Sword",
+            "icon": "broadsword",
+            "kind": "Melee weapon",
+            "description": "A broad, double-edged sword.",
+            "cost": 1200,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 10,
+            "damage": "2D6",
+            "durability": 15,
+            "range": "2",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Long Sword",
+            "icon": "shining-sword",
+            "kind": "Melee weapon",
+            "description": "A long, double-edged sword.",
+            "cost": 2500,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "durability": 15,
+            "range": "2",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Great Sword",
+            "icon": "croc-sword",
+            "kind": "Melee weapon",
+            "description": "A large, two-handed sword.",
+            "cost": 5000,
+            "supply": "rare",
+            "grip": "two-handed",
+            "strength_requirement": 16,
+            "damage": "2D10",
+            "durability": 15,
+            "range": "2",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Scimitar",
+            "icon": "katana",
+            "kind": "Melee weapon",
+            "description": "A curved sword with a sharp edge.",
+            "cost": 1000,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 12,
+            "damage": "2D6",
+            "durability": 12,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Handaxe",
+            "icon": "hatchet",
+            "kind": "Melee weapon",
+            "description": "A small axe used for throwing or close combat.",
+            "cost": 200,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "2D6",
+            "durability": 9,
+            "features": [
+                "toppling",
+                "throwable"
+            ],
+            "range": "2",
+            "damage_types": [
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Battleaxe",
+            "icon": "battle-axe",
+            "kind": "Melee weapon",
+            "description": "A large axe used for combat.",
+            "cost": 1000,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "durability": 9,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Two-Handed Axe",
+            "icon": "sharp-axe",
+            "kind": "Melee weapon",
+            "description": "A two-handed axe used for combat.",
+            "cost": 2500,
+            "supply": "uncommon",
+            "grip": "two-handed",
+            "strength_requirement": 16,
+            "damage": "2D10",
+            "durability": 9,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Mace",
+            "icon": "flanged-mace",
+            "kind": "Melee weapon",
+            "description": "A heavy weapon with a blunt head.",
+            "cost": 800,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "2D4",
+            "durability": 12,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Morningstar",
+            "icon": "spiked-ball",
+            "kind": "Melee weapon",
+            "description": "A heavy weapon with a spiked head.",
+            "cost": 1400,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "durability": 12,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Flail",
+            "icon": "flail",
+            "kind": "Melee weapon",
+            "description": "A weapon with a spiked head attached to a chain.",
+            "cost": 1600,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "range": "2",
+            "features": [
+                "toppling",
+                "cannot-parry"
+            ],
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Light Warhammer",
+            "icon": "flat-hammer",
+            "kind": "Melee weapon",
+            "description": "A light hammer used for combat.",
+            "cost": 1000,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 10,
+            "damage": "2D6",
+            "durability": 12,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Heavy Warhammer",
+            "icon": "warhammer",
+            "kind": "Melee weapon",
+            "description": "A heavy hammer used for combat.",
+            "cost": 2000,
+            "supply": "uncommon",
+            "grip": "two-handed",
+            "strength_requirement": 12,
+            "damage": "2D10",
+            "durability": 12,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Small Wooden Club",
+            "icon": "club",
+            "kind": "Melee weapon",
+            "description": "A small wooden club used for close combat.",
+            "cost": 10,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "D8",
+            "durability": 9,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Large Wooden Club",
+            "icon": "wood-club",
+            "kind": "Melee weapon",
+            "description": "A large wooden club used for close combat.",
+            "cost": 20,
+            "supply": "common",
+            "grip": "two-handed",
+            "strength_requirement": 16,
+            "damage": "2D8",
+            "durability": 12,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Staff",
+            "icon": "wizard-staff",
+            "kind": "Melee weapon",
+            "description": "A long wooden staff.",
+            "cost": 20,
+            "supply": "common",
+            "grip": "two-handed",
+            "strength_requirement": 7,
+            "damage": "D8",
+            "durability": 9,
+            "features": [
+                "toppling"
+            ],
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Short Spear",
+            "icon": "thrown-spear",
+            "kind": "Melee weapon",
+            "description": "A short spear.",
+            "cost": 50,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "D10",
+            "durability": 9,
+            "features": [
+                "throwable"
+            ],
+            "range": "STRx2",
+            "damage_types": [
+                "pierce"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Long Spear",
+            "icon": "spears",
+            "kind": "Melee weapon",
+            "description": "A long spear.",
+            "cost": 100,
+            "supply": "common",
+            "grip": "two-handed",
+            "strength_requirement": 10,
+            "damage": "2D8",
+            "durability": 9,
+            "features": [
+                "long"
+            ],
+            "range": "4",
+            "damage_types": [
+                "pierce"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Lance",
+            "icon": "mounted-knight",
+            "kind": "Melee weapon",
+            "description": "A long spear used for mounted combat.",
+            "cost": 1200,
+            "supply": "rare",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "2D10",
+            "durability": 12,
+            "features": [
+                "long",
+                "requires-combat-trained-mount"
+            ],
+            "range": "4",
+            "damage_types": [
+                "pierce"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Halberd",
+            "icon": "sharp-halberd",
+            "kind": "Melee weapon",
+            "description": "A pole weapon with a blade on one end and a spike on the other.",
+            "cost": 2000,
+            "supply": "rare",
+            "grip": "two-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "durability": 12,
+            "features": [
+                "long",
+                "toppling"
+            ],
+            "range": "4",
+            "damage_types": [
+                "pierce",
+                "slash"
+            ],
+            "equip_slots": [
+                "main-hand"
+            ]
+        },
+        {
+            "name": "Trident",
+            "icon": "trident",
+            "kind": "Melee weapon",
+            "description": "A three-pronged spear.",
+            "cost": 500,
+            "supply": "uncommon",
+            "grip": "one-handed",
+            "strength_requirement": 10,
+            "damage": "2D6",
+            "durability": 9,
+            "features": [
+                "toppling",
+                "throwable"
+            ],
+            "range": "STR",
+            "damage_types": [
+                "pierce"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Small Shield",
+            "icon": "round-shield",
+            "kind": "Melee weapon",
+            "description": "A small shield used for defense.",
+            "cost": 400,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "D8",
+            "durability": 15,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        },
+        {
+            "name": "Large Shield",
+            "icon": "viking-shield",
+            "kind": "Melee weapon",
+            "description": "A large shield used for defense.",
+            "cost": 1200,
+            "supply": "common",
+            "grip": "one-handed",
+            "strength_requirement": 13,
+            "damage": "D8",
+            "durability": 18,
+            "range": "2",
+            "damage_types": [
+                "bludgeon"
+            ],
+            "equip_slots": [
+                "main-hand",
+                "off-hand"
+            ]
+        }
+    ]
+}

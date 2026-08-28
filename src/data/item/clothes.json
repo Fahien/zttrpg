@@ -1,0 +1,84 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Boots",
+            "icon": "boots",
+            "kind": "Clothes",
+            "cost": 200,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Protects against some journey mishaps (page 102).",
+            "description": "Sturdy footwear designed for walking long distances.",
+            "equip_slots": [
+                "boots"
+            ]
+        },
+        {
+            "name": "Cloak",
+            "icon": "cloak",
+            "kind": "Clothes",
+            "cost": 80,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Protects against some journey mishaps (page 102).",
+            "description": "A long, loose outer garment worn for warmth or protection.",
+            "equip_slots": [
+                "cloak"
+            ]
+        },
+        {
+            "name": "Fine Garments",
+            "icon": "heavy-collar",
+            "kind": "Clothes",
+            "cost": 1000,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Boon on CHA-based skills when the GM finds it reasonable.",
+            "description": "Expensive and elegant clothing, often made from luxurious materials.",
+            "equip_slots": [
+                "shirt"
+            ]
+        },
+        {
+            "name": "Fur",
+            "icon": "fur-shirt",
+            "kind": "Clothes",
+            "cost": 100,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Boon on BUSHCRAFT for resisting cold (page 54).",
+            "description": "A garment made from animal fur, providing warmth and protection.",
+            "equip_slots": [
+                "shirt"
+            ]
+        },
+        {
+            "name": "Rags",
+            "icon": "loincloth",
+            "kind": "Clothes",
+            "cost": 5,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Bane on CHA-based skills when the GM finds it reasonable.",
+            "description": "Tattered and worn clothing, often associated with poverty or hardship.",
+            "equip_slots": [
+                "shirt"
+            ]
+        },
+        {
+            "name": "Simple Clothes",
+            "icon": "shirt",
+            "kind": "Clothes",
+            "cost": 50,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Required to avoid a bane on CHA-based skills.",
+            "description": "Basic clothing suitable for everyday wear.",
+            "equip_slots": [
+                "shirt"
+            ]
+        }
+    ]
+}

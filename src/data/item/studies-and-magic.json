@@ -1,0 +1,136 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Amulet",
+            "icon": "gem-pendant",
+            "kind": "Studies and magic",
+            "cost": 300,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A small charm or pendant, often imbued with magical properties."
+        },
+        {
+            "name": "Book",
+            "icon": "white-book",
+            "kind": "Studies and magic",
+            "cost": 2500,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Boon on skill rolls in a specific subject. The cost varies depending on the subject.",
+            "description": "A tome filled with knowledge, often containing spells or ancient lore."
+        },
+        {
+            "name": "Brooch",
+            "icon": "medal",
+            "kind": "Studies and magic",
+            "cost": 500,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A decorative pin or clasp, often used to fasten clothing."
+        },
+        {
+            "name": "Chalk",
+            "icon": "pencil",
+            "kind": "Studies and magic",
+            "cost": 1,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A piece of chalk, often used for drawing or writing on surfaces."
+        },
+        {
+            "name": "Grimoire",
+            "icon": "spell-book",
+            "kind": "Studies and magic",
+            "cost": 5000,
+            "supply": "unique",
+            "weight": 1,
+            "effect": "The cost varies depending on the content and may be much higher.",
+            "description": "A book of spells and magical knowledge, often written in an ancient language."
+        },
+        {
+            "name": "Hourglass",
+            "icon": "hourglass",
+            "kind": "Studies and magic",
+            "cost": 2500,
+            "supply": "rare",
+            "weight": 1,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A device used to measure time, often made of glass and sand."
+        },
+        {
+            "name": "Notebook",
+            "icon": "notebook",
+            "kind": "Studies and magic",
+            "cost": 500,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Empty, can be used as a grimoire.",
+            "description": "A blank notebook, perfect for jotting down notes or sketches."
+        },
+        {
+            "name": "Orbuculum",
+            "icon": "crystal-ball",
+            "kind": "Studies and magic",
+            "cost": 1800,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A crystal ball or orb, often used for divination or scrying."
+        },
+        {
+            "name": "Paper",
+            "icon": "papers",
+            "kind": "Studies and magic",
+            "cost": 20,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Can be used to write down spells.",
+            "description": "A single sheet of paper, often used for writing or drawing."
+        },
+        {
+            "name": "Parchment",
+            "icon": "scroll-unfurled",
+            "kind": "Studies and magic",
+            "cost": 10,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Can be used to write down spells.",
+            "description": "A piece of parchment, often used for writing or drawing."
+        },
+        {
+            "name": "Quill & Ink",
+            "icon": "quill-ink",
+            "kind": "Studies and magic",
+            "cost": 1000,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Can be used to write down spells.",
+            "description": "A quill pen and ink, often used for writing or drawing."
+        },
+        {
+            "name": "Reliquary",
+            "icon": "skull-in-jar",
+            "kind": "Studies and magic",
+            "cost": 500,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A container for holding relics or sacred objects, often used in religious practices."
+        },
+        {
+            "name": "Wand",
+            "icon": "orb-wand",
+            "kind": "Studies and magic",
+            "cost": 1000,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Can be used as a focus for spells.",
+            "description": "A slender stick or rod, often used as a magical focus or tool."
+        }
+    ]
+}

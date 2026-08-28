@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-kinds.schema.json",
+    "title": "Item Kinds",
+    "type": "string",
+    "description": "The kind of the item.",
+    "enum": [
+        "Animal",
+        "Armor",
+        "Clothes",
+        "Container",
+        "Hunting and fishing",
+        "Light source",
+        "Means of travel",
+        "Medicine",
+        "Melee weapon",
+        "Musical instrument",
+        "Ranged weapon",
+        "Studies and magic",
+        "Tool",
+        "Trade good"
+    ]
+}

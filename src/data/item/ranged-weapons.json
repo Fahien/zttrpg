@@ -1,0 +1,122 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Sling",
+            "icon": "sling",
+            "kind": "Ranged weapon",
+            "description": "A simple weapon used to throw stones.",
+            "cost": 10,
+            "supply": "common",
+            "weight": 0,
+            "grip": "one-handed",
+            "damage": "D8",
+            "range": "20",
+            "features": [
+                "tiny-item"
+            ],
+            "damage_types": [
+                "bludgeon"
+            ]
+        },
+        {
+            "name": "Short Bow",
+            "icon": "pocket-bow",
+            "kind": "Ranged weapon",
+            "description": "A smaller bow that is easier to use.",
+            "cost": 250,
+            "supply": "common",
+            "grip": "two-handed",
+            "strength_requirement": 7,
+            "damage": "D10",
+            "durability": 3,
+            "range": "30",
+            "features": [
+                "requires-quiver"
+            ],
+            "damage_types": [
+                "pierce"
+            ]
+        },
+        {
+            "name": "Longbow",
+            "icon": "high-shot",
+            "kind": "Ranged weapon",
+            "description": "A long bow that can shoot arrows over great distances.",
+            "cost": 500,
+            "supply": "uncommon",
+            "grip": "two-handed",
+            "strength_requirement": 13,
+            "damage": "D12",
+            "durability": 6,
+            "range": "100",
+            "features": [
+                "requires-quiver"
+            ],
+            "damage_types": [
+                "pierce"
+            ]
+        },
+        {
+            "name": "Light Crossbow",
+            "icon": "crossbow",
+            "kind": "Ranged weapon",
+            "description": "A weapon that shoots bolts using a mechanical mechanism.",
+            "cost": 7500,
+            "supply": "uncommon",
+            "grip": "two-handed",
+            "strength_requirement": 7,
+            "damage": "2D6",
+            "durability": 6,
+            "range": "40",
+            "features": [
+                "requires-quiver",
+                "no-damage-bonus"
+            ],
+            "damage_types": [
+                "pierce"
+            ]
+        },
+        {
+            "name": "Heavy Crossbow",
+            "icon": "crossbow",
+            "kind": "Ranged weapon",
+            "description": "A larger crossbow that can shoot bolts with great force.",
+            "cost": 20000,
+            "supply": "rare",
+            "grip": "two-handed",
+            "strength_requirement": 13,
+            "damage": "2D8",
+            "durability": 9,
+            "range": "60",
+            "features": [
+                "requires-quiver",
+                "no-damage-bonus"
+            ],
+            "damage_types": [
+                "pierce"
+            ]
+        },
+        {
+            "name": "Hand Crossbow",
+            "icon": "crossbow",
+            "kind": "Ranged weapon",
+            "description": "A small crossbow that can be used with one hand.",
+            "cost": 9000,
+            "supply": "rare",
+            "grip": "one-handed",
+            "strength_requirement": 7,
+            "damage": "2D6",
+            "durability": 6,
+            "range": "30",
+            "features": [
+                "requires-quiver",
+                "no-damage-bonus"
+            ],
+            "damage_types": [
+                "pierce"
+            ]
+        }
+    ]
+}

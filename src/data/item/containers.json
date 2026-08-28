@@ -1,0 +1,79 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Backpack",
+            "icon": "backpack",
+            "kind": "Container",
+            "cost": 300,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Increases carrying capacity by 2. A person can only use one backpack at a time.",
+            "description": "A sturdy backpack made of leather and canvas, perfect for carrying supplies on long journeys.",
+            "equip_slots": [
+                "back"
+            ]
+        },
+        {
+            "name": "Barrel",
+            "icon": "barrel",
+            "kind": "Container",
+            "cost": 200,
+            "supply": "common",
+            "weight": 2,
+            "effect": "Holds up to 15 weight units. Can take 10 points of damage, armor rating 3.",
+            "description": "A large wooden barrel, often used for storing liquids or bulk goods."
+        },
+        {
+            "name": "Basket",
+            "icon": "basket",
+            "kind": "Container",
+            "cost": 40,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Holds up to 10 weight units.",
+            "description": "A woven basket, useful for carrying small items or gathering food."
+        },
+        {
+            "name": "Bottle",
+            "icon": "square-bottle",
+            "kind": "Container",
+            "cost": 100,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Contains 1 unit of liquid.",
+            "description": "A glass bottle, perfect for holding potions or other liquids."
+        },
+        {
+            "name": "Chest",
+            "icon": "chest",
+            "kind": "Container",
+            "cost": 500,
+            "supply": "common",
+            "weight": 3,
+            "effect": "Holds up to 20 weight units. Can take 25 points of damage, armor rating 5.",
+            "description": "A sturdy wooden chest, often used for storing valuables or treasure."
+        },
+        {
+            "name": "Clay Jug",
+            "icon": "jug",
+            "kind": "Container",
+            "cost": 50,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Contains 1 unit of liquid.",
+            "description": "A clay jug, useful for holding liquids or food."
+        },
+        {
+            "name": "Saddle Bag",
+            "icon": "hand-bag",
+            "kind": "Container",
+            "cost": 600,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Increases an animal's carrying capacity by 2. An animal can carry no more than two saddle bags.",
+            "description": "A leather bag designed to be strapped to a saddle, perfect for carrying supplies on horseback."
+        }
+    ]
+}

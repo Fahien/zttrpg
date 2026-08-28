@@ -1,0 +1,94 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Chicken",
+            "icon": "chicken",
+            "kind": "Animal",
+            "cost": 40,
+            "supply": "common",
+            "effect": "Yields one ration of food when slaughtered (Cooking, page 103).",
+            "description": "A small domesticated bird, often kept for its eggs and meat."
+        },
+        {
+            "name": "Combat Trained Horse",
+            "icon": "cavalry",
+            "kind": "Animal",
+            "cost": 40000,
+            "supply": "rare",
+            "weight": 0,
+            "effect": "Can carry one rider and 10 weight units, or two riders.",
+            "description": "A horse trained for battle, capable of carrying a rider and their gear."
+        },
+        {
+            "name": "Cow",
+            "icon": "cow",
+            "kind": "Animal",
+            "cost": 1000,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Yields D4 rations of food (milk) per day, and 2D10 rations of food when slaughtered (Cooking, page 103).",
+            "description": "A large domesticated animal, often kept for its milk and meat."
+        },
+        {
+            "name": "Donkey",
+            "icon": "donkey",
+            "kind": "Animal",
+            "cost": 1200,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Can carry 10 weight units. Cannot be ridden.",
+            "description": "A small, sturdy animal, often used for carrying loads."
+        },
+        {
+            "name": "Guard Dog",
+            "icon": "sitting-dog",
+            "kind": "Animal",
+            "cost": 1500,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Protects its owner. For stats, see page 99.",
+            "description": "A trained dog, often used for protection and companionship."
+        },
+        {
+            "name": "Homing Pigeon in Cage",
+            "icon": "dove",
+            "kind": "Animal",
+            "cost": 200,
+            "supply": "uncommon",
+            "effect": "Flies home to its dovecote when released, wherever it is.",
+            "description": "A trained pigeon, often used for communication."
+        },
+        {
+            "name": "Pig",
+            "icon": "pig",
+            "kind": "Animal",
+            "cost": 200,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Yields 2D6 rations of food when slaughtered (Cooking, page 103).",
+            "description": "A domesticated animal, often kept for its meat."
+        },
+        {
+            "name": "Riding Horse",
+            "icon": "horse-head",
+            "kind": "Animal",
+            "cost": 6000,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Can carry one rider and 10 weight units.",
+            "description": "A horse trained for riding, capable of carrying a rider and their gear."
+        },
+        {
+            "name": "Sheep",
+            "icon": "sheep",
+            "kind": "Animal",
+            "cost": 300,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Yields 2D4 rations of food when slaughtered (Cooking, page 103).",
+            "description": "A domesticated animal, often kept for its wool and meat."
+        }
+    ]
+}

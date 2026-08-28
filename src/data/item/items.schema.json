@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "items.schema.json",
+    "title": "Items",
+    "description": "A list of items",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the items file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the items file."
+        },
+        "items": {
+            "type": "array",
+            "items": {
+                "$ref": "item-template.schema.json"
+            }
+        }
+    }
+}

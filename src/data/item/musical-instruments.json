@@ -1,0 +1,66 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Bagpipe",
+            "icon": "bagpipes",
+            "kind": "Musical instrument",
+            "cost": 3000,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Reduces the WP cost of the Music ability to 1 and increases range to 50 meters.",
+            "description": "A traditional wind instrument made of a bag and pipes, often used in folk music."
+        },
+        {
+            "name": "Drum",
+            "icon": "drum",
+            "kind": "Musical instrument",
+            "cost": 400,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Increases range of the Music ability to 20 meters.",
+            "description": "A percussion instrument made of a hollow body and a membrane, used in various musical styles."
+        },
+        {
+            "name": "Flute",
+            "icon": "flute",
+            "kind": "Musical instrument",
+            "cost": 200,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Reduces the WP cost of the Music ability to 2.",
+            "description": "A woodwind instrument made of a tube with holes, played by blowing air across an opening."
+        },
+        {
+            "name": "Harp",
+            "icon": "harp",
+            "kind": "Musical instrument",
+            "cost": 800,
+            "supply": "uncommon",
+            "weight": 2,
+            "effect": "Reduces the WP cost of the Music ability to 1.",
+            "description": "A stringed instrument played by plucking the strings, often associated with classical music."
+        },
+        {
+            "name": "Horn",
+            "icon": "hunting-horn",
+            "kind": "Musical instrument",
+            "cost": 600,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Increases range of the Music ability to 100 meters.",
+            "description": "A wind instrument made from an animal's horn or from metal, sounded by blowing into it."
+        },
+        {
+            "name": "Lyre",
+            "icon": "lyre",
+            "kind": "Musical instrument",
+            "cost": 2000,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Reduces the WP cost of the Music ability to 1.",
+            "description": "A stringed instrument with a U-shaped body, often used in ancient music."
+        }
+    ]
+}

@@ -1,0 +1,46 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Bear Trap",
+            "icon": "wolf-trap",
+            "kind": "Hunting and fishing",
+            "cost": 300,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Can be used for hunting (page 103).",
+            "description": "A heavy metal trap designed to catch large animals."
+        },
+        {
+            "name": "Fishing Rod",
+            "icon": "fishing-pole",
+            "kind": "Hunting and fishing",
+            "cost": 80,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Gives D4 rations of food when fishing (page 103).",
+            "description": "A long rod with a line and hook, used for catching fish."
+        },
+        {
+            "name": "Fishing Net",
+            "icon": "fishing-net",
+            "kind": "Hunting and fishing",
+            "cost": 200,
+            "supply": "common",
+            "weight": 2,
+            "effect": "Gives D6 rations of food when fishing (page 103).",
+            "description": "A large net used for catching fish or other aquatic creatures."
+        },
+        {
+            "name": "Snare",
+            "icon": "tripwire",
+            "kind": "Hunting and fishing",
+            "cost": 5,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Can be used for hunting (page 103). Can only be used once.",
+            "description": "A simple trap made of rope or wire, used for catching small animals."
+        }
+    ]
+}

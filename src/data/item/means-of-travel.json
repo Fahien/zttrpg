@@ -1,0 +1,56 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Canoe",
+            "icon": "canoe",
+            "kind": "Means of travel",
+            "cost": 600,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Can carry two people and 10 weight units.",
+            "description": "A small, narrow boat, perfect for navigating rivers and lakes."
+        },
+        {
+            "name": "Cart",
+            "icon": "wheelbarrow",
+            "kind": "Means of travel",
+            "cost": 1500,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Pulled by one horse or donkey. Can carry two people and 50 weight units.",
+            "description": "A wheeled vehicle, often used for transporting goods or people."
+        },
+        {
+            "name": "Rowing Boat",
+            "icon": "wood-canoe",
+            "kind": "Means of travel",
+            "cost": 1500,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Can carry four people and 50 weight units.",
+            "description": "A small boat powered by oars, suitable for lakes and rivers."
+        },
+        {
+            "name": "Sailing Boat",
+            "icon": "sailboat",
+            "kind": "Means of travel",
+            "cost": 4000,
+            "supply": "uncommon",
+            "weight": 0,
+            "effect": "Can carry six people and 100 weight units.",
+            "description": "A boat powered by sails, ideal for open waters."
+        },
+        {
+            "name": "Wagon",
+            "icon": "old-wagon",
+            "kind": "Means of travel",
+            "cost": 3000,
+            "supply": "common",
+            "weight": 0,
+            "effect": "Pulled by two horses or donkeys. Can carry four people and 100 weight units.",
+            "description": "A large, four-wheeled vehicle, often used for transporting goods overland."
+        }
+    ]
+}

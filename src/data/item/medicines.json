@@ -1,0 +1,76 @@
+{
+    "$schema": "items.schema.json",
+    "version": "1.0",
+    "items": [
+        {
+            "name": "Bandages (10)",
+            "icon": "bandage-roll",
+            "kind": "Medicine",
+            "cost": 50,
+            "supply": "common",
+            "weight": 1,
+            "effect": "Required to avoid a bane on HEALING rolls for saving lives. Each attempt consumes a bandage.",
+            "description": "A roll of bandages used for treating wounds."
+        },
+        {
+            "name": "Herbal Concoction (dose)",
+            "icon": "coffee-cup",
+            "kind": "Medicine",
+            "cost": 100,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Boon on HEALING rolls for resisting disease (page 53).",
+            "description": "A dose of herbal concoction used for treating diseases."
+        },
+        {
+            "name": "Healing Potion (dose)",
+            "icon": "health-potion",
+            "kind": "Medicine",
+            "cost": 5000,
+            "supply": "rare",
+            "weight": 0,
+            "effect": "Instantly heals 2D6 HP.",
+            "description": "A potion that instantly heals wounds."
+        },
+        {
+            "name": "Lethal Poison (dose)",
+            "icon": "poison-bottle",
+            "kind": "Medicine",
+            "cost": 200,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "See page 52.",
+            "description": "A dose of lethal poison that can be used to harm others."
+        },
+        {
+            "name": "Paralyzing Poison (dose)",
+            "icon": "potion-of-madness",
+            "kind": "Medicine",
+            "cost": 120,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "See page 53.",
+            "description": "A dose of paralyzing poison that can be used to harm others."
+        },
+        {
+            "name": "Sleeping Poison (dose)",
+            "icon": "fizzing-flask",
+            "kind": "Medicine",
+            "cost": 60,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "See page 53.",
+            "description": "A dose of sleeping poison that can be used to harm others."
+        },
+        {
+            "name": "Surgical Instruments",
+            "icon": "medical-pack",
+            "kind": "Medicine",
+            "cost": 1500,
+            "supply": "uncommon",
+            "weight": 1,
+            "effect": "Boon on HEALING rolls for saving lives.",
+            "description": "A set of surgical instruments used for performing surgeries."
+        }
+    ]
+}
