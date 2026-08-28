@@ -1,315 +1,333 @@
 // © 2026 Antonio Caggiano
 // SPDX-License-Identifier: MIT
 
+//! Turns the JSON in `src/data/` into the seed `.sql` files in `db/`.
+//!
+//! Each table below is described once, by a struct: where its JSON lives, which
+//! file to write, and what a row looks like. Everything else -- reading the
+//! JSON, quoting the values, resolving a name into the id it refers to, and
+//! assembling the statement -- is the same for every table and written once.
+
 const std = @import("std");
+
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
-/// Generate insertion sql files in the `db` directory.
+/// Generate the insertion SQL files in the `db` directory.
 pub fn main(init: std.process.Init) !void {
-    try gen_enum(init, "src/data/icon-names.schema.json", IconsSchema, "db/0011-icons.sql");
-    try gen_attributes(init);
-    try gen_kin(init);
+    // A build tool that runs once and exits: everything it reads and builds
+    // goes in here and is released in one go.
+    var arena = std.heap.ArenaAllocator.init(init.gpa);
+    defer arena.deinit();
 
-    try gen_enum(init, "src/data/skill-kinds.schema.json", SkillKind, "db/0041-skill-kinds.sql");
-    try gen_skills(init);
+    const gpa = arena.allocator();
+
+    try generate(init.io, gpa, Icons);
+    try generate(init.io, gpa, Kins);
+    try generate(init.io, gpa, Attributes);
+    try generate(init.io, gpa, SkillKinds);
+    try generate(init.io, gpa, Skills);
 }
 
-fn gen_enum(
-    init: std.process.Init,
-    sub_path: []const u8, // "src/data/icon-names.schema.json"
-    comptime T: type, // IconsSchema
-    out_path: []const u8, // "db/0011-icons.sql"
-) !void {
-    const schema_file = try std.Io.Dir.cwd().openFile(
-        init.io,
-        sub_path,
-        .{ .mode = .read_only },
-    );
-    defer schema_file.close(init.io);
+// The tables. Each names its JSON source, its output file, and the single
+// property of that JSON holding the list to insert. A row of plain strings is
+// a list of names; a row of struct fields is one column per field, in order.
 
-    var schema_staging_buffer: [1024]u8 = undefined;
-    var reader = schema_file.reader(init.io, &schema_staging_buffer);
+/// A JSON Schema enumeration: a list of names and nothing else.
+const Icons = struct {
+    const table_name = "icons";
+    const json_path = "src/data/icon-names.schema.json";
+    const out_path = "db/0011-icons.sql";
 
-    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
-    defer json_reader.deinit();
-
-    const schema = std.json.parseFromTokenSourceLeaky(
-        T,
-        init.gpa,
-        &json_reader,
-        .{ .ignore_unknown_fields = true },
-    ) catch |e| {
-        // Warn because malformed metadata can be a deeper symptom.
-        std.log.warn("{}", .{e});
-        return error.MalformedMetadata;
-    };
-    defer schema.deinit(init.gpa);
-
-    var sql = std.ArrayList(u8).empty;
-    defer sql.deinit(init.gpa);
-
-    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO ");
-    try sql.appendUnalignedSlice(init.gpa, T.table_name);
-    try sql.appendUnalignedSlice(init.gpa, " (name) VALUES\n");
-
-    for (schema.@"enum") |name| {
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", name, "'),\n" });
-        defer init.gpa.free(sql_element);
-        try sql.appendUnalignedSlice(init.gpa, sql_element);
-    }
-
-    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
-
-    // Overwrite the SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = out_path, .flags = .{} });
-}
-
-const IconsSchema = struct {
-    const table_name: []const u8 = "icons";
-
-    title: []const u8,
-    type: []const u8,
-    description: []const u8,
     @"enum": []const []const u8,
-
-    fn deinit(self: *const IconsSchema, gpa: std.mem.Allocator) void {
-        gpa.free(self.title);
-        gpa.free(self.type);
-        gpa.free(self.description);
-
-        for (self.@"enum") |icon_name| {
-            gpa.free(icon_name);
-        }
-        gpa.free(self.@"enum");
-    }
 };
 
-fn gen_kin(init: std.process.Init) !void {
-    const kin_schema_file = try std.Io.Dir.cwd().openFile(
-        init.io,
-        "src/data/kins.json",
-        .{ .mode = .read_only },
-    );
-    defer kin_schema_file.close(init.io);
+const SkillKinds = struct {
+    const table_name = "skill_kinds";
+    const json_path = "src/data/skill-kinds.schema.json";
+    const out_path = "db/0041-skill-kinds.sql";
 
-    var staging_buffer: [1024]u8 = undefined;
-    var reader = kin_schema_file.reader(init.io, &staging_buffer);
-
-    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
-    defer json_reader.deinit();
-
-    const kins = std.json.parseFromTokenSourceLeaky(
-        Kins,
-        init.gpa,
-        &json_reader,
-        .{ .ignore_unknown_fields = true },
-    ) catch |e| {
-        // Warn because malformed metadata can be a deeper symptom.
-        std.log.warn("{}", .{e});
-        return error.MalformedMetadata;
-    };
-    defer kins.deinit(init.gpa);
-
-    var sql = std.ArrayList(u8).empty;
-    defer sql.deinit(init.gpa);
-    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO kins (name, icon) VALUES\n");
-
-    for (kins.kins) |kin| {
-        const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", kin.icon, "' LIMIT 1)" });
-        defer init.gpa.free(icon_id_query);
-
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", kin.name, "', ", icon_id_query, "),\n" });
-        defer init.gpa.free(sql_element);
-
-        try sql.appendUnalignedSlice(init.gpa, sql_element);
-    }
-
-    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
-
-    // Overwrite the kins SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0021-kins.sql", .flags = .{} });
-}
-
-const Kin = struct {
-    name: []const u8,
-    icon: []const u8,
-    description: []const u8,
-
-    fn deinit(self: *const Kin, gpa: std.mem.Allocator) void {
-        gpa.free(self.name);
-        gpa.free(self.icon);
-        gpa.free(self.description);
-    }
+    @"enum": []const []const u8,
 };
 
 const Kins = struct {
-    kins: []const Kin,
+    const table_name = "kins";
+    const json_path = "src/data/kins.json";
+    const out_path = "db/0021-kins.sql";
 
-    fn deinit(self: *const Kins, gpa: std.mem.Allocator) void {
-        for (self.kins) |kin| {
-            kin.deinit(gpa);
-        }
-        gpa.free(self.kins);
-    }
-};
+    /// The JSON also carries a description, which the table has no column for.
+    /// Unknown properties are ignored, so leaving it out here is enough.
+    const Row = struct {
+        /// A field named here holds the *name* of a row in another table; the
+        /// generated SQL looks up its id.
+        const lookups = .{ .icon = "icons" };
 
-fn gen_attributes(init: std.process.Init) !void {
-    const attribute_schema_file = try std.Io.Dir.cwd().openFile(
-        init.io,
-        "src/data/attributes.json",
-        .{ .mode = .read_only },
-    );
-    defer attribute_schema_file.close(init.io);
-
-    var staging_buffer: [1024]u8 = undefined;
-    var reader = attribute_schema_file.reader(init.io, &staging_buffer);
-
-    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
-    defer json_reader.deinit();
-
-    const attributes = std.json.parseFromTokenSourceLeaky(
-        Attributes,
-        init.gpa,
-        &json_reader,
-        .{ .ignore_unknown_fields = true },
-    ) catch |e| {
-        // Warn because malformed metadata can be a deeper symptom.
-        std.log.warn("{}", .{e});
-        return error.MalformedMetadata;
+        name: []const u8,
+        icon: []const u8,
     };
-    defer attributes.deinit(init.gpa);
 
-    var sql = std.ArrayList(u8).empty;
-    defer sql.deinit(init.gpa);
-    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO attributes (name, icon, short, description) VALUES\n");
-
-    for (attributes.attributes) |attribute| {
-        const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", attribute.icon, "' LIMIT 1)" });
-        defer init.gpa.free(icon_id_query);
-
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", attribute.name, "', ", icon_id_query, ", '", attribute.short, "', '", attribute.description, "'),\n" });
-        defer init.gpa.free(sql_element);
-
-        try sql.appendUnalignedSlice(init.gpa, sql_element);
-    }
-
-    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
-
-    // Overwrite the attributes SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0031-attributes.sql", .flags = .{} });
-}
-
-const Attribute = struct {
-    name: []const u8,
-    icon: []const u8,
-    short: []const u8,
-    description: []const u8,
-
-    fn deinit(self: *const Attribute, gpa: std.mem.Allocator) void {
-        gpa.free(self.name);
-        gpa.free(self.icon);
-        gpa.free(self.short);
-        gpa.free(self.description);
-    }
+    kins: []const Row,
 };
 
 const Attributes = struct {
-    attributes: []const Attribute,
+    const table_name = "attributes";
+    const json_path = "src/data/attributes.json";
+    const out_path = "db/0031-attributes.sql";
 
-    fn deinit(self: *const Attributes, gpa: std.mem.Allocator) void {
-        for (self.attributes) |attribute| {
-            attribute.deinit(gpa);
-        }
-        gpa.free(self.attributes);
-    }
-};
+    const Row = struct {
+        const lookups = .{ .icon = "icons" };
 
-fn gen_skills(init: std.process.Init) !void {
-    const skill_schema_file = try std.Io.Dir.cwd().openFile(
-        init.io,
-        "src/data/skills.json",
-        .{ .mode = .read_only },
-    );
-    defer skill_schema_file.close(init.io);
+        name: []const u8,
+        icon: []const u8,
+        short: []const u8,
+        description: []const u8,
+    };
 
-    var staging_buffer: [1024]u8 = undefined;
-    var reader = skill_schema_file.reader(init.io, &staging_buffer);
-
-    var json_reader = std.json.Reader.init(init.gpa, &reader.interface);
-    defer json_reader.deinit();
-
-    const skills = try std.json.parseFromTokenSourceLeaky(
-        Skills,
-        init.gpa,
-        &json_reader,
-        .{ .ignore_unknown_fields = true },
-    );
-    defer skills.deinit(init.gpa);
-
-    var sql = std.ArrayList(u8).empty;
-    defer sql.deinit(init.gpa);
-    try sql.appendUnalignedSlice(init.gpa, "INSERT INTO skills (name, icon, kind, description) VALUES\n");
-
-    for (skills.skills) |skill| {
-        const icon_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM icons WHERE name = '", skill.icon, "' LIMIT 1)" });
-        defer init.gpa.free(icon_id_query);
-
-        const kind_id_query = try std.mem.concat(init.gpa, u8, &.{ "(SELECT id FROM skill_kinds WHERE name = '", skill.kind, "' LIMIT 1)" });
-        defer init.gpa.free(kind_id_query);
-
-        const sql_element = try std.mem.concat(init.gpa, u8, &.{ "    ('", skill.name, "', ", icon_id_query, ", ", kind_id_query, ", $desc$", skill.description, "$desc$),\n" });
-        defer init.gpa.free(sql_element);
-
-        try sql.appendUnalignedSlice(init.gpa, sql_element);
-    }
-
-    sql.items[sql.items.len - 2] = ';'; // Replace the last comma with a semicolon.
-
-    // Overwrite the skills SQL file with the new content.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .data = sql.items, .sub_path = "db/0042-skills.sql", .flags = .{} });
-}
-
-const SkillKind = struct {
-    const table_name: []const u8 = "skill_kinds";
-
-    title: []const u8,
-    type: []const u8,
-    description: []const u8,
-    @"enum": []const []const u8,
-
-    fn deinit(self: *const SkillKind, gpa: std.mem.Allocator) void {
-        gpa.free(self.title);
-        gpa.free(self.type);
-        gpa.free(self.description);
-
-        for (self.@"enum") |icon_name| {
-            gpa.free(icon_name);
-        }
-        gpa.free(self.@"enum");
-    }
-};
-
-const Skill = struct {
-    name: []const u8,
-    icon: []const u8,
-    kind: []const u8,
-    description: []const u8,
-
-    fn deinit(self: *const Skill, gpa: std.mem.Allocator) void {
-        gpa.free(self.name);
-        gpa.free(self.icon);
-        gpa.free(self.kind);
-        gpa.free(self.description);
-    }
+    attributes: []const Row,
 };
 
 const Skills = struct {
-    skills: []const Skill,
+    const table_name = "skills";
+    const json_path = "src/data/skills.json";
+    const out_path = "db/0042-skills.sql";
 
-    fn deinit(self: *const Skills, gpa: std.mem.Allocator) void {
-        for (self.skills) |skill| {
-            skill.deinit(gpa);
-        }
-        gpa.free(self.skills);
-    }
+    const Row = struct {
+        const lookups = .{ .icon = "icons", .kind = "skill_kinds" };
+
+        name: []const u8,
+        icon: []const u8,
+        kind: []const u8,
+        description: []const u8,
+    };
+
+    skills: []const Row,
 };
+
+/// Reads one table's JSON and writes its INSERT statement.
+fn generate(io: Io, gpa: Allocator, comptime Table: type) !void {
+    const table = try readJson(io, gpa, Table);
+
+    const rows = @field(table, listField(Table).name);
+    if (rows.len == 0) {
+        std.log.err("{s} lists no rows", .{Table.json_path});
+        return error.NoRows;
+    }
+
+    const Row = @typeInfo(@TypeOf(rows)).pointer.child;
+
+    var sql = std.ArrayList(u8).empty;
+
+    try sql.appendSlice(gpa, "INSERT INTO " ++ Table.table_name ++
+        " (" ++ comptime columnsOf(Row) ++ ") VALUES\n");
+
+    for (rows, 0..) |row, i| {
+        if (i > 0) try sql.appendSlice(gpa, ",\n");
+
+        appendRow(gpa, &sql, Row, row) catch |err| {
+            // Reported here because this is the layer that knows which file the
+            // offending value came from.
+            std.log.err("{s}: row {d}: {}", .{ Table.json_path, i, err });
+            return err;
+        };
+    }
+    try sql.appendSlice(gpa, ";\n");
+
+    try Io.Dir.cwd().writeFile(io, .{ .data = sql.items, .sub_path = Table.out_path, .flags = .{} });
+
+    std.log.info("{s}: {d} rows", .{ Table.out_path, rows.len });
+}
+
+/// The one property of a table's JSON that holds its list. Declaring a second
+/// field would make "which one is the list" a guess, so require exactly one.
+fn listField(comptime Table: type) std.builtin.Type.StructField {
+    const fields = @typeInfo(Table).@"struct".fields;
+    if (fields.len != 1) {
+        @compileError(@typeName(Table) ++ " must declare exactly one field: the JSON property holding its rows.");
+    }
+    return fields[0];
+}
+
+/// The column list, in the order the values are written. A row that is just a
+/// string is a name; anything else contributes one column per field.
+fn columnsOf(comptime Row: type) []const u8 {
+    if (Row == []const u8) return "name";
+
+    comptime var columns: []const u8 = "";
+    inline for (@typeInfo(Row).@"struct".fields, 0..) |field, i| {
+        if (i > 0) columns = columns ++ ", ";
+        columns = columns ++ field.name;
+    }
+    return columns;
+}
+
+/// The table a field's value names, or null when the value is stored as it is.
+fn lookupOf(comptime Row: type, comptime field_name: []const u8) ?[]const u8 {
+    if (Row == []const u8) return null;
+    if (!@hasDecl(Row, "lookups")) return null;
+    if (!@hasField(@TypeOf(Row.lookups), field_name)) return null;
+
+    return @field(Row.lookups, field_name);
+}
+
+fn appendRow(gpa: Allocator, sql: *std.ArrayList(u8), comptime Row: type, row: Row) !void {
+    try sql.appendSlice(gpa, "    (");
+
+    if (Row == []const u8) {
+        try appendValue(gpa, sql, null, row);
+    } else {
+        inline for (@typeInfo(Row).@"struct".fields, 0..) |field, i| {
+            if (i > 0) try sql.appendSlice(gpa, ", ");
+            try appendValue(gpa, sql, comptime lookupOf(Row, field.name), @field(row, field.name));
+        }
+    }
+
+    try sql.appendSlice(gpa, ")");
+}
+
+fn appendValue(
+    gpa: Allocator,
+    sql: *std.ArrayList(u8),
+    comptime lookup_table: ?[]const u8,
+    value: []const u8,
+) !void {
+    if (lookup_table) |referenced| {
+        try sql.appendSlice(gpa, "(SELECT id FROM " ++ referenced ++ " WHERE name = ");
+        try appendQuoted(gpa, sql, value);
+        try sql.appendSlice(gpa, " LIMIT 1)");
+    } else {
+        try appendQuoted(gpa, sql, value);
+    }
+}
+
+/// Postgres reads everything between two matching `$tag$` markers literally, so
+/// a value carrying an apostrophe needs no escaping and cannot end its own
+/// literal. That matters here: these files are generated from prose written by
+/// a person, and "a dwarf's beard" would otherwise close the string early and
+/// produce SQL that fails to apply -- or worse, applies as something else.
+const quote = "$val$";
+
+fn appendQuoted(gpa: Allocator, sql: *std.ArrayList(u8), value: []const u8) !void {
+    // The only text that could still end the literal early is the marker
+    // itself. No data uses it, and picking a different marker on the fly would
+    // be a silent fix for something worth seeing.
+    if (std.mem.find(u8, value, quote) != null) return error.ValueContainsQuoteMarker;
+
+    try sql.appendSlice(gpa, quote);
+    try sql.appendSlice(gpa, value);
+    try sql.appendSlice(gpa, quote);
+}
+
+fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
+    const file = try Io.Dir.cwd().openFile(io, Table.json_path, .{ .mode = .read_only });
+    defer file.close(io);
+
+    var staging_buffer: [1024]u8 = undefined;
+    var file_reader = file.reader(io, &staging_buffer);
+
+    var json_reader = std.json.Reader.init(gpa, &file_reader.interface);
+    defer json_reader.deinit();
+
+    return std.json.parseFromTokenSourceLeaky(
+        Table,
+        gpa,
+        &json_reader,
+        .{ .ignore_unknown_fields = true },
+    ) catch |err| {
+        std.log.err("{s}: {}", .{ Table.json_path, err });
+        return error.MalformedMetadata;
+    };
+}
+
+const testing = std.testing;
+
+/// Every table this tool writes, for the checks below.
+const all_tables = .{ Icons, SkillKinds, Kins, Attributes, Skills };
+
+test "every table names exactly one JSON property to read its rows from" {
+    inline for (all_tables) |Table| {
+        const field = comptime listField(Table);
+
+        // The property holds a list, and its elements are either names or rows.
+        const Row = @typeInfo(field.type).pointer.child;
+        try testing.expect(Row == []const u8 or @typeInfo(Row) == .@"struct");
+
+        try testing.expect(Table.table_name.len > 0);
+        try testing.expect(std.mem.endsWith(u8, Table.out_path, ".sql"));
+        try testing.expect(std.mem.endsWith(u8, Table.json_path, ".json"));
+    }
+}
+
+test "columns are the row's fields, in order" {
+    try testing.expectEqualStrings("name", comptime columnsOf([]const u8));
+    try testing.expectEqualStrings("name, icon", comptime columnsOf(Kins.Row));
+    try testing.expectEqualStrings("name, icon, short, description", comptime columnsOf(Attributes.Row));
+    try testing.expectEqualStrings("name, icon, kind, description", comptime columnsOf(Skills.Row));
+}
+
+test "a lookup field names the table its value refers to" {
+    // These are the columns holding an id in the database but a name in the
+    // JSON, which is what makes the generated SELECT necessary.
+    try testing.expectEqualStrings("icons", comptime lookupOf(Kins.Row, "icon").?);
+    try testing.expectEqualStrings("skill_kinds", comptime lookupOf(Skills.Row, "kind").?);
+    try testing.expect(comptime lookupOf(Skills.Row, "name") == null);
+    try testing.expect(comptime lookupOf([]const u8, "name") == null);
+}
+
+/// Whether some table in this file fills the named table.
+fn fills(comptime table_name: []const u8) bool {
+    inline for (all_tables) |Table| {
+        if (std.mem.eql(u8, Table.table_name, table_name)) return true;
+    }
+    return false;
+}
+
+test "every lookup points at a table this tool fills" {
+    // A lookup naming a table nobody writes would generate a SELECT that finds
+    // nothing, and the insert would quietly store a null id.
+    inline for (all_tables) |Table| {
+        const Row = @typeInfo(listField(Table).type).pointer.child;
+
+        if (Row != []const u8 and @hasDecl(Row, "lookups")) {
+            inline for (@typeInfo(@TypeOf(Row.lookups)).@"struct".fields) |lookup| {
+                try testing.expect(comptime fills(@field(Row.lookups, lookup.name)));
+            }
+        }
+    }
+}
+
+test "values are dollar quoted, so an apostrophe cannot end one early" {
+    const gpa = testing.allocator;
+
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(gpa);
+
+    // The case that produced broken SQL when names were wrapped in apostrophes.
+    try appendRow(gpa, &sql, Kins.Row, .{ .name = "Dwarf's kin", .icon = "beard" });
+
+    try testing.expectEqualStrings(
+        "    ($val$Dwarf's kin$val$, (SELECT id FROM icons WHERE name = $val$beard$val$ LIMIT 1))",
+        sql.items,
+    );
+}
+
+test "a name is written as a single column" {
+    const gpa = testing.allocator;
+
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(gpa);
+
+    try appendRow(gpa, &sql, []const u8, "abacus");
+    try testing.expectEqualStrings("    ($val$abacus$val$)", sql.items);
+}
+
+test "a value carrying the quoting marker is refused, not mangled" {
+    const gpa = testing.allocator;
+
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(gpa);
+
+    try testing.expectError(
+        error.ValueContainsQuoteMarker,
+        appendQuoted(gpa, &sql, "ends the literal " ++ quote ++ " early"),
+    );
+}

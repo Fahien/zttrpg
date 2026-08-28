@@ -1,5 +1,5 @@
 INSERT INTO skill_kinds (name) VALUES
-    ('Core'),
-    ('Secondary'),
-    ('Innate'),
-    ('Heroic');
+    ($val$Core$val$),
+    ($val$Secondary$val$),
+    ($val$Innate$val$),
+    ($val$Heroic$val$);

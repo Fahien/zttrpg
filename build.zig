@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     buildIcons(b, target, optimize);
-    buildSqls(b, target, optimize);
+    const sqls_mod = buildSqls(b, target, optimize);
 
     const libpq_dep = b.dependency("libpq", .{
         .target = target,
@@ -101,12 +101,19 @@ pub fn build(b: *std.Build) void {
 
     const run_pq_tests = b.addRunArtifact(pq_tests);
 
+    const sqls_tests = b.addTest(.{
+        .root_module = sqls_mod,
+    });
+
+    const run_sqls_tests = b.addRunArtifact(sqls_tests);
+
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&exe.step);
     test_step.dependOn(&run_exe_tests.step);
     test_step.dependOn(&run_migration_tests.step);
     test_step.dependOn(&run_pq_tests.step);
+    test_step.dependOn(&run_sqls_tests.step);
 }
 
 fn buildIcons(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
@@ -131,7 +138,9 @@ fn buildIcons(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     icons_step.dependOn(&run_icons.step);
 }
 
-fn buildSqls(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) void {
+/// Returns the module so the caller can add its tests to the test step: a
+/// module's tests only run when that module is the root of a test artifact.
+fn buildSqls(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
     const sqls_mod = b.createModule(.{
         .root_source_file = b.path("src/sqls.zig"),
         .target = target,
@@ -148,4 +157,6 @@ fn buildSqls(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
 
     const sqls_step = b.step("sqls", "Generate SQLs");
     sqls_step.dependOn(&run_sqls.step);
+
+    return sqls_mod;
 }
