@@ -10,6 +10,7 @@ pub const Attribute = model.Attribute;
 pub const Character = model.Character;
 pub const CharacterAttribute = model.CharacterAttribute;
 pub const CharacterSkill = model.CharacterSkill;
+pub const CharacterSummary = model.CharacterSummary;
 pub const Icon = model.Icon;
 pub const Kin = model.Kin;
 pub const Skill = model.Skill;

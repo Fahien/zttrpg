@@ -135,11 +135,43 @@ pub const RowCharacter = struct {
     kin: Kin.Id,
 };
 
+/// A character without its sheet: what a roster row needs and no more.
+///
+/// This exists because listing every character costs one query per value on
+/// every sheet, and a roster shows none of them. It is a projection for one
+/// view, not a second idea of what a character is -- `Character` below stays
+/// whole, and the detail page reads that.
+pub const CharacterSummary = struct {
+    pub const Row = RowCharacter;
+
+    pub const table_name: []const u8 = "characters";
+
+    id: Character.Id,
+    name: []const u8,
+    level: u32,
+    kin: Kin,
+
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSummary {
+        const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
+
+        return .{
+            .id = row.id,
+            .name = row.name,
+            .level = row.level,
+            .kin = kin,
+        };
+    }
+};
+
 pub const Character = struct {
     pub const Id = u32;
     pub const Create = CreateCharacter;
     pub const Update = UpdateCharacter;
     pub const Row = RowCharacter;
+
+    /// The shape a list of characters is served as. A handler asking for many
+    /// characters uses this; asking for one uses the whole thing.
+    pub const Summary = CharacterSummary;
 
     pub const table_name: []const u8 = "characters";
     pub const resource_name: []const u8 = "character";
@@ -151,22 +183,19 @@ pub const Character = struct {
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
 
-    /// Unlike the other models, a character is not one row: its attributes and
-    /// skills live in their own tables and are fetched here, keyed by this
-    /// character's id.
+    /// Unlike the other models, a character is not one row: its attribute and
+    /// skill values live in their own tables and are fetched here, keyed by
+    /// this character's id.
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Character {
-        const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
-
-        const attributes = try db.readAllAlloc(gpa, CharacterAttribute, resource_name, row.id);
-        const skills = try db.readAllAlloc(gpa, CharacterSkill, resource_name, row.id);
+        const summary = try CharacterSummary.fromRow(db, gpa, row);
 
         return .{
-            .id = row.id,
-            .name = row.name,
-            .level = row.level,
-            .kin = kin,
-            .attributes = attributes,
-            .skills = skills,
+            .id = summary.id,
+            .name = summary.name,
+            .level = summary.level,
+            .kin = summary.kin,
+            .attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id),
+            .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
         };
     }
 };
@@ -205,6 +234,20 @@ test "Character serializes to the JSON wire shape" {
     , out.written());
 }
 
+test "a summary is a character without its sheet" {
+    var out = Io.Writer.Allocating.init(std.testing.allocator);
+    defer out.deinit();
+
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
+    const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin };
+    try std.json.Stringify.value(summary, .{}, &out.writer);
+
+    // The roster renders these four fields, so this is all a list has to carry.
+    try std.testing.expectEqualStrings(
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}}}
+    , out.written());
+}
+
 test "CreateCharacter parses from a JSON body" {
     const parsed = try std.json.parseFromSlice(
         CreateCharacter,
@@ -217,6 +260,30 @@ test "CreateCharacter parses from a JSON body" {
 
     try std.testing.expectEqualStrings("Grog", parsed.value.name);
     try std.testing.expectEqual(3, parsed.value.level);
+}
+
+test "the summary is the character minus the sheet, and reads the same row" {
+    // A character keeps its attributes and skills: that is what a character
+    // sheet is. The summary exists so that listing characters does not have to
+    // read every one of those values, and it is a projection of the same row --
+    // sharing Row is what keeps the two from disagreeing about a character.
+    try std.testing.expect(@hasField(Character, "attributes"));
+    try std.testing.expect(@hasField(Character, "skills"));
+
+    try std.testing.expect(!@hasField(Character.Summary, "attributes"));
+    try std.testing.expect(!@hasField(Character.Summary, "skills"));
+
+    try std.testing.expectEqual(Character.Row, Character.Summary.Row);
+    try std.testing.expectEqualStrings(Character.table_name, Character.Summary.table_name);
+
+    // Every field the summary keeps is the same field on the character.
+    inline for (@typeInfo(Character.Summary).@"struct".fields) |field| {
+        try std.testing.expect(@hasField(Character, field.name));
+        try std.testing.expectEqual(
+            @FieldType(Character, field.name),
+            @FieldType(Character.Summary, field.name),
+        );
+    }
 }
 
 test "sub-resources name the type their request body parses into" {

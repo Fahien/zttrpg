@@ -152,11 +152,11 @@ sequenceDiagram
 
 A write takes the same path, with two additions: the body is parsed and validated before the query runs, and a constraint the database refuses comes back as a typed error that maps to a status the same way.
 
-Two things are worth reading off this diagram, and neither depends on how the code is spelled.
+Two things are worth reading off this diagram.
 
 The first is that no layer reaches past the next one. The handler builds no SQL, the query layer picks no status code, and one place decides what an error means to a client.
 
-The second is the cost. Every arrow from the model back to the query layer is another round trip that fetches a single row, so a record costs one query per record it references, recursively. With the seed data in `db/`, one character costs 284 queries and a roster costs 284 per character. That is the first entry under [Known limitations](#known-limitations), and this diagram is where it comes from.
+The second is that every arrow from the model back to the query layer is another round trip fetching a single row, so a record costs one query per record it references, recursively. That is affordable for one record and not for a page of them, which is why a list may be served in a different shape from a single record: `Character` carries its attribute and skill values, and `Character.Summary` carries what a roster row shows. The handler chooses between them, so the model is never made smaller than the domain and the query layer never learns that a roster exists.
 
 ### Memory
 
@@ -210,18 +210,18 @@ erDiagram
     characters {
         int id PK
         text name UK
-        int level "1 to 100"
+        int level
         int kin FK
     }
     character_attributes {
         int character PK "also a foreign key"
         int attribute PK "also a foreign key"
-        int value "0 to 1023"
+        int value
     }
     character_skills {
         int character PK "also a foreign key"
         int skill PK "also a foreign key"
-        int value "0 to 1023"
+        int value
     }
 ```
 
@@ -260,7 +260,11 @@ Note: the server compares the `Accept` header with the exact text `application/j
 | GET | `/characters/{id}/skills` | The character's skill values. |
 | PUT | `/characters/{id}/skills` | Write skill values, as one array. |
 
+`GET /characters/{id}` carries the character's attribute and skill values. `GET /characters` returns a summary of each character instead, without them.
+
 A sub-collection is written as a whole array in one transaction, which is why a single value has no URL of its own. A body may name a subset: the values it leaves out keep what they had. If any value in the body names something the character does not have, none of them are written.
+
+Values come back ordered by the record they belong to, so a sheet reads the same way on every request and after every save.
 
 ### Status codes
 
@@ -311,8 +315,7 @@ curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
 
 ## Known limitations
 
-- Reading a character issues one query per nested record: `GET /characters/1` costs 284 queries, and the roster costs 284 per character. A list view needs four fields and pays for the whole sheet, because a list and a detail view share one shape today. See [A request, end to end](#a-request-end-to-end).
-- A sub-collection is returned in whatever order PostgreSQL gives, because the query has no `ORDER BY`. Rows can reorder between requests.
+- A record is hydrated one referenced row at a time, so reading a character's sheet costs a query per value on it. Only a page showing a sheet pays that, but it wants a join or a batched lookup. See [A request, end to end](#a-request-end-to-end).
 - The server handles one connection at a time and closes it after a single request.
 
 ## License

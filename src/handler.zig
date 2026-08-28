@@ -96,8 +96,20 @@ fn handleItem(ctx: *Context, item: ResourceItem) !void {
     }
 }
 
+/// The shape a whole collection is served as. A model that declares a `Summary`
+/// is listed in that shape; every other model lists as itself.
+///
+/// Choosing between them belongs here rather than in the model or the query
+/// layer: it is a statement about what one endpoint returns, not about what the
+/// record is. The query layer reads whichever type it is handed.
+fn SummaryOf(comptime T: type) type {
+    return if (@hasDecl(T, "Summary")) T.Summary else T;
+}
+
 fn respondItems(ctx: *Context, comptime T: type) !void {
-    const items = ctx.db.readAllAlloc(ctx.gpa, T, null, 0) catch |err| return ctx.respondError(err);
+    // A roster shows a few columns per row, so listing every character with its
+    // whole sheet costs one query per value nobody displays.
+    const items = ctx.db.readAllAlloc(ctx.gpa, SummaryOf(T)) catch |err| return ctx.respondError(err);
     try ctx.respondJson(items);
 }
 

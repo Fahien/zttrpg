@@ -74,11 +74,23 @@ pub const Database = struct {
         return try self.hydrate(T, gpa, row);
     }
 
+    /// A sub-collection is the only place its values can be read, so the order
+    /// they come back in is part of what a client sees. Without ORDER BY
+    /// Postgres may return the rows in any order it likes, and an UPDATE can
+    /// move a row, so a sheet would come back reordered after being saved.
+    fn readSubResourceQuery(comptime Parent: type, comptime Child: type) [:0]const u8 {
+        const cols = Database.getCols(RowOfT(Child));
+
+        return "SELECT " ++ cols ++ " FROM " ++ Child.table_name ++
+            " WHERE " ++ Parent.resource_name ++ " = $1" ++
+            " ORDER BY " ++ Child.Body.key_name;
+    }
+
     pub fn readSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32) ![]Child {
         const QueryType = RowOfT(Child);
 
-        const cols = comptime Database.getCols(QueryType);
-        const query = "SELECT " ++ cols ++ " FROM " ++ Child.table_name ++ " WHERE " ++ Parent.resource_name ++ " = $1";
+        const query = comptime Database.readSubResourceQuery(Parent, Child);
+
         const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
         defer gpa.free(parent_id_cstr);
 
@@ -164,24 +176,17 @@ pub const Database = struct {
         return cols;
     }
 
-    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type, comptime where: ?[]const u8, value: ?u32) ![]T {
+    /// Every row of a table. Reading a subset that belongs to a parent is
+    /// readSubResource's job, which is why there is no filter here.
+    pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
         const QueryType = RowOfT(T);
 
         // Build the SELECT query dynamically based on the fields of the struct T.
         const cols = comptime Database.getCols(QueryType);
 
-        var result: pq.Result = undefined;
+        const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
 
-        if (where) |w| {
-            const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " WHERE " ++ w ++ " = $1";
-            const v = value.?;
-            const value_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{v}, 0);
-            defer gpa.free(value_cstr);
-            result = try self.conn.execParams(query, &.{value_cstr});
-        } else {
-            const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
-            result = try self.conn.exec(query);
-        }
+        const result = try self.conn.exec(query);
         defer result.deinit();
 
         const count = result.len();
@@ -442,6 +447,20 @@ test "getSetClauses derives the id placeholder from the field count" {
     try std.testing.expectEqualStrings(
         "name = $1, icon = $2, kind = $3, description = $4 WHERE id = $5",
         comptime Database.getSetClauses(Skill.Update),
+    );
+}
+
+test "readSubResourceQuery orders the rows it returns" {
+    // These are now the only URL a sheet's values can be read from, so an
+    // unordered result would let a page render its rows differently on every
+    // load, and differently again after a save.
+    try std.testing.expectEqualStrings(
+        "SELECT character, attribute, value FROM character_attributes WHERE character = $1 ORDER BY attribute",
+        comptime Database.readSubResourceQuery(Character, CharacterAttribute),
+    );
+    try std.testing.expectEqualStrings(
+        "SELECT character, skill, value FROM character_skills WHERE character = $1 ORDER BY skill",
+        comptime Database.readSubResourceQuery(Character, CharacterSkill),
     );
 }
 
