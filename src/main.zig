@@ -25,7 +25,7 @@ const port = 8080;
 /// Each connection reads its request into a buffer of this size.
 const connection_buffer_size = 4096;
 
-/// Create our own ceiling to be able to accept more than `cpu_count - 1` connections.
+/// Create our own ceiling to be able to accept multiple connections.
 const max_connections_in_flight = 64;
 
 pub fn main(init: std.process.Init) !void {
@@ -54,10 +54,26 @@ pub fn main(init: std.process.Init) !void {
         const conn = try server.accept(io);
 
         connections.concurrent(io, serveConnection, .{ init.gpa, io, conn, &db }) catch |err| {
+            respondStatus(io, conn, std.http.Status.service_unavailable) catch |status_err| {
+                std.log.err("Error responding to connection: {}", .{status_err});
+            };
+
             std.log.err("Refusing connection: {}", .{err});
             conn.close(io);
         };
     }
+}
+
+pub fn respondStatus(
+    io: Io,
+    conn: Io.net.Stream,
+    status: std.http.Status,
+) !void {
+    var write_buffer: [256]u8 = undefined;
+    var conn_writer = Io.net.Stream.Writer.init(conn, io, &write_buffer);
+    const phrase = status.phrase() orelse "";
+    try conn_writer.interface.print("HTTP/1.1 {d} {s}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", .{ @intFromEnum(status), phrase });
+    try conn_writer.interface.flush();
 }
 
 fn serveConnection(gpa: Allocator, io: Io, conn: Io.net.Stream, db: *const zttrpg.Database) void {
