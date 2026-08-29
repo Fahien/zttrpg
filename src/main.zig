@@ -26,7 +26,7 @@ const connection_buffer_size = 4096;
 
 pub fn main(init: std.process.Init) !void {
     // Prints to stderr, unbuffered, ignoring potential errors.
-    std.debug.print("ZTTRPG\n", .{});
+    std.log.info("ZTTRPG", .{});
 
     const db = try zttrpg.Database.init();
     defer db.deinit();
@@ -35,17 +35,21 @@ pub fn main(init: std.process.Init) !void {
     var server = try ip_address.listen(init.io, .{ .mode = .stream, .reuse_address = true });
     defer server.deinit(init.io);
 
-    std.debug.print("Listening on http://{s}:{d}\n", .{ address, port });
+    std.log.info("Listening on http://{s}:{d}", .{ address, port });
 
     while (true) {
         const conn = try server.accept(init.io);
-        defer conn.close(init.io);
-
-        // One bad request must not take the server down with it.
-        handleConnection(init, conn, &db) catch |err| {
-            std.debug.print("Error handling connection: {}\n", .{err});
-        };
+        serveConnection(init, conn, &db);
     }
+}
+
+fn serveConnection(init: std.process.Init, conn: Io.net.Stream, db: *const zttrpg.Database) void {
+    defer conn.close(init.io);
+
+    // One bad request must not take the server down with it.
+    handleConnection(init, conn, db) catch |err| {
+        std.log.err("Error handling connection: {}", .{err});
+    };
 }
 
 fn handleConnection(
@@ -53,7 +57,7 @@ fn handleConnection(
     conn: Io.net.Stream,
     db: *const zttrpg.Database,
 ) !void {
-    std.debug.print("Accepted connection from {d}.{d}.{d}.{d}:{d}\n", .{
+    std.log.info("Accepted connection from {d}.{d}.{d}.{d}:{d}", .{
         conn.socket.address.ip4.bytes[0],
         conn.socket.address.ip4.bytes[1],
         conn.socket.address.ip4.bytes[2],
@@ -79,7 +83,7 @@ fn handleConnection(
 
     // Logged here because reading a body invalidates head.target: see
     // Context.respondError.
-    std.debug.print("Received request: {} {s}\n", .{ request.head.method, request.head.target });
+    std.log.debug("Received request: {} {s}", .{ request.head.method, request.head.target });
 
     var ctx = Context.init(gpa, init.io, db, &request);
 
