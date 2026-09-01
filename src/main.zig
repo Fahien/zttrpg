@@ -12,6 +12,7 @@ const context = @import("context.zig");
 const handler = @import("handler.zig");
 const page = @import("page.zig");
 const route = @import("route.zig");
+const locked = @import("locked.zig");
 
 const Context = context.Context;
 const Route = route.Route;
@@ -131,4 +132,5 @@ test {
     _ = handler;
     _ = page;
     _ = route;
+    _ = locked;
 }
