@@ -16,6 +16,7 @@ const locked = @import("locked.zig");
 
 const Context = context.Context;
 const Route = route.Route;
+const Locked = locked.Locked;
 
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -33,14 +34,14 @@ pub fn main(init: std.process.Init) !void {
     // Prints to stderr, unbuffered, ignoring potential errors.
     std.log.info("ZTTRPG", .{});
 
-    const db = try zttrpg.Database.init();
-    defer db.deinit();
-
     var threaded: Io.Threaded = .init(init.gpa, .{
         .concurrent_limit = .limited(max_connections_in_flight),
     });
     defer threaded.deinit();
     const io = threaded.io();
+
+    var db = locked.Locked(zttrpg.Database).init(io, try zttrpg.Database.init());
+    defer db.deinit();
 
     const ip_address = try Io.net.IpAddress.parse(address, port);
     var server = try ip_address.listen(io, .{ .mode = .stream, .reuse_address = true });
@@ -77,7 +78,7 @@ pub fn respondStatus(
     try conn_writer.interface.flush();
 }
 
-fn serveConnection(gpa: Allocator, io: Io, conn: Io.net.Stream, db: *const zttrpg.Database) void {
+fn serveConnection(gpa: Allocator, io: Io, conn: Io.net.Stream, db: *Locked(zttrpg.Database)) void {
     defer conn.close(io);
 
     // One bad request must not take the server down with it.
@@ -90,7 +91,7 @@ fn handleConnection(
     gpa: Allocator,
     io: Io,
     conn: Io.net.Stream,
-    db: *const zttrpg.Database,
+    db: *Locked(zttrpg.Database),
 ) !void {
     std.log.info("Accepted connection from {d}.{d}.{d}.{d}:{d}", .{
         conn.socket.address.ip4.bytes[0],

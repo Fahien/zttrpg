@@ -4,26 +4,30 @@ pub fn Locked(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        io_: std.Io,
+        _io: std.Io,
         mutex: std.Io.Mutex,
         value: T,
 
         pub fn init(io: std.Io, value: T) Self {
             return Self{
-                .io_ = io,
+                ._io = io,
                 .mutex = .init,
                 .value = value,
             };
         }
 
+        pub fn deinit(self: *Self) void {
+            self.value.deinit();
+        }
+
         /// Holding the lock is a permission to mutate.
         pub fn lock(self: *Self) std.Io.Cancelable!*T {
-            try self.mutex.lock(self.io_);
+            try self.mutex.lock(self._io);
             return &self.value;
         }
 
         pub fn unlock(self: *Self) void {
-            self.mutex.unlock(self.io_);
+            self.mutex.unlock(self._io);
         }
     };
 }

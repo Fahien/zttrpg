@@ -109,12 +109,21 @@ fn SummaryOf(comptime T: type) type {
 fn respondItems(ctx: *Context, comptime T: type) !void {
     // A roster shows a few columns per row, so listing every character with its
     // whole sheet costs one query per value nobody displays.
-    const items = ctx.db.readAllAlloc(ctx.gpa, SummaryOf(T)) catch |err| return ctx.respondError(err);
+    const items = items: {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        break :items db.readAllAlloc(ctx.gpa, SummaryOf(T));
+    } catch |err| return ctx.respondError(err);
+
     try ctx.respondJson(items);
 }
 
 fn respondItem(ctx: *Context, comptime T: type, id: u32) !void {
-    const item = ctx.db.readItem(ctx.gpa, T, id) catch |err| return ctx.respondError(err);
+    const item = item: {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        break :item db.readItem(ctx.gpa, T, id);
+    } catch |err| return ctx.respondError(err);
 
     // readItem reports a missing row as null rather than an error; the answer
     // is the same 404 a delete or update of that row would give.
@@ -147,7 +156,11 @@ fn insertItem(ctx: *Context, comptime T: type) !void {
 
     // A name that is already taken arrives here as UniqueViolation, and a kin
     // that does not exist as ForeignKeyViolation: both are the client's doing.
-    const item_id = ctx.db.insertItem(ctx.gpa, T, item) catch |err| return ctx.respondError(err);
+    const item_id = item_id: {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        break :item_id db.insertItem(ctx.gpa, T, item);
+    } catch |err| return ctx.respondError(err);
 
     std.debug.print("Inserted " ++ @typeName(T) ++ " with ID {d}\n", .{item_id});
 
@@ -159,13 +172,21 @@ fn updateItem(ctx: *Context, comptime T: type, id: u32) !void {
 
     update.validate() catch |err| return ctx.respondError(err);
 
-    ctx.db.updateItem(ctx.gpa, T, id, update) catch |err| return ctx.respondError(err);
+    {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        db.updateItem(ctx.gpa, T, id, update) catch |err| return ctx.respondError(err);
+    }
 
     try ctx.respondText(.ok, "Updated item with ID {d}.\n", .{id});
 }
 
 fn deleteItem(ctx: *Context, comptime T: type, id: u32) !void {
-    ctx.db.deleteItem(ctx.gpa, T, id) catch |err| return ctx.respondError(err);
+    {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        db.deleteItem(ctx.gpa, T, id) catch |err| return ctx.respondError(err);
+    }
 
     try ctx.respondText(.ok, "Deleted item with ID {d}.\n", .{id});
 }
@@ -212,8 +233,11 @@ fn respondSubCollection(
     comptime Child: type,
     parent_id: u32,
 ) !void {
-    const children = ctx.db.readSubResource(ctx.gpa, Parent, Child, parent_id) catch |err|
-        return ctx.respondError(err);
+    const children = children: {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        break :children db.readSubResource(ctx.gpa, Parent, Child, parent_id);
+    } catch |err| return ctx.respondError(err);
 
     try ctx.respondJson(children);
 }
@@ -235,8 +259,12 @@ fn updateSubCollection(
 
     // One transaction for the whole sheet: a body that names a value this
     // character does not have leaves the other values unchanged.
-    ctx.db.updateSubResource(ctx.gpa, Parent, Child, parent_id, bodies) catch |err|
-        return ctx.respondError(err);
+    {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        db.updateSubResource(ctx.gpa, Parent, Child, parent_id, bodies) catch |err|
+            return ctx.respondError(err);
+    }
 
     try ctx.respondText(.ok, "Updated {d} value(s).\n", .{bodies.len});
 }

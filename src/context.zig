@@ -5,9 +5,11 @@
 
 const std = @import("std");
 const zttrpg = @import("zttrpg");
+const locked = @import("locked.zig");
 
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
+const Locked = locked.Locked;
 
 const json_content_type = std.http.Header{ .name = "Content-Type", .value = "application/json" };
 
@@ -20,7 +22,7 @@ const json_content_type = std.http.Header{ .name = "Content-Type", .value = "app
 pub const Context = struct {
     gpa: Allocator,
     io: Io,
-    db: *const zttrpg.Database,
+    db: *Locked(zttrpg.Database),
     request: *std.http.Server.Request,
 
     /// The response body, accumulated before it is handed to `request.respond`.
@@ -31,7 +33,7 @@ pub const Context = struct {
     pub fn init(
         gpa: Allocator,
         io: Io,
-        db: *const zttrpg.Database,
+        db: *Locked(zttrpg.Database),
         request: *std.http.Server.Request,
     ) Context {
         return .{
