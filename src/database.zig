@@ -176,15 +176,19 @@ pub const Database = struct {
         return cols;
     }
 
+    /// Build the SELECT query dynamically based on the fields of the struct T.
+    fn readAllQuery(comptime T: type) [:0]const u8 {
+        requireIdColumn(T);
+        const cols = Database.getCols(RowOfT(T));
+        return "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " ORDER BY id";
+    }
+
     /// Every row of a table. Reading a subset that belongs to a parent is
     /// readSubResource's job, which is why there is no filter here.
     pub fn readAllAlloc(self: *const Database, gpa: Allocator, comptime T: type) ![]T {
         const QueryType = RowOfT(T);
 
-        // Build the SELECT query dynamically based on the fields of the struct T.
-        const cols = comptime Database.getCols(QueryType);
-
-        const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name;
+        const query = comptime readAllQuery(T);
 
         const result = try self.conn.exec(query);
         defer result.deinit();
@@ -461,6 +465,26 @@ test "readSubResourceQuery orders the rows it returns" {
     try std.testing.expectEqualStrings(
         "SELECT character, skill, value FROM character_skills WHERE character = $1 ORDER BY skill",
         comptime Database.readSubResourceQuery(Character, CharacterSkill),
+    );
+}
+
+test "readAllQuery orders a collection by the one column an edit cannot move" {
+    // Without ORDER BY Postgres returns heap order, and an UPDATE writes a new
+    // tuple at the end of the heap: editing a row dropped it to the bottom of
+    // its roster and left it there. Ordering by id is stable because no edit
+    // can change it; name is unique too, and is exactly what an edit changes.
+    try std.testing.expectEqualStrings(
+        "SELECT id, name FROM icons ORDER BY id",
+        comptime Database.readAllQuery(Icon),
+    );
+    try std.testing.expectEqualStrings(
+        "SELECT id, name, icon FROM kins ORDER BY id",
+        comptime Database.readAllQuery(Kin),
+    );
+    // The roster reads summaries, so this is the query behind /characters.
+    try std.testing.expectEqualStrings(
+        "SELECT id, name, level, kin FROM characters ORDER BY id",
+        comptime Database.readAllQuery(Character.Summary),
     );
 }
 
