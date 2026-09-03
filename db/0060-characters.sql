@@ -3,7 +3,9 @@ CREATE TABLE characters (
     name TEXT UNIQUE NOT NULL,
     level INTEGER NOT NULL,
     kin INTEGER NOT NULL,
+    age INTEGER NOT NULL,
     CHECK (level >= 1 AND level <= 100),
     CHECK (name <> ''),
-    FOREIGN KEY (kin) REFERENCES kins(id)
+    FOREIGN KEY (kin) REFERENCES kins(id),
+    FOREIGN KEY (age) REFERENCES ages(id)
 );

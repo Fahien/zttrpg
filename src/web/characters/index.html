@@ -23,6 +23,9 @@
             <label for="kin">Kin:</label>
             <select id="kin" name="kin" data-resource="kins" required>
             </select>
+            <label for="age">Age:</label>
+            <select id="age" name="age" data-resource="ages" required>
+            </select>
             <div class="dialog-buttons">
                 <div class="size-50">
                     <button type="submit">Submit</button>
@@ -39,7 +42,7 @@
     {{footer}}
 
     <script src="/static/roster.js" data-resource="characters"
-        data-fields="id:number,name:text,level:number,kin.name:text"></script>
+        data-fields="id:number,name:text,level:number,kin.name:text,age.name:text"></script>
 </body>
 
 </html>

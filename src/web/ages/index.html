@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!--
+---- © 2026 Antonio Caggiano
+---- SPDX-License-Identifier: MIT
+--->
+<html lang="en">
+
+{{head}}
+
+<body>
+    {{header}}
+
+    <h1 id="resource-name">Ages</h1>
+    <form id="instance-form">
+        <label for="name">Age Name:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="icon">Icon:</label>
+        <select id="icon" name="icon" data-resource="icons" required></select>
+        <button type="submit">Add Age</button>
+    </form>
+    <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="ages" data-fields="id:number,name:text,icon.name:icon"></script>
+</body>
+
+</html>

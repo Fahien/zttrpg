@@ -7,6 +7,7 @@
 const std = @import("std");
 
 pub const Resource = enum {
+    ages,
     characters,
     kins,
     skill_kinds,

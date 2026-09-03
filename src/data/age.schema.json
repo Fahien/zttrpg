@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "age.schema.json",
+    "title": "Age",
+    "description": "An age",
+    "type": "object",
+    "required": [
+        "name",
+        "icon"
+    ],
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the age file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the age file."
+        },
+        "name": {
+            "$ref": "age-names.schema.json"
+        },
+        "icon": {
+            "$ref": "icon-names.schema.json",
+            "description": "The icon of the age."
+        }
+    }
+}

@@ -3,6 +3,9 @@
 
 const std = @import("std");
 
+const age = @import("age.zig");
+pub const Age = age.Age;
+
 const character = @import("character.zig");
 pub const Character = character.Character;
 pub const CharacterAttribute = character.CharacterAttribute;
@@ -25,6 +28,7 @@ pub const SkillKind = skill.SkillKind;
 test {
     // Test discovery is lazy: a file's tests are only collected when the file
     // is referenced from a test context, so name each model file here.
+    _ = age;
     _ = character;
     _ = kin;
     _ = skill;
@@ -33,7 +37,7 @@ test {
 }
 
 /// Every model a query can return, including the two join-table rows.
-const all_models = .{ Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
+const all_models = .{ Age, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
 
 test "a model that splits its stored shape says how to rebuild itself" {
     // Database.hydrate is generic: for any model whose Row differs from the

@@ -1,0 +1,18 @@
+{
+    "$schema": "ages.schema.json",
+    "version": "1.0",
+    "ages": [
+        {
+            "name": "Young",
+            "icon": "baby-face"
+        },
+        {
+            "name": "Adult",
+            "icon": "person"
+        },
+        {
+            "name": "Old",
+            "icon": "wizard-face"
+        }
+    ]
+}

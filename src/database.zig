@@ -403,12 +403,12 @@ pub const Database = struct {
 const all_models = .{ Character, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin, attributes, skills", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin, age, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
-    try std.testing.expectEqualStrings("name, level, kin", comptime Database.getCols(Character.Create));
+    try std.testing.expectEqualStrings("name, level, kin, age", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon", comptime Database.getCols(Kin.Create));
     try std.testing.expectEqualStrings("name, icon, kind, description", comptime Database.getCols(Skill.Create));
 }
@@ -432,7 +432,7 @@ test "every model names the table it is stored in" {
 }
 
 test "getPlaceholders numbers parameters from $1" {
-    try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Character.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1, $2", comptime Database.getPlaceholders(Kin.Create));
     try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Skill.Create));
 }
@@ -441,7 +441,7 @@ test "getSetClauses derives the id placeholder from the field count" {
     // Regression guard: a hardcoded `WHERE id = $3` once broke PUT /kins/<id>,
     // because Kin.Update has one body field and its id parameter is $2.
     try std.testing.expectEqualStrings(
-        "name = $1, level = $2, kin = $3 WHERE id = $4",
+        "name = $1, level = $2, kin = $3, age = $4 WHERE id = $5",
         comptime Database.getSetClauses(Character.Update),
     );
     try std.testing.expectEqualStrings(
@@ -483,7 +483,7 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     );
     // The roster reads summaries, so this is the query behind /characters.
     try std.testing.expectEqualStrings(
-        "SELECT id, name, level, kin FROM characters ORDER BY id",
+        "SELECT id, name, level, kin, age FROM characters ORDER BY id",
         comptime Database.readAllQuery(Character.Summary),
     );
 }
@@ -529,7 +529,12 @@ test "a model without a Row type queries its own fields" {
 test "getParams renders fields as C strings in declaration order" {
     const gpa = std.testing.allocator;
 
-    const params = try Database.getParams(gpa, Character.Create, .{ .name = "Grog", .level = 3, .kin = 1 });
+    const params = try Database.getParams(gpa, Character.Create, .{
+        .name = "Grog",
+        .level = 3,
+        .kin = 1,
+        .age = 1,
+    });
     defer {
         for (params) |param| gpa.free(std.mem.span(param));
     }
@@ -537,6 +542,7 @@ test "getParams renders fields as C strings in declaration order" {
     try std.testing.expectEqualStrings("Grog", std.mem.span(params[0]));
     try std.testing.expectEqualStrings("3", std.mem.span(params[1]));
     try std.testing.expectEqualStrings("1", std.mem.span(params[2]));
+    try std.testing.expectEqualStrings("1", std.mem.span(params[3]));
 }
 
 test "getParamsWithId appends the id as the final parameter" {

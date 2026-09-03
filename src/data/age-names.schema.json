@@ -1,0 +1,12 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "age-names.schema.json",
+    "title": "Age Names",
+    "type": "string",
+    "description": "The name of the age.",
+    "enum": [
+        "Young",
+        "Adult",
+        "Old"
+    ]
+}

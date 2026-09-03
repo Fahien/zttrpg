@@ -44,6 +44,7 @@ pub fn dispatch(ctx: *Context, parsed: Route) !void {
 /// so a new resource costs one line in `Resource` and one line below.
 fn ModelOf(comptime resource: Resource) type {
     return switch (resource) {
+        .ages => zttrpg.Age,
         .characters => zttrpg.Character,
         .kins => zttrpg.Kin,
         .skill_kinds => zttrpg.SkillKind,

@@ -6,6 +6,7 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+const Age = @import("age.zig").Age;
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
@@ -117,6 +118,7 @@ pub const BodyCharacter = struct {
     name: []const u8,
     level: u32,
     kin: Kin.Id,
+    age: Age.Id,
 
     // Mirrors the CHECK constraints in db/0001-characters.sql: the database
     // enforces integrity, this gives clients a 400 instead of a 500.
@@ -133,6 +135,7 @@ pub const RowCharacter = struct {
     name: []const u8,
     level: u32,
     kin: Kin.Id,
+    age: Age.Id,
 };
 
 /// A character without its sheet: what a roster row needs and no more.
@@ -150,15 +153,18 @@ pub const CharacterSummary = struct {
     name: []const u8,
     level: u32,
     kin: Kin,
+    age: Age,
 
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSummary {
         const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
+        const age = (try db.readItem(gpa, Age, row.age)) orelse return error.AgeNotFound;
 
         return .{
             .id = row.id,
             .name = row.name,
             .level = row.level,
             .kin = kin,
+            .age = age,
         };
     }
 };
@@ -180,6 +186,7 @@ pub const Character = struct {
     name: []const u8,
     level: u32,
     kin: Kin,
+    age: Age,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
 
@@ -194,6 +201,7 @@ pub const Character = struct {
             .name = summary.name,
             .level = summary.level,
             .kin = summary.kin,
+            .age = summary.age,
             .attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id),
             .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
         };
@@ -201,23 +209,23 @@ pub const Character = struct {
 };
 
 test "CreateCharacter.validate accepts a well-formed character" {
-    const character = CreateCharacter{ .name = "Grog", .level = 1, .kin = 1 };
+    const character = CreateCharacter{ .name = "Grog", .level = 1, .kin = 1, .age = 1 };
     try character.validate();
 }
 
 test "CreateCharacter.validate rejects an empty name" {
-    const character = CreateCharacter{ .name = "", .level = 3, .kin = 1 };
+    const character = CreateCharacter{ .name = "", .level = 3, .kin = 1, .age = 1 };
     try std.testing.expectError(error.EmptyName, character.validate());
 }
 
 test "CreateCharacter.validate rejects levels out of range" {
-    const zero = CreateCharacter{ .name = "Grog", .level = 0, .kin = 1 };
+    const zero = CreateCharacter{ .name = "Grog", .level = 0, .kin = 1, .age = 1 };
     try std.testing.expectError(error.LevelOutOfRange, zero.validate());
 
-    const too_high = CreateCharacter{ .name = "Grog", .level = 101, .kin = 1 };
+    const too_high = CreateCharacter{ .name = "Grog", .level = 101, .kin = 1, .age = 1 };
     try std.testing.expectError(error.LevelOutOfRange, too_high.validate());
 
-    const max = CreateCharacter{ .name = "Grog", .level = 100, .kin = 1 };
+    const max = CreateCharacter{ .name = "Grog", .level = 100, .kin = 1, .age = 1 };
     try max.validate();
 }
 
@@ -226,11 +234,20 @@ test "Character serializes to the JSON wire shape" {
     defer out.deinit();
 
     const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
-    const character = Character{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .attributes = &.{}, .skills = &.{} };
+    const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
+    const character = Character{
+        .id = 1,
+        .name = "Alice",
+        .level = 2,
+        .kin = kin,
+        .age = age,
+        .attributes = &.{},
+        .skills = &.{},
+    };
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -239,12 +256,13 @@ test "a summary is a character without its sheet" {
     defer out.deinit();
 
     const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
-    const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin };
+    const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
+    const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .age = age };
     try std.json.Stringify.value(summary, .{}, &out.writer);
 
     // The roster renders these four fields, so this is all a list has to carry.
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}}}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}}}
     , out.written());
 }
 
@@ -252,7 +270,7 @@ test "CreateCharacter parses from a JSON body" {
     const parsed = try std.json.parseFromSlice(
         CreateCharacter,
         std.testing.allocator,
-        \\{"name":"Grog","level":3,"kin":1}
+        \\{"name":"Grog","level":3,"kin":1,"age":1}
     ,
         .{},
     );

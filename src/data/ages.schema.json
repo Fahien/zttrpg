@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "ages.schema.json",
+    "title": "Ages",
+    "description": "A list of ages",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the ages file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the ages file."
+        },
+        "ages": {
+            "type": "array",
+            "items": {
+                "$ref": "age.schema.json"
+            }
+        }
+    }
+}

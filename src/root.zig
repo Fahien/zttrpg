@@ -6,6 +6,7 @@
 
 const model = @import("model/model.zig");
 
+pub const Age = model.Age;
 pub const Attribute = model.Attribute;
 pub const Character = model.Character;
 pub const CharacterAttribute = model.CharacterAttribute;

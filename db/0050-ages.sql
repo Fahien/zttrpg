@@ -1,0 +1,7 @@
+CREATE TABLE ages (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    icon INTEGER NOT NULL,
+    CHECK (name <> ''),
+    FOREIGN KEY (icon) REFERENCES icons(id)
+);

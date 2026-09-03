@@ -27,6 +27,7 @@ pub fn main(init: std.process.Init) !void {
     try generate(init.io, gpa, Attributes);
     try generate(init.io, gpa, SkillKinds);
     try generate(init.io, gpa, Skills);
+    try generate(init.io, gpa, Ages);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -101,6 +102,21 @@ const Skills = struct {
     };
 
     skills: []const Row,
+};
+
+const Ages = struct {
+    const table_name = "ages";
+    const json_path = "src/data/ages.json";
+    const out_path = "db/0051-ages.sql";
+
+    const Row = struct {
+        const lookups = .{ .icon = "icons" };
+
+        name: []const u8,
+        icon: []const u8,
+    };
+
+    ages: []const Row,
 };
 
 /// Reads one table's JSON and writes its INSERT statement.
@@ -241,7 +257,7 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
 const testing = std.testing;
 
 /// Every table this tool writes, for the checks below.
-const all_tables = .{ Icons, SkillKinds, Kins, Attributes, Skills };
+const all_tables = .{ Ages, Icons, SkillKinds, Kins, Attributes, Skills };
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {
