@@ -25,7 +25,8 @@ const address = "127.0.0.1";
 const port = 8080;
 
 /// Each connection reads its request into a buffer of this size.
-const connection_buffer_size = 4096;
+/// 16 KiB should be enough for a request.
+const connection_buffer_size = 4096 * 4;
 
 /// Create our own ceiling to be able to accept multiple connections.
 const max_connections_in_flight = 64;
@@ -53,10 +54,28 @@ pub fn main(init: std.process.Init) !void {
     defer connections.cancel(io);
 
     while (true) {
-        const conn = try server.accept(io);
+        const conn = server.accept(io) catch |err| {
+            switch (err) {
+                error.SocketNotListening, error.NetworkDown, error.Unexpected, error.Canceled => {
+                    std.log.err("Error accepting connection: {}", .{err});
+                    // The server cannot accept connections anymore: shut down.
+                    return err;
+                },
+                error.ProcessFdQuotaExceeded, error.SystemFdQuotaExceeded => {
+                    std.log.warn("Error accepting connection: {}", .{err});
+                    // No more file descriptors available: wait a second and try again.
+                    try Io.sleep(io, .fromSeconds(1), .real);
+                    continue;
+                },
+                else => {
+                    std.log.warn("Error accepting connection: {}", .{err});
+                    continue;
+                },
+            }
+        };
 
         connections.concurrent(io, serveConnection, .{ init.gpa, io, conn, &db }) catch |err| {
-            respondStatus(io, conn, std.http.Status.service_unavailable) catch |status_err| {
+            respondStatus(io, conn, .service_unavailable) catch |status_err| {
                 std.log.err("Error responding to connection: {}", .{status_err});
             };
 
@@ -83,7 +102,20 @@ fn serveConnection(gpa: Allocator, io: Io, conn: Io.net.Stream, db: *Locked(zttr
 
     // One bad request must not take the server down with it.
     handleConnection(gpa, io, conn, db) catch |err| {
-        std.log.err("Error handling connection: {}", .{err});
+        switch (err) {
+            error.HttpHeadersOversize => {
+                std.log.err("Error handling connection: {}", .{err});
+                respondStatus(io, conn, .request_header_fields_too_large) catch |status_err| {
+                    std.log.err("Error responding to connection: {}", .{status_err});
+                };
+            },
+            error.HttpConnectionClosing => {
+                std.log.debug("Connection closed by client: {}", .{err});
+            },
+            else => {
+                std.log.err("Error handling connection: {}", .{err});
+            },
+        }
     };
 }
 
