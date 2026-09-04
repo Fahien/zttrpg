@@ -403,7 +403,7 @@ pub const Database = struct {
 const all_models = .{ Character, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin, age, attributes, skills", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
@@ -483,7 +483,7 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     );
     // The roster reads summaries, so this is the query behind /characters.
     try std.testing.expectEqualStrings(
-        "SELECT id, name, level, kin, age FROM characters ORDER BY id",
+        "SELECT id, name, level, kin, age, attribute_points FROM characters ORDER BY id",
         comptime Database.readAllQuery(Character.Summary),
     );
 }

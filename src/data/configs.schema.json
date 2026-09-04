@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "configs.schema.json",
+    "title": "Configs",
+    "description": "A list of configs",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the configs file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the configs file."
+        },
+        "configs": {
+            "type": "array",
+            "items": {
+                "$ref": "config.schema.json"
+            }
+        }
+    }
+}

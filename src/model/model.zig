@@ -3,6 +3,9 @@
 
 const std = @import("std");
 
+const config = @import("config.zig");
+pub const Config = config.Config;
+
 const age = @import("age.zig");
 pub const Age = age.Age;
 
@@ -28,6 +31,7 @@ pub const SkillKind = skill.SkillKind;
 test {
     // Test discovery is lazy: a file's tests are only collected when the file
     // is referenced from a test context, so name each model file here.
+    _ = config;
     _ = age;
     _ = character;
     _ = kin;

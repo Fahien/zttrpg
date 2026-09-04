@@ -136,6 +136,7 @@ pub const RowCharacter = struct {
     level: u32,
     kin: Kin.Id,
     age: Age.Id,
+    attribute_points: u32,
 };
 
 /// A character without its sheet: what a roster row needs and no more.
@@ -187,6 +188,7 @@ pub const Character = struct {
     level: u32,
     kin: Kin,
     age: Age,
+    attribute_points: u32,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
 
@@ -202,6 +204,7 @@ pub const Character = struct {
             .level = summary.level,
             .kin = summary.kin,
             .age = summary.age,
+            .attribute_points = row.attribute_points,
             .attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id),
             .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
         };
@@ -241,13 +244,14 @@ test "Character serializes to the JSON wire shape" {
         .level = 2,
         .kin = kin,
         .age = age,
+        .attribute_points = 54,
         .attributes = &.{},
         .skills = &.{},
     };
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"attributes":[],"skills":[]}
     , out.written());
 }
 

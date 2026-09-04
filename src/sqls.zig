@@ -22,6 +22,7 @@ pub fn main(init: std.process.Init) !void {
 
     const gpa = arena.allocator();
 
+    try generate(init.io, gpa, Configs);
     try generate(init.io, gpa, Icons);
     try generate(init.io, gpa, Kins);
     try generate(init.io, gpa, Attributes);
@@ -33,6 +34,19 @@ pub fn main(init: std.process.Init) !void {
 // The tables. Each names its JSON source, its output file, and the single
 // property of that JSON holding the list to insert. A row of plain strings is
 // a list of names; a row of struct fields is one column per field, in order.
+
+const Configs = struct {
+    const table_name = "configs";
+    const json_path = "src/data/configs.json";
+    const out_path = "db/0001-configs.sql";
+
+    const Row = struct {
+        name: []const u8,
+        value: []const u8,
+    };
+
+    configs: []const Row,
+};
 
 /// A JSON Schema enumeration: a list of names and nothing else.
 const Icons = struct {

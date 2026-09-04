@@ -1,0 +1,22 @@
+{
+    "$schema": "configs.schema.json",
+    "version": "1.0",
+    "configs": [
+        {
+            "name": "attribute_default",
+            "value": "3"
+        },
+        {
+            "name": "attribute_min",
+            "value": "1"
+        },
+        {
+            "name": "attribute_max",
+            "value": "18"
+        },
+        {
+            "name": "attribute_points_default",
+            "value": "54"
+        }
+    ]
+}
