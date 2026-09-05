@@ -20,6 +20,12 @@ document.addEventListener('instanceLoaded', onInstanceLoaded);
 const list = /** @type {HTMLElement} */ (document.querySelector('[data-list="attributes"]'));
 list.addEventListener('click', onAttributeButtonClick);
 
+const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-attributes'));
+submitButton.addEventListener('click', onSubmitAttributes);
+
+// The banner from the header partial, shared with instance.js.
+const statusMessage = document.getElementById('status-message');
+
 /**
  * @param {Event} event
  */
@@ -113,7 +119,9 @@ function render() {
             continue;
         }
 
-        pendingValue.textContent = "+" + String(editAttributeMap.get(attributeId) || 0);
+        // Empty rather than "+0": an untouched row shows only its saved value.
+        const pending = editAttributeMap.get(attributeId) || 0;
+        pendingValue.textContent = pending > 0 ? `+${pending}` : '';
     }
 
     const availablePointsElement = document.querySelector('[data-field="attribute_points"]');
@@ -122,6 +130,9 @@ function render() {
     } else {
         availablePointsElement.textContent = String(availableAttributePoints);
     }
+
+    // Nothing pending means nothing to send: the button waits.
+    submitButton.disabled = totalPending() === 0;
 }
 
 /**
@@ -157,3 +168,87 @@ function onDecreaseAttribute(attributeId) {
     availableAttributePoints += 1;
 }
 
+/** Points moved by clicks and not yet submitted. */
+function totalPending() {
+    let total = 0;
+    for (const points of editAttributeMap.values()) {
+        total += points;
+    }
+    return total;
+}
+
+/**
+ * Turns pending into a request: saved plus pending for every touched
+ * attribute, sent to the sub-collection the server writes in one transaction.
+ *
+ * On success, saved absorbs pending. On a refusal, the transaction rolled
+ * back, so saved is still exactly what the server holds and only pending has
+ * to go. On a network failure nothing is known, so pending is kept: a PUT
+ * carries absolute values, and sending it again is harmless.
+ */
+async function onSubmitAttributes() {
+    const body = [];
+    for (const [attributeId, pending] of editAttributeMap) {
+        if (pending > 0) {
+            body.push({
+                attribute: attributeId,
+                value: (originalAttributeMap.get(attributeId) || 0) + pending,
+            });
+        }
+    }
+    if (body.length === 0) {
+        return;
+    }
+
+    // One request at a time: a second click while this one is in flight would
+    // send the same body twice.
+    submitButton.disabled = true;
+    try {
+        const response = await fetch(`/characters/${originalCharacter.id}/attributes`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        if (response.ok) {
+            for (const entry of body) {
+                originalAttributeMap.set(entry.attribute, entry.value);
+                editAttributeMap.set(entry.attribute, 0);
+            }
+            // Until the server answers with the sheet, the pool is bookkept
+            // here: what the server will hold once it debits points.
+            originalCharacter.attribute_points = availableAttributePoints;
+            hideStatus();
+        } else {
+            for (const attributeId of editAttributeMap.keys()) {
+                editAttributeMap.set(attributeId, 0);
+            }
+            availableAttributePoints = originalCharacter.attribute_points;
+            showStatus(`Attributes not saved: ${await response.text()}`);
+        }
+    } catch (error) {
+        showStatus(`Attributes not saved: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+        render();
+    }
+}
+
+/**
+ * @param {string} message
+ */
+function showStatus(message) {
+    if (!statusMessage) {
+        return;
+    }
+    statusMessage.textContent = message;
+    statusMessage.classList.add('error');
+    statusMessage.hidden = false;
+}
+
+function hideStatus() {
+    if (!statusMessage) {
+        return;
+    }
+    statusMessage.hidden = true;
+    statusMessage.classList.remove('error');
+}
