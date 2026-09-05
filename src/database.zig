@@ -15,6 +15,7 @@ const CharacterAttribute = model.CharacterAttribute;
 const CharacterSkill = model.CharacterSkill;
 const Icon = model.Icon;
 const Kin = model.Kin;
+const MovementModifier = model.MovementModifier;
 const Skill = model.Skill;
 
 pub const Database = struct {
@@ -482,6 +483,11 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     try std.testing.expectEqualStrings(
         "SELECT id, name, icon, movement FROM kins ORDER BY id",
         comptime Database.readAllQuery(Kin),
+    );
+    // Read whole on every character read, to derive movement.
+    try std.testing.expectEqualStrings(
+        "SELECT id, attribute, min_value, max_value, modifier FROM movement_modifiers ORDER BY id",
+        comptime Database.readAllQuery(MovementModifier),
     );
     // The roster reads summaries, so this is the query behind /characters.
     try std.testing.expectEqualStrings(

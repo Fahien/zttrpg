@@ -130,15 +130,52 @@ pub const CharacterSkill = struct {
 /// A band of one attribute's values and what it adds to a character's
 /// movement. Rows rather than code, like age_attributes: which attribute drives
 /// movement, and by how much, is game data.
-pub const MovementModifier = struct {
-    pub const Id = u32;
-    pub const table_name: []const u8 = "movement_modifiers";
-
-    id: Id = 0,
+pub const BodyMovementModifier = struct {
     attribute: Attribute.Id,
     min_value: u32,
     max_value: u32,
     modifier: i32,
+
+    // Mirrors the CHECK constraint in db/0032-movement-modifiers.sql.
+    pub fn validate(self: *const BodyMovementModifier) error{BandOutOfOrder}!void {
+        if (self.min_value > self.max_value) return error.BandOutOfOrder;
+    }
+};
+
+/// Flat SQL row: the attribute is an id here and a record in the model.
+pub const RowMovementModifier = struct {
+    id: MovementModifier.Id,
+    attribute: Attribute.Id,
+    min_value: u32,
+    max_value: u32,
+    modifier: i32,
+};
+
+pub const MovementModifier = struct {
+    pub const Id = u32;
+    pub const Create = BodyMovementModifier;
+    pub const Update = BodyMovementModifier;
+    pub const Row = RowMovementModifier;
+    pub const table_name: []const u8 = "movement_modifiers";
+
+    id: Id = 0,
+    attribute: Attribute,
+    min_value: u32,
+    max_value: u32,
+    modifier: i32,
+
+    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !MovementModifier {
+        const attribute = (try db.readItem(gpa, Attribute, row.attribute)) orelse
+            return error.AttributeNotFound;
+
+        return .{
+            .id = row.id,
+            .attribute = attribute,
+            .min_value = row.min_value,
+            .max_value = row.max_value,
+            .modifier = row.modifier,
+        };
+    }
 };
 
 /// Movement is the kin's base plus every band the sheet lands in. It is derived
@@ -148,7 +185,7 @@ pub fn deriveMovement(base: u32, attributes: []const CharacterAttribute, bands: 
     var movement: i32 = @intCast(base);
     for (bands) |band| {
         for (attributes) |entry| {
-            if (entry.attribute.id == band.attribute and
+            if (entry.attribute.id == band.attribute.id and
                 entry.value >= band.min_value and entry.value <= band.max_value)
             {
                 movement += band.modifier;
@@ -472,18 +509,31 @@ test "a body element rejects unknown fields" {
     ));
 }
 
-/// The five agility bands from the rules, keyed on attribute 3.
+const test_agility = Attribute{ .id = 3, .name = "Agility", .icon = .{ .id = 1, .name = "abacus" }, .short = "AGL", .description = "Body control." };
+
+/// The five agility bands from the rules.
 const agility_bands = [_]MovementModifier{
-    .{ .attribute = 3, .min_value = 1, .max_value = 6, .modifier = -4 },
-    .{ .attribute = 3, .min_value = 7, .max_value = 9, .modifier = -2 },
-    .{ .attribute = 3, .min_value = 10, .max_value = 12, .modifier = 0 },
-    .{ .attribute = 3, .min_value = 13, .max_value = 15, .modifier = 2 },
-    .{ .attribute = 3, .min_value = 16, .max_value = 18, .modifier = 4 },
+    .{ .attribute = test_agility, .min_value = 1, .max_value = 6, .modifier = -4 },
+    .{ .attribute = test_agility, .min_value = 7, .max_value = 9, .modifier = -2 },
+    .{ .attribute = test_agility, .min_value = 10, .max_value = 12, .modifier = 0 },
+    .{ .attribute = test_agility, .min_value = 13, .max_value = 15, .modifier = 2 },
+    .{ .attribute = test_agility, .min_value = 16, .max_value = 18, .modifier = 4 },
 };
 
 fn sheetWithAgility(value: u32) [1]CharacterAttribute {
-    const agility = Attribute{ .id = 3, .name = "Agility", .icon = .{ .id = 1, .name = "abacus" }, .short = "AGL", .description = "Body control." };
-    return .{.{ .attribute = agility, .base = 3, .spent = value - 3, .modifier = 0, .value = value }};
+    return .{.{ .attribute = test_agility, .base = 3, .spent = value - 3, .modifier = 0, .value = value }};
+}
+
+test "a band's edges must be in order" {
+    // db/0032-movement-modifiers.sql says `min_value <= max_value`.
+    const ordered = BodyMovementModifier{ .attribute = 3, .min_value = 7, .max_value = 9, .modifier = -2 };
+    try ordered.validate();
+
+    const single = BodyMovementModifier{ .attribute = 3, .min_value = 9, .max_value = 9, .modifier = -2 };
+    try single.validate();
+
+    const inverted = BodyMovementModifier{ .attribute = 3, .min_value = 9, .max_value = 7, .modifier = -2 };
+    try std.testing.expectError(error.BandOutOfOrder, inverted.validate());
 }
 
 test "movement is the kin's base plus the band agility lands in" {

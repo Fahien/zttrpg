@@ -9,6 +9,7 @@ const std = @import("std");
 pub const Resource = enum {
     ages,
     configs,
+    movement_modifiers,
     characters,
     kins,
     skill_kinds,

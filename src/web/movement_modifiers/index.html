@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!--
+---- © 2026 Antonio Caggiano
+---- SPDX-License-Identifier: MIT
+--->
+<html lang="en">
+
+{{head}}
+
+<body>
+    {{header}}
+
+    <h1 id="resource-name">Movement Modifiers</h1>
+    <form id="instance-form">
+        <label for="attribute">Attribute:</label>
+        <select id="attribute" name="attribute" data-resource="attributes" required></select>
+        <label for="min_value">From:</label>
+        <input type="number" id="min_value" name="min_value" min="0" required>
+        <label for="max_value">To:</label>
+        <input type="number" id="max_value" name="max_value" min="0" required>
+        <label for="modifier">Modifier:</label>
+        <input type="number" id="modifier" name="modifier" required>
+        <button type="submit">Add Band</button>
+    </form>
+    <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="movement_modifiers"
+        data-fields="id:number,attribute.name:text,min_value:number,max_value:number,modifier:number"></script>
+</body>
+
+</html>

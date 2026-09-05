@@ -15,6 +15,7 @@ pub const CharacterSummary = model.CharacterSummary;
 pub const Config = model.Config;
 pub const Icon = model.Icon;
 pub const Kin = model.Kin;
+pub const MovementModifier = model.MovementModifier;
 pub const Skill = model.Skill;
 pub const SkillKind = model.SkillKind;
 

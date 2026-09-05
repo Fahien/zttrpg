@@ -46,6 +46,7 @@ fn ModelOf(comptime resource: Resource) type {
     return switch (resource) {
         .ages => zttrpg.Age,
         .configs => zttrpg.Config,
+        .movement_modifiers => zttrpg.MovementModifier,
         .characters => zttrpg.Character,
         .kins => zttrpg.Kin,
         .skill_kinds => zttrpg.SkillKind,
@@ -268,7 +269,11 @@ fn updateSubCollection(
             return ctx.respondError(err);
     }
 
-    try ctx.respondText(.ok, "Updated {d} value(s).\n", .{bodies.len});
+    // The sheet changed, and so did what follows from it: the pool the
+    // database debited and the movement derived from the new values. Answer
+    // with the whole character, as a create does, so the page re-renders from
+    // the same shape it loaded rather than bookkeeping the consequences itself.
+    try respondItem(ctx, Parent, parent_id);
 }
 
 test "every resource maps to a model the handlers can serve" {

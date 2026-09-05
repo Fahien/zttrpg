@@ -242,7 +242,7 @@ Every roster page uses the same `roster.js`, and every record page the same `ins
 
 ## HTTP API
 
-The resources are `characters`, `kins`, `ages`, `skills`, `skill_kinds`, `icons`, `attributes`, and `configs`.
+The resources are `characters`, `kins`, `ages`, `skills`, `skill_kinds`, `icons`, `attributes`, `configs`, and `movement_modifiers`.
 
 A resource path returns two different representations. With the header `Accept: application/json` the server returns JSON. Without it, the server returns the HTML page.
 
@@ -256,7 +256,7 @@ Note: the server compares the `Accept` header with the exact text `application/j
 | PUT | `/{resource}/{id}` | Replace one record. |
 | DELETE | `/{resource}/{id}` | Delete one record. |
 | GET | `/characters/{id}/attributes` | The character's attribute values. |
-| PUT | `/characters/{id}/attributes` | Spend points on attributes: the player's total per attribute, as one array. |
+| PUT | `/characters/{id}/attributes` | Spend points on attributes: the player's total per attribute, as one array. Answers with the updated character. |
 | GET | `/characters/{id}/skills` | The character's skill values. |
 | PUT | `/characters/{id}/skills` | Write skill values, as one array. |
 
