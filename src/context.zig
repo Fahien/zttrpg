@@ -183,6 +183,7 @@ pub fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
         error.EmptyName,
         error.EmptyShort,
         error.EmptyDescription,
+        error.EmptyValue,
         error.LevelOutOfRange,
         error.ValueOutOfRange,
         error.DuplicateEntry,

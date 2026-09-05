@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!--
+---- © 2026 Antonio Caggiano
+---- SPDX-License-Identifier: MIT
+--->
+<html lang="en">
+
+{{head}}
+
+<body>
+    {{header}}
+
+    <h1 id="resource-name">Configs</h1>
+    <form id="instance-form">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="value">Value:</label>
+        <input type="text" id="value" name="value" required>
+        <button type="submit">Add Config</button>
+    </form>
+    <table id="roster"></table>
+
+    {{footer}}
+
+    <script src="/static/roster.js" data-resource="configs" data-fields="id:number,name:text,value:text"></script>
+</body>
+
+</html>

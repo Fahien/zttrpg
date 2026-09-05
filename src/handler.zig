@@ -45,6 +45,7 @@ pub fn dispatch(ctx: *Context, parsed: Route) !void {
 fn ModelOf(comptime resource: Resource) type {
     return switch (resource) {
         .ages => zttrpg.Age,
+        .configs => zttrpg.Config,
         .characters => zttrpg.Character,
         .kins => zttrpg.Kin,
         .skill_kinds => zttrpg.SkillKind,

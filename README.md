@@ -242,7 +242,7 @@ Every roster page uses the same `roster.js`, and every record page the same `ins
 
 ## HTTP API
 
-The resources are `characters`, `kins`, `skills`, `skill_kinds`, `icons`, and `attributes`.
+The resources are `characters`, `kins`, `ages`, `skills`, `skill_kinds`, `icons`, `attributes`, and `configs`.
 
 A resource path returns two different representations. With the header `Accept: application/json` the server returns JSON. Without it, the server returns the HTML page.
 

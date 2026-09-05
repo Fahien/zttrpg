@@ -41,7 +41,7 @@ test {
 }
 
 /// Every model a query can return, including the two join-table rows.
-const all_models = .{ Age, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
+const all_models = .{ Age, Config, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
 
 test "a model that splits its stored shape says how to rebuild itself" {
     // Database.hydrate is generic: for any model whose Row differs from the

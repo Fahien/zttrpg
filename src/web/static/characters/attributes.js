@@ -20,6 +20,12 @@ let originalAttributeMap = new Map();
 // the rules' modifier, and only spent is the player's to change.
 let originalSpentMap = new Map();
 
+// The ceiling every value answers to, read from /configs before the stepper is
+// shown. The database enforces it as well; knowing it here lets the page
+// refuse a click instead of a request.
+/** @type {number | null} */
+let attributeMax = null;
+
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 
 const list = /** @type {HTMLElement} */ (document.querySelector('[data-list="attributes"]'));
@@ -79,9 +85,24 @@ function onInstanceLoaded(event) {
 /**
  * @param {*} character
  */
-function initAttributesUpdate(character) {
+async function initAttributesUpdate(character) {
     originalCharacter = character;
     availableAttributePoints = character.attribute_points;
+
+    for (const attr of character.attributes) {
+        editAttributeMap.set(attr.attribute.id, 0);
+        originalAttributeMap.set(attr.attribute.id, attr.value);
+        originalSpentMap.set(attr.attribute.id, attr.spent);
+    }
+
+    // The rules come from the same server as the sheet. Without them the
+    // stepper stays hidden: a click the page cannot check is not offered.
+    try {
+        attributeMax = await fetchConfigValue('attribute_max');
+    } catch (error) {
+        showStatus(`Rules not loaded: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+    }
 
     // Everything that spends points stays hidden until there are points to
     // spend. Keyed on the saved pool, not the remaining one: spending the last
@@ -93,13 +114,33 @@ function initAttributesUpdate(character) {
         }
     }
 
-    for (const attr of character.attributes) {
-        editAttributeMap.set(attr.attribute.id, 0);
-        originalAttributeMap.set(attr.attribute.id, attr.value);
-        originalSpentMap.set(attr.attribute.id, attr.spent);
+    render();
+}
+
+/**
+ * Reads one rule from the configs resource. Values are stored as text, so a
+ * number exists only after this parses one.
+ * @param {string} name
+ * @returns {Promise<number>}
+ */
+async function fetchConfigValue(name) {
+    const response = await fetch('/configs', { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
     }
 
-    render();
+    /** @type {{ name: string, value: string }[]} */
+    const configs = await response.json();
+    const config = configs.find((entry) => entry.name === name);
+    if (!config) {
+        throw new Error(`no config named ${name}`);
+    }
+
+    const value = Number(config.value);
+    if (Number.isNaN(value)) {
+        throw new Error(`config ${name} is not a number: ${config.value}`);
+    }
+    return value;
 }
 
 function render() {
@@ -128,6 +169,17 @@ function render() {
         // Empty rather than "+0": an untouched row shows only its saved value.
         const pending = editAttributeMap.get(attributeId) || 0;
         pendingValue.textContent = pending > 0 ? `+${pending}` : '';
+
+        // The buttons show what the handlers would refuse.
+        const plus = li.querySelector('button[data-action="increase-attribute"]');
+        const minus = li.querySelector('button[data-action="decrease-attribute"]');
+        if (plus instanceof HTMLButtonElement) {
+            const value = (originalAttributeMap.get(attributeId) || 0) + pending;
+            plus.disabled = availableAttributePoints <= 0 || (attributeMax !== null && value >= attributeMax);
+        }
+        if (minus instanceof HTMLButtonElement) {
+            minus.disabled = pending <= 0;
+        }
     }
 
     const availablePointsElement = document.querySelector('[data-field="attribute_points"]');
@@ -153,6 +205,14 @@ function onIncreaseAttribute(attributeId) {
     }
 
     const currentPoints = (editAttributeMap.get(attributeId) || 0);
+
+    // The ceiling applies to the total the server will see: saved value, which
+    // already includes the age, plus what is pending here.
+    const value = (originalAttributeMap.get(attributeId) || 0) + currentPoints;
+    if (attributeMax !== null && value >= attributeMax) {
+        console.warn(`Attribute ${attributeId} is at the maximum of ${attributeMax}.`);
+        return;
+    }
 
     editAttributeMap.set(attributeId, currentPoints + 1);
     availableAttributePoints -= 1;
