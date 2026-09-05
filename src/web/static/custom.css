@@ -330,6 +330,12 @@ textarea {
     border: 1px solid var(--danger);
 }
 
+/* A callout that is not an error: something the reader should act on.
+   Sibling of .error, same mechanism. */
+.notice {
+    border: 1px solid var(--q-uncommon);
+}
+
 .icon {
     display: inline-block;
     width: var(--icon-size, 2em);

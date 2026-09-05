@@ -26,7 +26,11 @@
             <p>Level: <span data-field="level">1</span></p>
 
             <h3>Attributes</h3>
-            <p>Attribute Points: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
+            <!-- A callout, not an error: the player has points to spend. Hidden
+                 with the rest of the stepper when the pool is empty. -->
+            <section class="notice" data-requires-points hidden>
+                <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
+            </section>
 
             <!-- One row per attribute: the saved value, the points pending on
                  it, and the stepper that moves them. Everything that spends
