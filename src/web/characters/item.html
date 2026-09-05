@@ -13,37 +13,41 @@
     <main id="instance-details">
         <header>
             <h1 data-field="name">Name</h1>
-            <p><span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span> <span data-field="kin.name">Kin</span></p>
-            <p><span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span> <span data-field="age.name">Age</span></p>
+            <p class="flex-row">
+                <span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span>
+                <span data-field="kin.name">Kin</span>
+                <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
+                <span data-field="age.name">Age</span>
+            </p>
         </header>
 
         <section id="instance-stats">
             <h2>Stats</h2>
-            <ul>
-                <li>Level: <span data-field="level">1</span></li>
-            </ul>
+            <p>Level: <span data-field="level">1</span></p>
 
-            <p>Attribute Points: <span data-field="attribute_points">0</span></p>
+            <h3>Attributes</h3>
+            <p>Attribute Points: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
 
-            <ul data-list="attributes">
+            <!-- One row per attribute: the saved value, the points pending on
+                 it, and the stepper that moves them. Everything that spends
+                 points starts hidden and is revealed only while the character
+                 still has points to spend. -->
+            <ul class="plain-list" data-list="attributes">
                 <template>
-                    <li data-field="attribute.id:data-attribute-id">
-                        <span class="icon-frame" data-icon-size="1">
-                            <span data-field="attribute.icon.name:icon"></span>
-                        </span>
-                        <span data-field="attribute.name"></span>
-                        <span data-field="value"></span>
-                        <span data-pending></span>
-                        <button data-action="increase-attribute" data-field="attribute.id:data-attribute-id">+</button>
-                        <button data-action="decrease-attribute" data-field="attribute.id:data-attribute-id">-</button>
+                    <li class="flex-row" data-field="attribute.id:data-attribute-id">
+                        <span class="icon-frame" data-icon-size="1"><span data-field="attribute.icon.name:icon"></span></span>
+                        <span class="grow" data-field="attribute.name"></span>
+                        <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
+                        <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon" data-requires-points hidden></span>
+                        <button type="button" class="button-small" data-action="decrease-attribute" data-field="attribute.id:data-attribute-id" data-requires-points hidden>-</button>
+                        <button type="button" class="button-small" data-action="increase-attribute" data-field="attribute.id:data-attribute-id" data-requires-points hidden>+</button>
                     </li>
                 </template>
             </ul>
 
-            <!-- Attribute submit button -->
-            <button id="submit-attributes" data-action="submit-attributes">Submit Attributes</button>
-
+            <button type="button" id="submit-attributes" data-action="submit-attributes" data-requires-points hidden>Submit Attributes</button>
         </section>
+
         <section id="instance-skills">
             <h2>Skills</h2>
             <ul data-list="skills">

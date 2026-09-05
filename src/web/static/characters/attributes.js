@@ -72,8 +72,15 @@ function initAttributesUpdate(character) {
     originalCharacter = character;
     availableAttributePoints = character.attribute_points;
 
-    // If the character has attribute points available, show the +/- buttons and the submit button
-    console.info('Character attribute points:', character.attribute_points);
+    // Everything that spends points stays hidden until there are points to
+    // spend. Keyed on the saved pool, not the remaining one: spending the last
+    // point before submitting must not hide the pending "+N".
+    const hasPoints = character.attribute_points > 0;
+    for (const element of document.querySelectorAll('[data-requires-points]')) {
+        if (element instanceof HTMLElement) {
+            element.hidden = !hasPoints;
+        }
+    }
 
     for (const attr of character.attributes) {
         editAttributeMap.set(attr.attribute.id, 0);

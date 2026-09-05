@@ -394,3 +394,34 @@ textarea {
 #status-message {
     margin-top: 1em;
 }
+
+/* Layout utilities: one job each, usable on any element. */
+.flex-row {
+    display: flex;
+    align-items: center;
+    gap: .5em;
+}
+
+.grow {
+    flex: 1;
+}
+
+.plain-list {
+    padding: 0;
+    list-style: none;
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+.min-width-3ch {
+    min-width: 3ch;
+}
+
+/* Size modifier, pairs with .button-secondary. */
+.button-small {
+    padding: .2em .6em;
+    font-size: .9em;
+    line-height: 1.2;
+}
