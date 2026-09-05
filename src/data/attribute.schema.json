@@ -15,6 +15,7 @@
         },
         "name": {
             "type": "string",
+            "$ref": "attribute-names.schema.json",
             "description": "The name of the attribute."
         },
         "icon": {

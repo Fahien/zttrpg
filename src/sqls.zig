@@ -29,6 +29,7 @@ pub fn main(init: std.process.Init) !void {
     try generate(init.io, gpa, SkillKinds);
     try generate(init.io, gpa, Skills);
     try generate(init.io, gpa, Ages);
+    try generate(init.io, gpa, AgeAttributes);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -116,6 +117,23 @@ const Skills = struct {
     };
 
     skills: []const Row,
+};
+
+/// A join table: both columns hold ids, both come from names in the JSON.
+const AgeAttributes = struct {
+    const table_name = "age_attributes";
+    const json_path = "src/data/age-attributes.json";
+    const out_path = "db/0053-age-attributes.sql";
+
+    const Row = struct {
+        const lookups = .{ .age = "ages", .attribute = "attributes" };
+
+        age: []const u8,
+        attribute: []const u8,
+        modifier: []const u8,
+    };
+
+    age_attributes: []const Row,
 };
 
 const Ages = struct {
@@ -271,7 +289,7 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
 const testing = std.testing;
 
 /// Every table this tool writes, for the checks below.
-const all_tables = .{ Ages, Icons, SkillKinds, Kins, Attributes, Skills };
+const all_tables = .{ Configs, Ages, AgeAttributes, Icons, SkillKinds, Kins, Attributes, Skills };
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {
@@ -290,6 +308,7 @@ test "every table names exactly one JSON property to read its rows from" {
 test "columns are the row's fields, in order" {
     try testing.expectEqualStrings("name", comptime columnsOf([]const u8));
     try testing.expectEqualStrings("name, icon", comptime columnsOf(Kins.Row));
+    try testing.expectEqualStrings("age, attribute, modifier", comptime columnsOf(AgeAttributes.Row));
     try testing.expectEqualStrings("name, icon, short, description", comptime columnsOf(Attributes.Row));
     try testing.expectEqualStrings("name, icon, kind, description", comptime columnsOf(Skills.Row));
 }
@@ -299,6 +318,10 @@ test "a lookup field names the table its value refers to" {
     // JSON, which is what makes the generated SELECT necessary.
     try testing.expectEqualStrings("icons", comptime lookupOf(Kins.Row, "icon").?);
     try testing.expectEqualStrings("skill_kinds", comptime lookupOf(Skills.Row, "kind").?);
+    // Both halves of the join table are looked up; the modifier is stored as written.
+    try testing.expectEqualStrings("ages", comptime lookupOf(AgeAttributes.Row, "age").?);
+    try testing.expectEqualStrings("attributes", comptime lookupOf(AgeAttributes.Row, "attribute").?);
+    try testing.expect(comptime lookupOf(AgeAttributes.Row, "modifier") == null);
     try testing.expect(comptime lookupOf(Skills.Row, "name") == null);
     try testing.expect(comptime lookupOf([]const u8, "name") == null);
 }

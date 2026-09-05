@@ -1,0 +1,27 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "age-attribute.schema.json",
+    "title": "Age attribute modifier",
+    "description": "What one age does to one attribute when a character is created.",
+    "type": "object",
+    "required": [
+        "age",
+        "attribute",
+        "modifier"
+    ],
+    "properties": {
+        "age": {
+            "$ref": "age-names.schema.json"
+        },
+        "attribute": {
+            "type": "string",
+            "$ref": "attribute-names.schema.json",
+            "description": "The name of the attribute, as in attributes.json."
+        },
+        "modifier": {
+            "type": "string",
+            "pattern": "^-?[1-9][0-9]*$",
+            "description": "Added to the attribute's value at creation. A pair with no row is not adjusted, so zero is never written."
+        }
+    }
+}

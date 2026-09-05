@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "age-attributes.schema.json",
+    "title": "Age attribute modifiers",
+    "description": "A list of age attribute modifiers",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the age attributes file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the age attributes file."
+        },
+        "age_attributes": {
+            "type": "array",
+            "items": {
+                "$ref": "age-attribute.schema.json"
+            }
+        }
+    }
+}

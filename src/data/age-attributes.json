@@ -1,0 +1,13 @@
+{
+    "$schema": "age-attributes.schema.json",
+    "version": "1.0",
+    "age_attributes": [
+        { "age": "Young", "attribute": "Agility", "modifier": "1" },
+        { "age": "Young", "attribute": "Constitution", "modifier": "1" },
+        { "age": "Old", "attribute": "Strength", "modifier": "-2" },
+        { "age": "Old", "attribute": "Agility", "modifier": "-2" },
+        { "age": "Old", "attribute": "Constitution", "modifier": "-2" },
+        { "age": "Old", "attribute": "Intelligence", "modifier": "1" },
+        { "age": "Old", "attribute": "Willpower", "modifier": "1" }
+    ]
+}

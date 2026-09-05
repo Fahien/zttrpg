@@ -1,7 +1,9 @@
 -- Every character has one row per attribute, starting at the configured
--- default with nothing spent and nothing adjusted. STRICT turns a missing
--- 'attribute_default' row into an error that names it, rather than a NULL that
--- fails further down as a NOT NULL violation.
+-- default with nothing spent, adjusted by what its age does to that attribute.
+-- The adjustment lands in `modifier`, the rules' column, so it costs no points
+-- and the range check in 0072 sees the adjusted total at once. STRICT turns a
+-- missing 'attribute_default' row into an error that names it, rather than a
+-- NULL that fails further down as a NOT NULL violation.
 CREATE FUNCTION seed_character_attributes() RETURNS TRIGGER AS $fn$
 DECLARE
     default_value INTEGER;
@@ -10,9 +12,10 @@ BEGIN
     FROM configs
     WHERE name = 'attribute_default';
 
-    INSERT INTO character_attributes (character, attribute, base)
-    SELECT NEW.id, a.id, default_value
-    FROM attributes a;
+    INSERT INTO character_attributes (character, attribute, base, modifier)
+    SELECT NEW.id, a.id, default_value, COALESCE(aa.modifier, 0)
+    FROM attributes a
+    LEFT JOIN age_attributes aa ON aa.age = NEW.age AND aa.attribute = a.id;
     RETURN NULL;
 END;
 $fn$ LANGUAGE plpgsql;
