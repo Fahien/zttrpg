@@ -14,6 +14,7 @@ pub const Character = character.Character;
 pub const CharacterAttribute = character.CharacterAttribute;
 pub const CharacterSkill = character.CharacterSkill;
 pub const CharacterSummary = character.CharacterSummary;
+pub const MovementModifier = character.MovementModifier;
 
 const icon = @import("icon.zig");
 pub const Icon = icon.Icon;
@@ -41,7 +42,7 @@ test {
 }
 
 /// Every model a query can return, including the two join-table rows.
-const all_models = .{ Age, Config, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
+const all_models = .{ Age, Config, MovementModifier, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
 
 test "a model that splits its stored shape says how to rebuild itself" {
     // Database.hydrate is generic: for any model whose Row differs from the

@@ -1,0 +1,34 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "movement-modifier.schema.json",
+    "title": "Movement modifier",
+    "description": "What a band of one attribute's values adds to a character's movement.",
+    "type": "object",
+    "required": [
+        "attribute",
+        "min_value",
+        "max_value",
+        "modifier"
+    ],
+    "properties": {
+        "attribute": {
+            "type": "string",
+            "description": "The name of the attribute, as in attributes.json."
+        },
+        "min_value": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "The lowest value of the band, inclusive."
+        },
+        "max_value": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "The highest value of the band, inclusive."
+        },
+        "modifier": {
+            "type": "string",
+            "pattern": "^-?[0-9]+$",
+            "description": "Added to the kin's movement when the attribute's value is in the band."
+        }
+    }
+}

@@ -30,6 +30,7 @@ pub fn main(init: std.process.Init) !void {
     try generate(init.io, gpa, Skills);
     try generate(init.io, gpa, Ages);
     try generate(init.io, gpa, AgeAttributes);
+    try generate(init.io, gpa, MovementModifiers);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -80,6 +81,7 @@ const Kins = struct {
 
         name: []const u8,
         icon: []const u8,
+        movement: []const u8,
     };
 
     kins: []const Row,
@@ -117,6 +119,23 @@ const Skills = struct {
     };
 
     skills: []const Row,
+};
+
+const MovementModifiers = struct {
+    const table_name = "movement_modifiers";
+    const json_path = "src/data/movement-modifiers.json";
+    const out_path = "db/0033-movement-modifiers.sql";
+
+    const Row = struct {
+        const lookups = .{ .attribute = "attributes" };
+
+        attribute: []const u8,
+        min_value: []const u8,
+        max_value: []const u8,
+        modifier: []const u8,
+    };
+
+    movement_modifiers: []const Row,
 };
 
 /// A join table: both columns hold ids, both come from names in the JSON.
@@ -289,7 +308,7 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
 const testing = std.testing;
 
 /// Every table this tool writes, for the checks below.
-const all_tables = .{ Configs, Ages, AgeAttributes, Icons, SkillKinds, Kins, Attributes, Skills };
+const all_tables = .{ Configs, Ages, AgeAttributes, MovementModifiers, Icons, SkillKinds, Kins, Attributes, Skills };
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {
@@ -307,7 +326,8 @@ test "every table names exactly one JSON property to read its rows from" {
 
 test "columns are the row's fields, in order" {
     try testing.expectEqualStrings("name", comptime columnsOf([]const u8));
-    try testing.expectEqualStrings("name, icon", comptime columnsOf(Kins.Row));
+    try testing.expectEqualStrings("name, icon, movement", comptime columnsOf(Kins.Row));
+    try testing.expectEqualStrings("attribute, min_value, max_value, modifier", comptime columnsOf(MovementModifiers.Row));
     try testing.expectEqualStrings("age, attribute, modifier", comptime columnsOf(AgeAttributes.Row));
     try testing.expectEqualStrings("name, icon, short, description", comptime columnsOf(Attributes.Row));
     try testing.expectEqualStrings("name, icon, kind, description", comptime columnsOf(Skills.Row));
@@ -355,10 +375,10 @@ test "values are dollar quoted, so an apostrophe cannot end one early" {
     defer sql.deinit(gpa);
 
     // The case that produced broken SQL when names were wrapped in apostrophes.
-    try appendRow(gpa, &sql, Kins.Row, .{ .name = "Dwarf's kin", .icon = "beard" });
+    try appendRow(gpa, &sql, Kins.Row, .{ .name = "Dwarf's kin", .icon = "beard", .movement = "8" });
 
     try testing.expectEqualStrings(
-        "    ($val$Dwarf's kin$val$, (SELECT id FROM icons WHERE name = $val$beard$val$ LIMIT 1))",
+        "    ($val$Dwarf's kin$val$, (SELECT id FROM icons WHERE name = $val$beard$val$ LIMIT 1), $val$8$val$)",
         sql.items,
     );
 }

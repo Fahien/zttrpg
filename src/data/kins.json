@@ -5,17 +5,56 @@
         {
             "name": "Human",
             "icon": "human-ear",
+            "movement": "10",
             "description": "Humans are a versatile and adaptable kin, known for their resilience and resourcefulness. They have a strong sense of community and are often found in various roles within society."
         },
         {
             "name": "Orc",
             "icon": "orc-head",
+            "movement": "10",
             "description": "Orcs are a fierce and proud kin, known for their strength and warrior culture. They value honor and loyalty, often living in tribal societies with a strong emphasis on combat skills."
         },
         {
             "name": "Undead",
             "icon": "half-dead",
+            "movement": "10",
             "description": "Undead are a kin that has been reanimated from death, often retaining some of their former abilities and memories. They are typically shunned by other kins and are associated with dark magic and necromancy."
+        },
+        {
+            "name": "Gnome",
+            "icon": "bad-gnome",
+            "movement": "8",
+            "description": "Gnomes are a small and inventive kin, quick of mind if not of foot, at home among gears and schematics."
+        },
+        {
+            "name": "Dwarf",
+            "icon": "dwarf-face",
+            "movement": "8",
+            "description": "Dwarves are a stout and steadfast kin of the mountains, slow to move and slower to yield."
+        },
+        {
+            "name": "Night Elf",
+            "icon": "elf-ear",
+            "movement": "10",
+            "description": "Night Elves are an ancient and secretive kin of the deep forests, at ease in moonlight and shadow."
+        },
+        {
+            "name": "Worgen",
+            "icon": "werewolf",
+            "movement": "12",
+            "description": "Worgen are a kin caught between two shapes, cursed with a wolf's form and gifted with its speed."
+        },
+        {
+            "name": "Troll",
+            "icon": "troll",
+            "movement": "10",
+            "description": "Trolls are a tall and wiry kin of the jungles and isles, hardy, quick to heal, and steeped in old rites."
+        },
+        {
+            "name": "Tauren",
+            "icon": "minotaur",
+            "movement": "10",
+            "description": "Tauren are a massive and peaceable kin of the plains, bound to the land and slow to anger."
         }
     ]
 }

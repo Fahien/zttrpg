@@ -4,6 +4,11 @@
     "title": "Kin",
     "description": "A kin",
     "type": "object",
+    "required": [
+        "name",
+        "icon",
+        "movement"
+    ],
     "properties": {
         "$schema": {
             "type": "string",
@@ -14,15 +19,21 @@
             "description": "The version of the kin file."
         },
         "name": {
-            "$ref": "kin-names.schema.json"
+            "type": "string",
+            "description": "The name of the kin. Kins are also created through the API, so there is no fixed list."
         },
         "icon": {
             "$ref": "icon-names.schema.json",
             "description": "The icon of the kin."
         },
+        "movement": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "How far a character of this kin moves before agility adds or takes."
+        },
         "description": {
             "type": "string",
-            "description": "The description of the kin."
+            "description": "A description of the kin. Not stored: the table has no column for it."
         }
     }
 }

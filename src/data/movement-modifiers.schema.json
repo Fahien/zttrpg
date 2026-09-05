@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "movement-modifiers.schema.json",
+    "title": "Movement modifiers",
+    "description": "A list of movement modifiers",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the movement modifiers file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the movement modifiers file."
+        },
+        "movement_modifiers": {
+            "type": "array",
+            "items": {
+                "$ref": "movement-modifier.schema.json"
+            }
+        }
+    }
+}

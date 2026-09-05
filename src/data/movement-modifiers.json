@@ -1,0 +1,11 @@
+{
+    "$schema": "movement-modifiers.schema.json",
+    "version": "1.0",
+    "movement_modifiers": [
+        { "attribute": "Agility", "min_value": "1", "max_value": "6", "modifier": "-4" },
+        { "attribute": "Agility", "min_value": "7", "max_value": "9", "modifier": "-2" },
+        { "attribute": "Agility", "min_value": "10", "max_value": "12", "modifier": "0" },
+        { "attribute": "Agility", "min_value": "13", "max_value": "15", "modifier": "2" },
+        { "attribute": "Agility", "min_value": "16", "max_value": "18", "modifier": "4" }
+    ]
+}

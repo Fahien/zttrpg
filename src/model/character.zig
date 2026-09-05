@@ -127,6 +127,37 @@ pub const CharacterSkill = struct {
     }
 };
 
+/// A band of one attribute's values and what it adds to a character's
+/// movement. Rows rather than code, like age_attributes: which attribute drives
+/// movement, and by how much, is game data.
+pub const MovementModifier = struct {
+    pub const Id = u32;
+    pub const table_name: []const u8 = "movement_modifiers";
+
+    id: Id = 0,
+    attribute: Attribute.Id,
+    min_value: u32,
+    max_value: u32,
+    modifier: i32,
+};
+
+/// Movement is the kin's base plus every band the sheet lands in. It is derived
+/// on each read and never stored, so an edited attribute is right at once and
+/// there is no second copy to fall out of step with the first.
+pub fn deriveMovement(base: u32, attributes: []const CharacterAttribute, bands: []const MovementModifier) i32 {
+    var movement: i32 = @intCast(base);
+    for (bands) |band| {
+        for (attributes) |entry| {
+            if (entry.attribute.id == band.attribute and
+                entry.value >= band.min_value and entry.value <= band.max_value)
+            {
+                movement += band.modifier;
+            }
+        }
+    }
+    return movement;
+}
+
 /// What arrives in a request.
 pub const BodyCharacter = struct {
     name: []const u8,
@@ -203,6 +234,8 @@ pub const Character = struct {
     kin: Kin,
     age: Age,
     attribute_points: u32,
+    /// Derived from the kin and the sheet on every read: see deriveMovement.
+    movement: i32,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
 
@@ -211,6 +244,8 @@ pub const Character = struct {
     /// this character's id.
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Character {
         const summary = try CharacterSummary.fromRow(db, gpa, row);
+        const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
+        const bands = try db.readAllAlloc(gpa, MovementModifier);
 
         return .{
             .id = summary.id,
@@ -219,7 +254,8 @@ pub const Character = struct {
             .kin = summary.kin,
             .age = summary.age,
             .attribute_points = row.attribute_points,
-            .attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id),
+            .movement = deriveMovement(summary.kin.movement, attributes, bands),
+            .attributes = attributes,
             .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
         };
     }
@@ -250,7 +286,7 @@ test "Character serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" }, .movement = 10 };
     const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
     const character = Character{
         .id = 1,
@@ -259,13 +295,14 @@ test "Character serializes to the JSON wire shape" {
         .kin = kin,
         .age = age,
         .attribute_points = 54,
+        .movement = 10,
         .attributes = &.{},
         .skills = &.{},
     };
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"movement":10,"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -273,14 +310,14 @@ test "a summary is a character without its sheet" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" } };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" }, .movement = 10 };
     const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
     const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .age = age };
     try std.json.Stringify.value(summary, .{}, &out.writer);
 
     // The roster renders these four fields, so this is all a list has to carry.
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"}},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}}}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}}}
     , out.written());
 }
 
@@ -433,4 +470,43 @@ test "a body element rejects unknown fields" {
     ,
         .{},
     ));
+}
+
+/// The five agility bands from the rules, keyed on attribute 3.
+const agility_bands = [_]MovementModifier{
+    .{ .attribute = 3, .min_value = 1, .max_value = 6, .modifier = -4 },
+    .{ .attribute = 3, .min_value = 7, .max_value = 9, .modifier = -2 },
+    .{ .attribute = 3, .min_value = 10, .max_value = 12, .modifier = 0 },
+    .{ .attribute = 3, .min_value = 13, .max_value = 15, .modifier = 2 },
+    .{ .attribute = 3, .min_value = 16, .max_value = 18, .modifier = 4 },
+};
+
+fn sheetWithAgility(value: u32) [1]CharacterAttribute {
+    const agility = Attribute{ .id = 3, .name = "Agility", .icon = .{ .id = 1, .name = "abacus" }, .short = "AGL", .description = "Body control." };
+    return .{.{ .attribute = agility, .base = 3, .spent = value - 3, .modifier = 0, .value = value }};
+}
+
+test "movement is the kin's base plus the band agility lands in" {
+    // One value per band, including both edges of the neutral one.
+    try std.testing.expectEqual(6, deriveMovement(10, &sheetWithAgility(3), &agility_bands));
+    try std.testing.expectEqual(6, deriveMovement(10, &sheetWithAgility(6), &agility_bands));
+    try std.testing.expectEqual(8, deriveMovement(10, &sheetWithAgility(9), &agility_bands));
+    try std.testing.expectEqual(10, deriveMovement(10, &sheetWithAgility(10), &agility_bands));
+    try std.testing.expectEqual(10, deriveMovement(10, &sheetWithAgility(12), &agility_bands));
+    try std.testing.expectEqual(12, deriveMovement(10, &sheetWithAgility(13), &agility_bands));
+    try std.testing.expectEqual(14, deriveMovement(10, &sheetWithAgility(18), &agility_bands));
+
+    // The base is the kin's: a Worgen at 12 with the same agility.
+    try std.testing.expectEqual(16, deriveMovement(12, &sheetWithAgility(18), &agility_bands));
+}
+
+test "movement ignores attributes no band names, and sheets without the banded one" {
+    const strength = Attribute{ .id = 1, .name = "Strength", .icon = .{ .id = 1, .name = "abacus" }, .short = "STR", .description = "Raw muscle." };
+    const only_strength = [_]CharacterAttribute{
+        .{ .attribute = strength, .base = 3, .spent = 15, .modifier = 0, .value = 18 },
+    };
+    try std.testing.expectEqual(10, deriveMovement(10, &only_strength, &agility_bands));
+
+    // No bands at all: movement is just the kin's.
+    try std.testing.expectEqual(8, deriveMovement(8, &sheetWithAgility(18), &.{}));
 }
