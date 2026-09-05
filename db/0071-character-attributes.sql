@@ -1,6 +1,7 @@
 -- Every character has one row per attribute, starting at the configured
--- default. STRICT turns a missing 'attribute_default' row into an error that
--- names it, rather than a NULL that fails further down as a NOT NULL violation.
+-- default with nothing spent and nothing adjusted. STRICT turns a missing
+-- 'attribute_default' row into an error that names it, rather than a NULL that
+-- fails further down as a NOT NULL violation.
 CREATE FUNCTION seed_character_attributes() RETURNS TRIGGER AS $fn$
 DECLARE
     default_value INTEGER;
@@ -9,7 +10,7 @@ BEGIN
     FROM configs
     WHERE name = 'attribute_default';
 
-    INSERT INTO character_attributes (character, attribute, value)
+    INSERT INTO character_attributes (character, attribute, base)
     SELECT NEW.id, a.id, default_value
     FROM attributes a;
     RETURN NULL;

@@ -32,11 +32,14 @@ pub const BodyCharacterAttribute = struct {
     pub const key_name: []const u8 = Attribute.resource_name;
 
     attribute: Attribute.Id,
-    value: u32,
+    /// The player's total on this attribute, not a change: a PUT carries
+    /// absolute values, so sending the same body twice is harmless.
+    spent: u32,
 
-    pub fn validate(self: *const BodyCharacterAttribute) error{ValueOutOfRange}!void {
-        if (self.value >= 1024) return error.ValueOutOfRange;
-    }
+    /// Nothing to check on one element. The floor is the type, and the ceiling
+    /// and the pool are configuration only the database can read, so it
+    /// enforces them: see db/0072 and db/0073.
+    pub fn validate(_: *const BodyCharacterAttribute) error{}!void {}
 
     /// An empty body is a legal no-op: saving a sheet nobody edited.
     pub fn validateAll(items: []const BodyCharacterAttribute) BodyError!void {
@@ -44,10 +47,15 @@ pub const BodyCharacterAttribute = struct {
     }
 };
 
-/// Flat SQL row for the character_attributes table.
+/// Flat SQL row for the character_attributes table. `value` is a generated
+/// column, base + spent + modifier, read back rather than computed here so the
+/// formula exists once, in db/0070.
 pub const RowCharacterAttribute = struct {
     character: Character.Id,
     attribute: Attribute.Id,
+    base: u32,
+    spent: u32,
+    modifier: i32,
     value: u32,
 };
 
@@ -57,6 +65,9 @@ pub const CharacterAttribute = struct {
     pub const Row = RowCharacterAttribute;
 
     attribute: Attribute,
+    base: u32,
+    spent: u32,
+    modifier: i32,
     value: u32,
 
     /// The row carries `character` as well, but the value is served as part of
@@ -67,6 +78,9 @@ pub const CharacterAttribute = struct {
 
         return .{
             .attribute = attribute,
+            .base = row.base,
+            .spent = row.spent,
+            .modifier = row.modifier,
             .value = row.value,
         };
     }
@@ -319,7 +333,7 @@ test "BodyCharacterAttribute parses from a JSON array" {
     const parsed = try std.json.parseFromSlice(
         []const BodyCharacterAttribute,
         std.testing.allocator,
-        \\[{"attribute":1,"value":4},{"attribute":2,"value":0}]
+        \\[{"attribute":1,"spent":4},{"attribute":2,"spent":0}]
     ,
         .{},
     );
@@ -327,8 +341,8 @@ test "BodyCharacterAttribute parses from a JSON array" {
 
     try std.testing.expectEqual(2, parsed.value.len);
     try std.testing.expectEqual(1, parsed.value[0].attribute);
-    try std.testing.expectEqual(4, parsed.value[0].value);
-    try std.testing.expectEqual(0, parsed.value[1].value);
+    try std.testing.expectEqual(4, parsed.value[0].spent);
+    try std.testing.expectEqual(0, parsed.value[1].spent);
 }
 
 test "BodyCharacterSkill parses from a JSON array" {
@@ -356,8 +370,8 @@ test "a request body carries no character id: the URL already named it" {
 
 test "validateAll accepts a well-formed body" {
     try BodyCharacterAttribute.validateAll(&.{
-        .{ .attribute = 1, .value = 0 },
-        .{ .attribute = 2, .value = 7 },
+        .{ .attribute = 1, .spent = 0 },
+        .{ .attribute = 2, .spent = 7 },
     });
 }
 
@@ -368,22 +382,28 @@ test "validateAll accepts an empty body" {
 }
 
 test "validate rejects values the CHECK constraint would reject" {
-    // db/0060-character-attributes.sql says `value >= 0 AND value < 1024`, so
+    // db/0080-character-skills.sql says `value >= 0 AND value < 1024`, so
     // 1023 is the largest legal value and 1024 must never reach Postgres.
-    const highest_legal = BodyCharacterAttribute{ .attribute = 1, .value = 1023 };
+    const highest_legal = BodyCharacterSkill{ .skill = 1, .value = 1023 };
     try highest_legal.validate();
 
-    const one_too_many = BodyCharacterAttribute{ .attribute = 1, .value = 1024 };
+    const one_too_many = BodyCharacterSkill{ .skill = 1, .value = 1024 };
     try std.testing.expectError(error.ValueOutOfRange, one_too_many.validate());
+}
 
-    const skill_one_too_many = BodyCharacterSkill{ .skill = 1, .value = 1024 };
-    try std.testing.expectError(error.ValueOutOfRange, skill_one_too_many.validate());
+test "an attribute body has no static rule to check" {
+    // The ceiling and the pool live in the configs table, which only the
+    // database can read, so db/0072 and db/0073 enforce them and a 1024 here
+    // is refused there with a 400. Validation keeps the one rule Postgres
+    // cannot see, a repeated key, in validateAll.
+    const anything = BodyCharacterAttribute{ .attribute = 1, .spent = 1024 };
+    try anything.validate();
 }
 
 test "validateAll rejects an out-of-range value anywhere in the body" {
-    try std.testing.expectError(error.ValueOutOfRange, BodyCharacterAttribute.validateAll(&.{
-        .{ .attribute = 1, .value = 3 },
-        .{ .attribute = 2, .value = 1024 },
+    try std.testing.expectError(error.ValueOutOfRange, BodyCharacterSkill.validateAll(&.{
+        .{ .skill = 1, .value = 3 },
+        .{ .skill = 2, .value = 1024 },
     }));
 }
 
@@ -392,8 +412,8 @@ test "validateAll rejects a repeated key" {
     // succeed and the last one wins. Silently accepting it would hide a
     // client bug, so it is a 400 instead.
     try std.testing.expectError(error.DuplicateEntry, BodyCharacterAttribute.validateAll(&.{
-        .{ .attribute = 1, .value = 3 },
-        .{ .attribute = 1, .value = 9 },
+        .{ .attribute = 1, .spent = 3 },
+        .{ .attribute = 1, .spent = 9 },
     }));
     try std.testing.expectError(error.DuplicateEntry, BodyCharacterSkill.validateAll(&.{
         .{ .skill = 7, .value = 3 },
@@ -409,7 +429,7 @@ test "a body element rejects unknown fields" {
     try std.testing.expectError(error.UnknownField, std.json.parseFromSlice(
         []const BodyCharacterAttribute,
         std.testing.allocator,
-        \\[{"character":1,"attribute":1,"value":4}]
+        \\[{"character":1,"attribute":1,"spent":4}]
     ,
         .{},
     ));

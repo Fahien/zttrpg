@@ -256,7 +256,7 @@ Note: the server compares the `Accept` header with the exact text `application/j
 | PUT | `/{resource}/{id}` | Replace one record. |
 | DELETE | `/{resource}/{id}` | Delete one record. |
 | GET | `/characters/{id}/attributes` | The character's attribute values. |
-| PUT | `/characters/{id}/attributes` | Write attribute values, as one array. |
+| PUT | `/characters/{id}/attributes` | Spend points on attributes: the player's total per attribute, as one array. |
 | GET | `/characters/{id}/skills` | The character's skill values. |
 | PUT | `/characters/{id}/skills` | Write skill values, as one array. |
 
@@ -283,15 +283,16 @@ Values come back ordered by the record they belong to, so a sheet reads the same
 # Get the roster as JSON.
 curl -H "Accept: application/json" http://127.0.0.1:8080/characters
 
-# Create a character. The kin is the id of a row in `kins`.
+# Create a character. Kin and age are ids of rows in `kins` and `ages`.
 curl -X POST http://127.0.0.1:8080/characters \
   -H "Content-Type: application/json" \
-  -d '{"name": "Grog", "level": 3, "kin": 1}'
+  -d '{"name": "Grog", "level": 3, "kin": 1, "age": 2}'
 
-# Write a character's attribute values.
+# Spend attribute points. `spent` is the player's total on that attribute;
+# the value is base + spent + modifier, and the database debits the pool.
 curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
   -H "Content-Type: application/json" \
-  -d '[{"attribute": 1, "value": 4}, {"attribute": 2, "value": 3}]'
+  -d '[{"attribute": 1, "spent": 2}, {"attribute": 2, "spent": 1}]'
 ```
 
 ## Project structure

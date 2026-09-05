@@ -110,23 +110,25 @@ pub const Database = struct {
 
     /// The update below binds Body's fields to $2 and $3, and getParams renders
     /// them in declaration order. Both are integers, so a reordered struct would
-    /// swap the key with the value without any type error: pin the layout here.
+    /// swap the key with the column without any type error: pin the layout here.
+    /// The second field names the column the update writes, so a body says
+    /// what it changes: `value` on a skill, `spent` on an attribute.
     fn requireBodyLayout(comptime Child: type) void {
         const fields = @typeInfo(Child.Body).@"struct".fields;
         const ordered = fields.len == 2 and
-            std.mem.eql(u8, fields[0].name, Child.Body.key_name) and
-            std.mem.eql(u8, fields[1].name, "value");
+            std.mem.eql(u8, fields[0].name, Child.Body.key_name);
 
         if (!ordered) {
             @compileError(@typeName(Child.Body) ++ " must declare `" ++ Child.Body.key_name ++
-                "` then `value`: updateSubResourceQuery binds them to $2 and $3 in that order.");
+                "` then the one column it writes: updateSubResourceQuery binds them to $2 and $3 in that order.");
         }
     }
 
     fn updateSubResourceQuery(comptime Parent: type, comptime Child: type) [:0]const u8 {
         requireBodyLayout(Child);
 
-        return "UPDATE " ++ Child.table_name ++ " SET value = $3 WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Child.Body.key_name ++ " = $2";
+        const column = @typeInfo(Child.Body).@"struct".fields[1].name;
+        return "UPDATE " ++ Child.table_name ++ " SET " ++ column ++ " = $3 WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Child.Body.key_name ++ " = $2";
     }
 
     pub fn updateSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
@@ -459,7 +461,7 @@ test "readSubResourceQuery orders the rows it returns" {
     // unordered result would let a page render its rows differently on every
     // load, and differently again after a save.
     try std.testing.expectEqualStrings(
-        "SELECT character, attribute, value FROM character_attributes WHERE character = $1 ORDER BY attribute",
+        "SELECT character, attribute, base, spent, modifier, value FROM character_attributes WHERE character = $1 ORDER BY attribute",
         comptime Database.readSubResourceQuery(Character, CharacterAttribute),
     );
     try std.testing.expectEqualStrings(
@@ -493,7 +495,7 @@ test "updateSubResourceQuery keys the update on both halves of the composite key
     // $1 is the parent and never changes across a batch, which is why it comes
     // first even though it appears last in the text.
     try std.testing.expectEqualStrings(
-        "UPDATE character_attributes SET value = $3 WHERE character = $1 AND attribute = $2",
+        "UPDATE character_attributes SET spent = $3 WHERE character = $1 AND attribute = $2",
         comptime Database.updateSubResourceQuery(Character, CharacterAttribute),
     );
     try std.testing.expectEqualStrings(
@@ -507,7 +509,7 @@ test "a sub-resource body renders its params in the order the update binds them"
 
     // The seam between updateSubResourceQuery and getParams: $2 is the key and
     // $3 is the value, and nothing but declaration order makes that true.
-    const params = try Database.getParams(gpa, CharacterAttribute.Body, .{ .attribute = 5, .value = 9 });
+    const params = try Database.getParams(gpa, CharacterAttribute.Body, .{ .attribute = 5, .spent = 9 });
     defer {
         for (params) |param| gpa.free(std.mem.span(param));
     }

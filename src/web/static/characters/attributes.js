@@ -15,6 +15,11 @@ let editAttributeMap = new Map();
 // Map from attribute id to original value.
 let originalAttributeMap = new Map();
 
+// Map from attribute id to points the player has already spent on it. The
+// server is told this total, not the value: a value is base plus spent plus
+// the rules' modifier, and only spent is the player's to change.
+let originalSpentMap = new Map();
+
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 
 const list = /** @type {HTMLElement} */ (document.querySelector('[data-list="attributes"]'));
@@ -91,6 +96,7 @@ function initAttributesUpdate(character) {
     for (const attr of character.attributes) {
         editAttributeMap.set(attr.attribute.id, 0);
         originalAttributeMap.set(attr.attribute.id, attr.value);
+        originalSpentMap.set(attr.attribute.id, attr.spent);
     }
 
     render();
@@ -192,7 +198,7 @@ async function onSubmitAttributes() {
         if (pending > 0) {
             body.push({
                 attribute: attributeId,
-                value: (originalAttributeMap.get(attributeId) || 0) + pending,
+                spent: (originalSpentMap.get(attributeId) || 0) + pending,
             });
         }
     }
@@ -212,7 +218,9 @@ async function onSubmitAttributes() {
 
         if (response.ok) {
             for (const entry of body) {
-                originalAttributeMap.set(entry.attribute, entry.value);
+                const pending = editAttributeMap.get(entry.attribute) || 0;
+                originalAttributeMap.set(entry.attribute, (originalAttributeMap.get(entry.attribute) || 0) + pending);
+                originalSpentMap.set(entry.attribute, entry.spent);
                 editAttributeMap.set(entry.attribute, 0);
             }
             // Until the server answers with the sheet, the pool is bookkept
