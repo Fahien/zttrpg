@@ -27,9 +27,21 @@
 
             <ul data-list="attributes">
                 <template>
-                    <li><span class="icon-frame" data-icon-size="1"><span data-field="attribute.icon.name:icon"></span></span> <span data-field="attribute.name"></span> <span data-field="value"></span></li>
+                    <li data-field="attribute.id:data-attribute-id">
+                        <span class="icon-frame" data-icon-size="1">
+                            <span data-field="attribute.icon.name:icon"></span>
+                        </span>
+                        <span data-field="attribute.name"></span>
+                        <span data-field="value"></span>
+                        <span data-pending></span>
+                        <button data-action="increase-attribute" data-field="attribute.id:data-attribute-id">+</button>
+                        <button data-action="decrease-attribute" data-field="attribute.id:data-attribute-id">-</button>
+                    </li>
                 </template>
             </ul>
+
+            <!-- Attribute submit button -->
+            <button id="submit-attributes" data-action="submit-attributes">Submit Attributes</button>
 
         </section>
         <section id="instance-skills">
@@ -45,6 +57,7 @@
     {{footer}}
 
     <script src="/static/instance.js" data-resource="characters"></script>
+    <script src="/static/characters/attributes.js"></script>
 </body>
 
 </html>

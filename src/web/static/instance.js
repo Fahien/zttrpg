@@ -3,7 +3,7 @@
 
 // @ts-check
 
-function initItemPage() {
+function initInstancePage() {
     const script = document.currentScript;
     if (!script) {
         throw new Error('No current script found.');
@@ -88,7 +88,9 @@ function initItemPage() {
                 continue;
             }
 
-            if (fieldType === 'icon') {
+            if (fieldType?.startsWith('data-')) {
+                field.setAttribute(fieldType, value);
+            } else if (fieldType === 'icon') {
                 field.className = `icon`;
                 field.style.cssText = `--icon:url('/static/icons/${value}.svg'); color: var(--text-main);`;
             } else {
@@ -140,10 +142,10 @@ function initItemPage() {
         }
     }
 
-    async function fetchItem() {
+    async function fetchInstance() {
         const id = await getIdFromUrl();
         if (id === undefined) {
-            reportError('Invalid item ID in URL.');
+            reportError('Invalid instance ID in URL.');
             return;
         }
 
@@ -153,17 +155,21 @@ function initItemPage() {
             }
         });
         if (!response.ok) {
-            reportError(`Failed to fetch item data: ${response.status} ${response.statusText}`);
+            reportError(`Failed to fetch instance data: ${response.status} ${response.statusText}`);
             return;
         }
 
         const item = await response.json();
         bindFields(item, document);
         expandList(item, document);
+
+        // Dispatch an event announcing that the instance has been loaded, so other scripts can react to it.
+        const event = new CustomEvent('instanceLoaded', { detail: item });
+        document.dispatchEvent(event);
     }
 
-    // Fetch the item when the page loads
-    window.addEventListener('load', fetchItem);
+    // Fetch the instance when the page loads
+    window.addEventListener('load', fetchInstance);
 }
 
-initItemPage();
+initInstancePage();
