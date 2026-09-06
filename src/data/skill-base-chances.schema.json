@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "skill-base-chances.schema.json",
+    "title": "Skill base chances",
+    "type": "object",
+    "required": ["version", "skill_base_chances"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "version": { "type": "string" },
+        "skill_base_chances": {
+            "type": "array",
+            "items": { "$ref": "skill-base-chance.schema.json" },
+            "description": "Non-overlapping bands covering attribute values from 1 to 18."
+        }
+    }
+}

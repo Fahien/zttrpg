@@ -1,0 +1,11 @@
+{
+    "$schema": "skill-base-chances.schema.json",
+    "version": "1.0",
+    "skill_base_chances": [
+        { "min_value": "1", "max_value": "5", "base_chance": "3" },
+        { "min_value": "6", "max_value": "8", "base_chance": "4" },
+        { "min_value": "9", "max_value": "12", "base_chance": "5" },
+        { "min_value": "13", "max_value": "15", "base_chance": "6" },
+        { "min_value": "16", "max_value": "18", "base_chance": "7" }
+    ]
+}

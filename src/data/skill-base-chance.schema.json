@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "skill-base-chance.schema.json",
+    "title": "Skill base chance",
+    "description": "The free skill level granted by an inclusive attribute band.",
+    "type": "object",
+    "required": ["min_value", "max_value", "base_chance"],
+    "properties": {
+        "min_value": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-8])$",
+            "description": "The lowest attribute value in the band, inclusive."
+        },
+        "max_value": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-8])$",
+            "description": "The highest attribute value in the band, inclusive."
+        },
+        "base_chance": {
+            "type": "string",
+            "pattern": "^([1-9]|1[0-8])$",
+            "description": "The starting level of an untrained skill."
+        }
+    }
+}
