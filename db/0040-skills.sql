@@ -9,6 +9,7 @@ CREATE TABLE skills (
     name TEXT UNIQUE NOT NULL,
     icon INTEGER NOT NULL,
     kind INTEGER NOT NULL,
+    attribute INTEGER REFERENCES attributes(id),
     description TEXT NOT NULL,
     CHECK (name <> ''),
     CHECK (description <> ''),

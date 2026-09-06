@@ -29,11 +29,13 @@ pub const SkillKind = struct {
 };
 
 const Icon = @import("icon.zig").Icon;
+const Attribute = @import("attribute.zig").Attribute;
 
 pub const SkillBody = struct {
     name: []const u8,
     icon: Icon.Id,
     kind: SkillKind.Id,
+    attribute: ?Attribute.Id = null,
     description: []const u8,
 
     pub fn validate(self: *const SkillBody) !void {
@@ -50,6 +52,7 @@ pub const SkillRow = struct {
     name: []const u8,
     icon: Icon.Id,
     kind: SkillKind.Id,
+    attribute: ?Attribute.Id,
     description: []const u8,
 };
 
@@ -65,17 +68,24 @@ pub const Skill = struct {
     name: []const u8,
     icon: Icon,
     kind: SkillKind,
+    /// Abilities have no governing attribute.
+    attribute: ?Attribute = null,
     description: []const u8,
 
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Skill {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
         const kind = (try db.readItem(gpa, SkillKind, row.kind)) orelse return error.SkillKindNotFound;
+        const attribute = if (row.attribute) |id|
+            (try db.readItem(gpa, Attribute, id)) orelse return error.AttributeNotFound
+        else
+            null;
 
         return .{
             .id = row.id,
             .name = row.name,
             .icon = icon,
             .kind = kind,
+            .attribute = attribute,
             .description = row.description,
         };
     }
@@ -101,7 +111,7 @@ test "Skill serializes to the JSON wire shape" {
     try std.json.Stringify.value(skill, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"kind":{"id":1,"name":"Core"},"description":"Expertise in moving unseen."}
+        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"kind":{"id":1,"name":"Core"},"attribute":null,"description":"Expertise in moving unseen."}
     , out.written());
 }
 
@@ -110,12 +120,24 @@ test "SkillCreate parses from a JSON body" {
     const parsed = try std.json.parseFromSlice(
         SkillCreate,
         std.testing.allocator,
-        \\{"name":"Stealth","icon":1,"kind":1,"description":"Expertise in moving unseen."}
+        \\{"name":"Stealth","icon":1,"kind":1,"attribute":2,"description":"Expertise in moving unseen."}
     ,
         .{},
     );
     defer parsed.deinit();
 
     try std.testing.expectEqualStrings("Stealth", parsed.value.name);
+    try std.testing.expectEqual(@as(?Attribute.Id, 2), parsed.value.attribute);
 }
 
+test "SkillCreate accepts abilities with an omitted or null attribute" {
+    for ([_][]const u8{
+        \\{"name":"Adaptive","icon":1,"kind":2,"description":"Adapt.","attribute":null}
+        ,
+        \\{"name":"Adaptive","icon":1,"kind":2,"description":"Adapt."}
+    }) |body| {
+        const parsed = try std.json.parseFromSlice(SkillCreate, std.testing.allocator, body, .{});
+        defer parsed.deinit();
+        try std.testing.expect(parsed.value.attribute == null);
+    }
+}

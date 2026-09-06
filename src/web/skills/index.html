@@ -18,6 +18,10 @@
         <select id="icon" name="icon" data-resource="icons" required></select>
         <label for="kind">Kind:</label>
         <select id="kind" name="kind" data-resource="skill_kinds" required></select>
+        <label for="attribute">Attribute:</label>
+        <select id="attribute" name="attribute" data-resource="attributes" data-nullable>
+            <option value="">None (ability)</option>
+        </select>
         <label for="description">Description:</label>
         <input type="text" id="description" name="description" required>
         <button type="submit">Add Skill</button>

@@ -35,6 +35,7 @@ extern fn PQclear(res: *PGresult) void;
 extern fn PQntuples(res: *PGresult) c_int;
 
 extern fn PQgetvalue(res: *PGresult, row: c_int, col: c_int) [*:0]const u8;
+extern fn PQgetisnull(res: *PGresult, row: c_int, col: c_int) c_int;
 
 extern fn PQcmdTuples(res: *PGresult) [*:0]const u8;
 
@@ -71,7 +72,7 @@ pub const Connection = struct {
     pub fn execParams(
         self: *const Connection,
         query: [*:0]const u8,
-        params: []const [*:0]const u8,
+        params: []const ?[*:0]const u8,
     ) !Result {
         const res = PQexecParams(
             self.conn,
@@ -188,6 +189,10 @@ pub const Result = struct {
 
     pub fn getValue(self: *const Result, row: usize, col: usize) [*:0]const u8 {
         return PQgetvalue(self.res, @intCast(row), @intCast(col));
+    }
+
+    pub fn isNull(self: *const Result, row: usize, col: usize) bool {
+        return PQgetisnull(self.res, @intCast(row), @intCast(col)) != 0;
     }
 
     pub fn affectedRows(self: *const Result) !usize {

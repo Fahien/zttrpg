@@ -29,6 +29,14 @@
         "kind": {
             "$ref": "skill-kinds.schema.json"
         },
+        "attribute": {
+            "anyOf": [
+                { "$ref": "attribute-names.schema.json" },
+                { "type": "null" }
+            ],
+            "default": null,
+            "description": "The governing attribute. Omit or use null for an ability."
+        },
         "description": {
             "type": "string",
             "description": "The description of the skill."

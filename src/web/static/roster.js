@@ -210,7 +210,13 @@ function initializeForm() {
     instanceForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevent the default form submission behavior.
 
+        /** @type {Record<string, FormDataEntryValue | null>} */
         const newInstance = Object.fromEntries(new FormData(instanceForm));
+        for (const select of instanceForm.querySelectorAll('select[data-nullable]')) {
+            if (select instanceof HTMLSelectElement && select.value === '') {
+                newInstance[select.name] = null;
+            }
+        }
 
         try {
             // Send a POST request to the server to add the new instance.
@@ -266,4 +272,3 @@ function initializeDialog() {
 }
 
 initializeDialog();
-

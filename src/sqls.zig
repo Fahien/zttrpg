@@ -112,11 +112,12 @@ const Skills = struct {
     const out_path = "db/0042-skills.sql";
 
     const Row = struct {
-        const lookups = .{ .icon = "icons", .kind = "skill_kinds" };
+        const lookups = .{ .icon = "icons", .kind = "skill_kinds", .attribute = "attributes" };
 
         name: []const u8,
         icon: []const u8,
         kind: []const u8,
+        attribute: ?[]const u8 = null,
         description: []const u8,
     };
 
@@ -287,14 +288,18 @@ fn appendValue(
     gpa: Allocator,
     sql: *std.ArrayList(u8),
     comptime lookup_table: ?[]const u8,
-    value: []const u8,
+    value: ?[]const u8,
 ) !void {
+    const present = value orelse {
+        try sql.appendSlice(gpa, "NULL");
+        return;
+    };
     if (lookup_table) |referenced| {
         try sql.appendSlice(gpa, "(SELECT id FROM " ++ referenced ++ " WHERE name = ");
-        try appendQuoted(gpa, sql, value);
+        try appendQuoted(gpa, sql, present);
         try sql.appendSlice(gpa, " LIMIT 1)");
     } else {
-        try appendQuoted(gpa, sql, value);
+        try appendQuoted(gpa, sql, present);
     }
 }
 
@@ -362,7 +367,7 @@ test "columns are the row's fields, in order" {
     try testing.expectEqualStrings("attribute, min_value, max_value, modifier", comptime columnsOf(MovementModifiers.Row));
     try testing.expectEqualStrings("age, attribute, modifier", comptime columnsOf(AgeAttributes.Row));
     try testing.expectEqualStrings("name, icon, short, description", comptime columnsOf(Attributes.Row));
-    try testing.expectEqualStrings("name, icon, kind, description", comptime columnsOf(Skills.Row));
+    try testing.expectEqualStrings("name, icon, kind, attribute, description", comptime columnsOf(Skills.Row));
 }
 
 test "a lookup field names the table its value refers to" {
@@ -413,6 +418,17 @@ test "values are dollar quoted, so an apostrophe cannot end one early" {
         "    ($val$Dwarf's kin$val$, (SELECT id FROM icons WHERE name = $val$beard$val$ LIMIT 1), $val$8$val$)",
         sql.items,
     );
+}
+
+test "an absent lookup emits SQL NULL instead of a quoted value" {
+    const gpa = testing.allocator;
+    var sql = std.ArrayList(u8).empty;
+    defer sql.deinit(gpa);
+    try appendValue(gpa, &sql, "attributes", null);
+    try testing.expectEqualStrings("NULL", sql.items);
+    sql.clearRetainingCapacity();
+    try appendValue(gpa, &sql, "attributes", "Agility");
+    try testing.expectEqualStrings("(SELECT id FROM attributes WHERE name = $val$Agility$val$ LIMIT 1)", sql.items);
 }
 
 test "a name is written as a single column" {

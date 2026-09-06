@@ -146,11 +146,13 @@ pub const Database = struct {
         for (bodies) |body| {
             const params = try Database.getParams(gpa, Child.Body, body);
             defer {
-                for (params) |param| gpa.free(std.mem.span(param));
+                for (params) |param| {
+                    if (param) |present| gpa.free(std.mem.span(present));
+                }
             }
 
             // $1 is the parent id, then Body's fields in declaration order.
-            var all_params: [1 + params.len][*:0]const u8 = undefined;
+            var all_params: [1 + params.len]?[*:0]const u8 = undefined;
             all_params[0] = parent_id_cstr;
             for (params, 0..) |param, i| {
                 all_params[i + 1] = param;
@@ -218,25 +220,8 @@ pub const Database = struct {
         var ret: T = undefined;
 
         inline for (@typeInfo(T).@"struct".fields, 0..) |field, col_index| {
-            const col_value_cstr = result.getValue(row, col_index);
-            const col_value_str = std.mem.span(col_value_cstr);
-
-            const type_info = @typeInfo(field.type);
-            switch (type_info) {
-                .int => {
-                    const field_value = try std.fmt.parseInt(field.type, col_value_str, 10);
-                    @field(ret, field.name) = field_value;
-                },
-                .pointer => {
-                    if (type_info.pointer.child == u8) {
-                        const field_value = try gpa.dupe(u8, col_value_str);
-                        @field(ret, field.name) = field_value;
-                    } else {
-                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
-                    }
-                },
-                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
-            }
+            const value = if (result.isNull(row, col_index)) null else std.mem.span(result.getValue(row, col_index));
+            @field(ret, field.name) = try parseValue(field.type, gpa, value);
         }
         return ret;
     }
@@ -284,56 +269,54 @@ pub const Database = struct {
         return placeholders;
     }
 
-    fn getParams(gpa: Allocator, comptime T: type, item: T) ![@typeInfo(T).@"struct".fields.len][*:0]const u8 {
-        const fields = @typeInfo(T).@"struct".fields;
-        var params: [fields.len][*:0]const u8 = undefined;
-
-        inline for (fields, 0..) |field, i| {
-            switch (@typeInfo(field.type)) {
-                .int => {
-                    const field_value = @field(item, field.name);
-                    params[i] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{field_value}, 0);
-                },
-                .pointer => {
-                    if (@typeInfo(field.type).pointer.child == u8) {
-                        const field_value = @field(item, field.name);
-                        params[i] = try gpa.dupeZ(u8, field_value);
-                    } else {
-                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
-                    }
-                },
-                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
-            }
+    /// SQL NULL becomes a Zig optional; an empty string remains a value.
+    fn parseValue(comptime T: type, gpa: Allocator, value: ?[]const u8) !T {
+        if (@typeInfo(T) == .optional) {
+            return if (value) |present| try parseValue(@typeInfo(T).optional.child, gpa, present) else null;
         }
+        const present = value orelse return error.UnexpectedNull;
+        return switch (@typeInfo(T)) {
+            .int => try std.fmt.parseInt(T, present, 10),
+            .pointer => if (T == []const u8 or T == []u8)
+                try gpa.dupe(u8, present)
+            else
+                @compileError("Unsupported pointer type: " ++ @typeName(T)),
+            else => @compileError("Unsupported field type: " ++ @typeName(T)),
+        };
+    }
 
+    /// libpq represents a SQL NULL parameter with a null pointer.
+    fn formatParam(gpa: Allocator, value: anytype) !?[*:0]const u8 {
+        const T = @TypeOf(value);
+        return switch (@typeInfo(T)) {
+            .optional => if (value) |present| try formatParam(gpa, present) else null,
+            .int => try std.fmt.allocPrintSentinel(gpa, "{d}", .{value}, 0),
+            .pointer => if (T == []const u8 or T == []u8)
+                try gpa.dupeZ(u8, value)
+            else
+                @compileError("Unsupported pointer type: " ++ @typeName(T)),
+            else => @compileError("Unsupported field type: " ++ @typeName(T)),
+        };
+    }
+
+    fn getParams(gpa: Allocator, comptime T: type, item: T) ![@typeInfo(T).@"struct".fields.len]?[*:0]const u8 {
+        const fields = @typeInfo(T).@"struct".fields;
+        var params: [fields.len]?[*:0]const u8 = @splat(null);
+        errdefer for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        };
+        inline for (fields, 0..) |field, i| {
+            params[i] = try formatParam(gpa, @field(item, field.name));
+        }
         return params;
     }
 
-    fn getParamsWithId(gpa: Allocator, comptime T: type, item: T, id: u32) ![@typeInfo(T).@"struct".fields.len + 1][*:0]const u8 {
-        const fields = @typeInfo(T).@"struct".fields;
-        var params: [fields.len + 1][*:0]const u8 = undefined;
-
-        inline for (fields, 0..) |field, i| {
-            switch (@typeInfo(field.type)) {
-                .int => {
-                    const field_value = @field(item, field.name);
-                    params[i] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{field_value}, 0);
-                },
-                .pointer => {
-                    if (@typeInfo(field.type).pointer.child == u8) {
-                        const field_value = @field(item, field.name);
-                        params[i] = try gpa.dupeZ(u8, field_value);
-                    } else {
-                        @compileError("Unsupported pointer type: " ++ @typeName(field.type));
-                    }
-                },
-                else => @compileError("Unsupported field type: " ++ @typeName(field.type)),
-            }
-        }
-
-        params[fields.len] = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
-
-        return params;
+    fn getParamsWithId(gpa: Allocator, comptime T: type, item: T, id: u32) ![@typeInfo(T).@"struct".fields.len + 1]?[*:0]const u8 {
+        const params = try getParams(gpa, T, item);
+        errdefer for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        };
+        return params ++ [_]?[*:0]const u8{try formatParam(gpa, id)};
     }
 
     pub fn insertItem(self: *const Database, gpa: Allocator, comptime T: type, item: T.Create) !u32 {
@@ -410,12 +393,12 @@ const all_models = .{ Character, Kin, Skill };
 test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
-    try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
+    try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
     try std.testing.expectEqualStrings("name, level, kin, age", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon, movement", comptime Database.getCols(Kin.Create));
-    try std.testing.expectEqualStrings("name, icon, kind, description", comptime Database.getCols(Skill.Create));
+    try std.testing.expectEqualStrings("name, icon, kind, attribute, description", comptime Database.getCols(Skill.Create));
 }
 
 test "no Create type carries an id column" {
@@ -439,7 +422,7 @@ test "every model names the table it is stored in" {
 test "getPlaceholders numbers parameters from $1" {
     try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Kin.Create));
-    try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Skill.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3, $4, $5", comptime Database.getPlaceholders(Skill.Create));
 }
 
 test "getSetClauses derives the id placeholder from the field count" {
@@ -454,7 +437,7 @@ test "getSetClauses derives the id placeholder from the field count" {
         comptime Database.getSetClauses(Kin.Update),
     );
     try std.testing.expectEqualStrings(
-        "name = $1, icon = $2, kind = $3, description = $4 WHERE id = $5",
+        "name = $1, icon = $2, kind = $3, attribute = $4, description = $5 WHERE id = $6",
         comptime Database.getSetClauses(Skill.Update),
     );
 }
@@ -526,11 +509,13 @@ test "a sub-resource body renders its params in the order the update binds them"
     // $3 is the value, and nothing but declaration order makes that true.
     const params = try Database.getParams(gpa, CharacterAttribute.Body, .{ .attribute = 5, .spent = 9 });
     defer {
-        for (params) |param| gpa.free(std.mem.span(param));
+        for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        }
     }
 
-    try std.testing.expectEqualStrings("5", std.mem.span(params[0]));
-    try std.testing.expectEqualStrings("9", std.mem.span(params[1]));
+    try std.testing.expectEqualStrings("5", std.mem.span(params[0].?));
+    try std.testing.expectEqualStrings("9", std.mem.span(params[1].?));
 }
 
 test "a model without a Row type queries its own fields" {
@@ -543,6 +528,31 @@ test "a model without a Row type queries its own fields" {
     try std.testing.expectEqual(Character.Row, Database.RowOfT(Character));
 }
 
+test "nullable SQL values preserve null, zero, and empty strings" {
+    const gpa = std.testing.allocator;
+    try std.testing.expectEqual(@as(?u32, null), try Database.parseValue(?u32, gpa, null));
+    try std.testing.expectEqual(@as(?u32, 0), try Database.parseValue(?u32, gpa, "0"));
+    try std.testing.expectEqual(@as(?u32, 2), try Database.parseValue(?u32, gpa, "2"));
+    try std.testing.expectError(error.UnexpectedNull, Database.parseValue(u32, gpa, null));
+    try std.testing.expectError(error.InvalidCharacter, Database.parseValue(?u32, gpa, ""));
+    const empty = try Database.parseValue(?[]const u8, gpa, "");
+    defer gpa.free(empty.?);
+    try std.testing.expectEqualStrings("", empty.?);
+}
+
+test "nullable parameters bind null pointers and retain the update id" {
+    const gpa = std.testing.allocator;
+    const Body = struct { attribute: ?u32 };
+    const absent = try Database.getParamsWithId(gpa, Body, .{ .attribute = null }, 9);
+    defer gpa.free(std.mem.span(absent[1].?));
+    try std.testing.expect(absent[0] == null);
+    try std.testing.expectEqualStrings("9", std.mem.span(absent[1].?));
+
+    const present = try Database.getParams(gpa, Body, .{ .attribute = 2 });
+    defer gpa.free(std.mem.span(present[0].?));
+    try std.testing.expectEqualStrings("2", std.mem.span(present[0].?));
+}
+
 test "getParams renders fields as C strings in declaration order" {
     const gpa = std.testing.allocator;
 
@@ -553,13 +563,15 @@ test "getParams renders fields as C strings in declaration order" {
         .age = 1,
     });
     defer {
-        for (params) |param| gpa.free(std.mem.span(param));
+        for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        }
     }
 
-    try std.testing.expectEqualStrings("Grog", std.mem.span(params[0]));
-    try std.testing.expectEqualStrings("3", std.mem.span(params[1]));
-    try std.testing.expectEqualStrings("1", std.mem.span(params[2]));
-    try std.testing.expectEqualStrings("1", std.mem.span(params[3]));
+    try std.testing.expectEqualStrings("Grog", std.mem.span(params[0].?));
+    try std.testing.expectEqualStrings("3", std.mem.span(params[1].?));
+    try std.testing.expectEqualStrings("1", std.mem.span(params[2].?));
+    try std.testing.expectEqualStrings("1", std.mem.span(params[3].?));
 }
 
 test "getParamsWithId appends the id as the final parameter" {
@@ -568,9 +580,11 @@ test "getParamsWithId appends the id as the final parameter" {
     // The id position must match the placeholder getSetClauses generates.
     const params = try Database.getParamsWithId(gpa, Kin.Update, .{ .name = "Elf", .icon = 1, .movement = 10 }, 9);
     defer {
-        for (params) |param| gpa.free(std.mem.span(param));
+        for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        }
     }
 
-    try std.testing.expectEqualStrings("Elf", std.mem.span(params[0]));
-    try std.testing.expectEqualStrings("1", std.mem.span(params[1]));
+    try std.testing.expectEqualStrings("Elf", std.mem.span(params[0].?));
+    try std.testing.expectEqualStrings("1", std.mem.span(params[1].?));
 }
