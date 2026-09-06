@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "damage-bonuses.schema.json",
+    "title": "Damage bonuses",
+    "type": "object",
+    "required": ["version", "damage_bonuses"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "version": { "type": "string" },
+        "damage_bonuses": {
+            "type": "array",
+            "items": { "$ref": "damage-bonus.schema.json" },
+            "description": "Thresholds for each attribute. Below its first threshold, an attribute grants no bonus."
+        }
+    }
+}

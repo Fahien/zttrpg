@@ -31,6 +31,7 @@ pub fn main(init: std.process.Init) !void {
     try generate(init.io, gpa, Ages);
     try generate(init.io, gpa, AgeAttributes);
     try generate(init.io, gpa, MovementModifiers);
+    try generate(init.io, gpa, DamageBonuses);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -136,6 +137,22 @@ const MovementModifiers = struct {
     };
 
     movement_modifiers: []const Row,
+};
+
+const DamageBonuses = struct {
+    const table_name = "damage_bonuses";
+    const json_path = "src/data/damage-bonuses.json";
+    const out_path = "db/0035-damage-bonuses.sql";
+
+    const Row = struct {
+        const lookups = .{ .attribute = "attributes" };
+
+        attribute: []const u8,
+        min_value: []const u8,
+        die_sides: []const u8,
+    };
+
+    damage_bonuses: []const Row,
 };
 
 /// A join table: both columns hold ids, both come from names in the JSON.
@@ -308,7 +325,7 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
 const testing = std.testing;
 
 /// Every table this tool writes, for the checks below.
-const all_tables = .{ Configs, Ages, AgeAttributes, MovementModifiers, Icons, SkillKinds, Kins, Attributes, Skills };
+const all_tables = .{ Configs, Ages, AgeAttributes, MovementModifiers, DamageBonuses, Icons, SkillKinds, Kins, Attributes, Skills };
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {

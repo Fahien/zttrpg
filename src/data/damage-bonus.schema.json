@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "damage-bonus.schema.json",
+    "title": "Damage bonus",
+    "description": "One extra damage die when an attribute meets this threshold. The highest qualifying threshold applies.",
+    "type": "object",
+    "required": ["attribute", "min_value", "die_sides"],
+    "properties": {
+        "attribute": {
+            "$ref": "attribute-names.schema.json"
+        },
+        "min_value": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "The lowest attribute value that qualifies, inclusive."
+        },
+        "die_sides": {
+            "type": "string",
+            "pattern": "^([2-9]|[1-9][0-9]+)$",
+            "description": "Sides of the single extra die: 4 means +D4, 6 means +D6."
+        }
+    }
+}

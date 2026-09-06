@@ -1,0 +1,10 @@
+{
+    "$schema": "damage-bonuses.schema.json",
+    "version": "1.0",
+    "damage_bonuses": [
+        { "attribute": "Strength", "min_value": "13", "die_sides": "4" },
+        { "attribute": "Strength", "min_value": "17", "die_sides": "6" },
+        { "attribute": "Agility", "min_value": "13", "die_sides": "4" },
+        { "attribute": "Agility", "min_value": "17", "die_sides": "6" }
+    ]
+}
