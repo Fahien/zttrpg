@@ -23,12 +23,15 @@ let originalSpentMap = new Map();
 
 // The rules, read from their resources before the stepper is shown. The
 // database enforces them as well; knowing them here lets the page refuse a
-// click instead of a request, and preview what a click does to movement.
+// click instead of a request, and preview movement and damage bonuses.
 /** @type {number | null} */
 let attributeMax = null;
 
 /** @type {{ attribute: { id: number }, min_value: number, max_value: number, modifier: number }[] | null} */
 let movementModifiers = null;
+
+/** @type {{ attribute: number, min_value: number, die_sides: number }[] | null} */
+let damageBonusRules = null;
 
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 
@@ -90,16 +93,19 @@ function onInstanceLoaded(event) {
  */
 async function initAttributesUpdate(character) {
     adoptCharacter(character);
+    render();
 
     // The rules come from the same server as the sheet. Without them the
     // stepper stays hidden: a click the page cannot check is not offered.
     try {
-        const [max, bands] = await Promise.all([
+        const [max, bands, damageRules] = await Promise.all([
             fetchConfigValue('attribute_max'),
             fetchJson('/movement_modifiers'),
+            fetchJson('/damage_bonuses'),
         ]);
         attributeMax = max;
         movementModifiers = bands;
+        damageBonusRules = damageRules;
     } catch (error) {
         showStatus(`Rules not loaded: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -181,12 +187,34 @@ function deriveMovement(bands) {
     return movement;
 }
 
+/**
+ * Selects the highest qualifying threshold, using the saved value plus pending
+ * points. Mirrors deriveDamageBonuses in character.zig.
+ * @param {number} attributeId
+ * @param {NonNullable<typeof damageBonusRules>} rules
+ * @returns {number | null}
+ */
+function deriveDamageBonus(attributeId, rules) {
+    const value = (originalAttributeMap.get(attributeId) || 0) + (editAttributeMap.get(attributeId) || 0);
+    /** @type {typeof rules[number] | null} */
+    let selected = null;
+    for (const rule of rules) {
+        if (rule.attribute !== attributeId || value < rule.min_value) {
+            continue;
+        }
+        if (selected === null || rule.min_value > selected.min_value) {
+            selected = rule;
+        }
+    }
+    return selected === null ? null : selected.die_sides;
+}
+
 function render() {
     // Everything that spends points stays hidden until the rules are known and
     // there are points to spend. Keyed on the saved pool, not the remaining
     // one: spending the last point before submitting must not hide the
     // pending "+N".
-    const canSpend = attributeMax !== null && movementModifiers !== null && originalCharacter.attribute_points > 0;
+    const canSpend = attributeMax !== null && movementModifiers !== null && damageBonusRules !== null && originalCharacter.attribute_points > 0;
     for (const element of document.querySelectorAll('[data-requires-points]')) {
         if (element instanceof HTMLElement) {
             element.hidden = !canSpend;
@@ -245,6 +273,21 @@ function render() {
     if (movementElement && movementModifiers !== null) {
         const movement = totalPending() === 0 ? originalCharacter.movement : deriveMovement(movementModifiers);
         movementElement.textContent = String(movement);
+    }
+
+    // Rebuild from the adopted character so a submit can also change which
+    // attributes have bonuses. Saved values remain visible if rules fail to load.
+    const damageBonusList = document.getElementById('damage-bonuses');
+    if (damageBonusList) {
+        damageBonusList.replaceChildren();
+        for (const bonus of originalCharacter.damage_bonuses) {
+            const sides = totalPending() === 0 || damageBonusRules === null
+                ? bonus.die_sides
+                : deriveDamageBonus(bonus.attribute.id, damageBonusRules);
+            const li = document.createElement('li');
+            li.textContent = `${bonus.attribute.short}: ${sides === null ? '-' : `+D${sides}`}`;
+            damageBonusList.appendChild(li);
+        }
     }
 
     // Nothing pending means nothing to send: the button waits.

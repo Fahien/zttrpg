@@ -6,17 +6,7 @@
 
 const std = @import("std");
 
-pub const Resource = enum {
-    ages,
-    configs,
-    movement_modifiers,
-    characters,
-    kins,
-    skill_kinds,
-    skills,
-    icons,
-    attributes,
-};
+pub const Resource = @import("resource.zig").Resource;
 
 pub const ResourceItem = struct {
     resource: Resource,
@@ -206,9 +196,20 @@ test "every resource routes as a collection and as an item" {
     inline for (@typeInfo(Resource).@"enum".fields) |field| {
         const resource: Resource = @enumFromInt(field.value);
 
+        // Game concepts belong in Resource, never as their own route kinds.
+        try std.testing.expect(!@hasField(Route, field.name));
+
         try std.testing.expectEqual(
             Route{ .collection = resource },
             Route.parseRoute("/" ++ field.name),
+        );
+        try std.testing.expectEqual(
+            Route{ .collection = resource },
+            Route.parseRoute("/" ++ field.name ++ "/"),
+        );
+        try std.testing.expectEqual(
+            Route{ .collection = resource },
+            Route.parseRoute("/" ++ field.name ++ "?preview=1"),
         );
         try std.testing.expectEqual(
             Route{ .item = .{ .resource = resource, .id = 7 } },

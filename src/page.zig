@@ -10,7 +10,7 @@
 const std = @import("std");
 
 const Context = @import("context.zig").Context;
-const Resource = @import("route.zig").Resource;
+const Resource = @import("resource.zig").Resource;
 
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
@@ -138,11 +138,12 @@ test "replace substitutes every occurrence" {
     try std.testing.expectEqualStrings("nothing here", absent);
 }
 
-test "every resource ships its index and item pages" {
+test "every resource with HTML enabled ships its index and item pages" {
     // Pages are read from disk at request time, so a missing file would only
     // surface as a runtime 404. Embedding each expected page here makes
     // "resource without its HTML" fail the build instead.
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
+        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
         inline for (@typeInfo(Page).@"enum".fields) |page| {
             _ = @embedFile("web/" ++ resource.name ++ "/" ++ page.name ++ ".html");
         }
@@ -153,6 +154,7 @@ test "every page substitutes the partials this file writes in" {
     // servePage names these three; a page that spells one differently would
     // render with a literal {{header}} in it and nothing would fail.
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
+        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
         inline for (.{ "index", "item" }) |page| {
             const html = @embedFile("web/" ++ resource.name ++ "/" ++ page ++ ".html");
             inline for (.{ "{{head}}", "{{header}}", "{{footer}}" }) |placeholder| {
@@ -171,6 +173,7 @@ test "every page wires up the ids its shared script looks up" {
     // (#kin-details) still renders, so the break only shows up as a dead error
     // path in the browser: pin the contract at build time instead.
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
+        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
         const index_page = @embedFile("web/" ++ resource.name ++ "/index.html");
         for ([_][]const u8{ "resource-name", "roster" }) |id| {
             expectContainsId(index_page, id) catch |err| {
