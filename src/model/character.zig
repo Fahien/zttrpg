@@ -10,6 +10,7 @@ const Age = @import("age.zig").Age;
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
+const DamageBonus = @import("damage_bonus.zig").DamageBonus;
 
 pub const BodyError = error{ ValueOutOfRange, DuplicateEntry };
 
@@ -195,6 +196,39 @@ pub fn deriveMovement(base: u32, attributes: []const CharacterAttribute, bands: 
     return movement;
 }
 
+pub const CharacterDamageBonus = struct {
+    attribute: Attribute,
+    /// One extra die with this many sides; null means no bonus.
+    die_sides: ?u32,
+};
+
+/// Each configured attribute contributes one result, even below its first
+/// threshold. Select by threshold, independent of row order or die size.
+pub fn deriveDamageBonuses(gpa: Allocator, attributes: []const CharacterAttribute, rules: []const DamageBonus) ![]CharacterDamageBonus {
+    var bonuses: std.ArrayList(CharacterDamageBonus) = .empty;
+    errdefer bonuses.deinit(gpa);
+
+    for (attributes) |entry| {
+        var configured = false;
+        var selected: ?DamageBonus = null;
+        for (rules) |rule| {
+            if (rule.attribute != entry.attribute.id) continue;
+            configured = true;
+            if (entry.value < rule.min_value) continue;
+            if (selected == null or rule.min_value > selected.?.min_value) {
+                selected = rule;
+            }
+        }
+        if (configured) {
+            try bonuses.append(gpa, .{
+                .attribute = entry.attribute,
+                .die_sides = if (selected) |rule| rule.die_sides else null,
+            });
+        }
+    }
+    return bonuses.toOwnedSlice(gpa);
+}
+
 /// What arrives in a request.
 pub const BodyCharacter = struct {
     name: []const u8,
@@ -273,6 +307,7 @@ pub const Character = struct {
     attribute_points: u32,
     /// Derived from the kin and the sheet on every read: see deriveMovement.
     movement: i32,
+    damage_bonuses: []const CharacterDamageBonus,
     attributes: []const CharacterAttribute,
     skills: []const CharacterSkill,
 
@@ -283,6 +318,7 @@ pub const Character = struct {
         const summary = try CharacterSummary.fromRow(db, gpa, row);
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
         const bands = try db.readAllAlloc(gpa, MovementModifier);
+        const rules = try db.readAllAlloc(gpa, DamageBonus);
 
         return .{
             .id = summary.id,
@@ -292,6 +328,7 @@ pub const Character = struct {
             .age = summary.age,
             .attribute_points = row.attribute_points,
             .movement = deriveMovement(summary.kin.movement, attributes, bands),
+            .damage_bonuses = try deriveDamageBonuses(gpa, attributes, rules),
             .attributes = attributes,
             .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
         };
@@ -333,13 +370,14 @@ test "Character serializes to the JSON wire shape" {
         .age = age,
         .attribute_points = 54,
         .movement = 10,
+        .damage_bonuses = &.{},
         .attributes = &.{},
         .skills = &.{},
     };
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"movement":10,"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -559,4 +597,86 @@ test "movement ignores attributes no band names, and sheets without the banded o
 
     // No bands at all: movement is just the kin's.
     try std.testing.expectEqual(8, deriveMovement(8, &sheetWithAgility(18), &.{}));
+}
+
+const test_strength = Attribute{ .id = 42, .name = "Strength", .icon = .{ .id = 1, .name = "abacus" }, .short = "STR", .description = "Raw muscle." };
+
+// Deliberately unordered: neither SQL ordering nor fixed attribute ids are
+// part of the calculation's contract.
+const damage_rules = [_]DamageBonus{
+    .{ .attribute = test_agility.id, .min_value = 17, .die_sides = 6 },
+    .{ .attribute = test_strength.id, .min_value = 13, .die_sides = 4 },
+    .{ .attribute = test_agility.id, .min_value = 13, .die_sides = 4 },
+    .{ .attribute = test_strength.id, .min_value = 17, .die_sides = 6 },
+};
+
+test "damage bonuses include both threshold edges and have no upper limit" {
+    const cases = [_]struct { value: u32, expected: ?u32 }{
+        .{ .value = 0, .expected = null },
+        .{ .value = 12, .expected = null },
+        .{ .value = 13, .expected = 4 },
+        .{ .value = 16, .expected = 4 },
+        .{ .value = 17, .expected = 6 },
+        .{ .value = std.math.maxInt(u32), .expected = 6 },
+    };
+    for ([_]Attribute{ test_strength, test_agility }) |attribute| {
+        for (cases) |case| {
+            const sheet = [_]CharacterAttribute{
+                .{ .attribute = attribute, .base = case.value, .spent = 0, .modifier = 0, .value = case.value },
+            };
+            const bonuses = try deriveDamageBonuses(std.testing.allocator, &sheet, &damage_rules);
+            defer std.testing.allocator.free(bonuses);
+            try std.testing.expectEqual(1, bonuses.len);
+            try std.testing.expectEqual(attribute.id, bonuses[0].attribute.id);
+            try std.testing.expectEqual(case.expected, bonuses[0].die_sides);
+        }
+    }
+}
+
+test "damage bonuses use each attribute's final value independently" {
+    const sheet = [_]CharacterAttribute{
+        .{ .attribute = test_strength, .base = 13, .spent = 0, .modifier = -1, .value = 12 },
+        .{ .attribute = test_agility, .base = 12, .spent = 4, .modifier = 1, .value = 17 },
+    };
+    const bonuses = try deriveDamageBonuses(std.testing.allocator, &sheet, &damage_rules);
+    defer std.testing.allocator.free(bonuses);
+    try std.testing.expectEqual(2, bonuses.len);
+    try std.testing.expectEqual(test_strength.id, bonuses[0].attribute.id);
+    try std.testing.expectEqual(null, bonuses[0].die_sides);
+    try std.testing.expectEqual(test_agility.id, bonuses[1].attribute.id);
+    try std.testing.expectEqual(@as(?u32, 6), bonuses[1].die_sides);
+
+    var out = Io.Writer.Allocating.init(std.testing.allocator);
+    defer out.deinit();
+    try std.json.Stringify.value(bonuses, .{}, &out.writer);
+    try std.testing.expectEqualStrings(
+        \\[{"attribute":{"id":42,"name":"Strength","icon":{"id":1,"name":"abacus"},"short":"STR","description":"Raw muscle."},"die_sides":null},{"attribute":{"id":3,"name":"Agility","icon":{"id":1,"name":"abacus"},"short":"AGL","description":"Body control."},"die_sides":6}]
+    , out.written());
+}
+
+test "the highest qualifying threshold wins even if its die is smaller" {
+    const rules = [_]DamageBonus{
+        .{ .attribute = test_agility.id, .min_value = 17, .die_sides = 4 },
+        .{ .attribute = test_agility.id, .min_value = 13, .die_sides = 6 },
+    };
+    const bonuses = try deriveDamageBonuses(std.testing.allocator, &sheetWithAgility(18), &rules);
+    defer std.testing.allocator.free(bonuses);
+    try std.testing.expectEqual(@as(?u32, 4), bonuses[0].die_sides);
+}
+
+test "damage bonuses omit attributes without rules and rules without attributes" {
+    const strength_rules = [_]DamageBonus{
+        .{ .attribute = test_strength.id, .min_value = 13, .die_sides = 4 },
+    };
+    const unrelated = try deriveDamageBonuses(std.testing.allocator, &sheetWithAgility(18), &strength_rules);
+    defer std.testing.allocator.free(unrelated);
+    try std.testing.expectEqual(0, unrelated.len);
+
+    const no_rules = try deriveDamageBonuses(std.testing.allocator, &sheetWithAgility(18), &.{});
+    defer std.testing.allocator.free(no_rules);
+    try std.testing.expectEqual(0, no_rules.len);
+
+    const no_attributes = try deriveDamageBonuses(std.testing.allocator, &.{}, &damage_rules);
+    defer std.testing.allocator.free(no_attributes);
+    try std.testing.expectEqual(0, no_attributes.len);
 }

@@ -181,9 +181,11 @@ pub const Database = struct {
 
     /// Build the SELECT query dynamically based on the fields of the struct T.
     fn readAllQuery(comptime T: type) [:0]const u8 {
-        requireIdColumn(T);
+        // Composite keys supply their own ordering; other collections use id.
+        if (!@hasDecl(T, "order_by")) requireIdColumn(T);
         const cols = Database.getCols(RowOfT(T));
-        return "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " ORDER BY id";
+        const order_by = if (@hasDecl(T, "order_by")) T.order_by else "id";
+        return "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " ORDER BY " ++ order_by;
     }
 
     /// Every row of a table. Reading a subset that belongs to a parent is
@@ -406,7 +408,7 @@ pub const Database = struct {
 const all_models = .{ Character, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, attributes, skills", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, description", comptime Database.getCols(Skill));
     // Insert columns come from the Create type, which must never carry `id`:
@@ -493,6 +495,13 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     try std.testing.expectEqualStrings(
         "SELECT id, name, level, kin, age, attribute_points FROM characters ORDER BY id",
         comptime Database.readAllQuery(Character.Summary),
+    );
+}
+
+test "readAllQuery supports a table with a composite key" {
+    try std.testing.expectEqualStrings(
+        "SELECT attribute, min_value, die_sides FROM damage_bonuses ORDER BY attribute, min_value",
+        comptime Database.readAllQuery(model.DamageBonus),
     );
 }
 
