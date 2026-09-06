@@ -60,7 +60,12 @@
             <h2>Skills</h2>
             <ul data-list="skills">
                 <template>
-                    <li><span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span> <span data-field="skill.name"></span> <span data-field="value"></span></li>
+                    <li data-field="skill.id:data-skill-id">
+                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span data-field="skill.name"></span>
+                        <span data-field="value"></span>
+                        <small data-base-chance hidden></small>
+                    </li>
                 </template>
             </ul>
         </section>
