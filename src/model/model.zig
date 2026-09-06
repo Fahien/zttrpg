@@ -32,6 +32,9 @@ const skill = @import("skill.zig");
 pub const Skill = skill.Skill;
 pub const SkillKind = skill.SkillKind;
 
+const skill_base_chance = @import("skill_base_chance.zig");
+pub const SkillBaseChance = skill_base_chance.SkillBaseChance;
+
 test {
     // Test discovery is lazy: a file's tests are only collected when the file
     // is referenced from a test context, so name each model file here.
@@ -40,13 +43,14 @@ test {
     _ = character;
     _ = kin;
     _ = skill;
+    _ = skill_base_chance;
     _ = icon;
     _ = attribute;
     _ = damage_bonus;
 }
 
 /// Every model a query can return, including the two join-table rows.
-const all_models = .{ Age, Config, MovementModifier, DamageBonus, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind };
+const all_models = .{ Age, Config, MovementModifier, DamageBonus, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind, SkillBaseChance };
 
 test "a model that splits its stored shape says how to rebuild itself" {
     // Database.hydrate is generic: for any model whose Row differs from the

@@ -10,6 +10,7 @@ const Age = @import("age.zig").Age;
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
+const SkillBaseChance = @import("skill_base_chance.zig").SkillBaseChance;
 const DamageBonus = @import("damage_bonus.zig").DamageBonus;
 
 pub const BodyError = error{ ValueOutOfRange, DuplicateEntry };
@@ -117,16 +118,41 @@ pub const CharacterSkill = struct {
 
     skill: Skill,
     value: u32,
+    /// Derived from the character's saved attributes; null for an ability.
+    base_chance: ?u32,
 
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSkill {
         const skill = (try db.readItem(gpa, Skill, row.skill)) orelse return error.SkillNotFound;
+        const base_chance = if (skill.attribute != null) chance: {
+            const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.character);
+            const bands = try db.readAllAlloc(gpa, SkillBaseChance);
+            break :chance try deriveSkillBaseChance(skill, attributes, bands);
+        } else null;
 
         return .{
             .skill = skill,
             .value = row.value,
+            .base_chance = base_chance,
         };
     }
 };
+
+/// Use the governing attribute's final value, including spent points and age.
+/// Null means an ability has no governing attribute. A missing sheet entry or
+/// rule band is an error, since neither supplies a valid free skill level.
+pub fn deriveSkillBaseChance(skill: Skill, attributes: []const CharacterAttribute, bands: []const SkillBaseChance) error{ CharacterAttributeNotFound, SkillBaseChanceNotFound }!?u32 {
+    const attribute = skill.attribute orelse return null;
+    for (attributes) |entry| {
+        if (entry.attribute.id != attribute.id) continue;
+        for (bands) |band| {
+            if (entry.value >= band.min_value and entry.value <= band.max_value) {
+                return band.base_chance;
+            }
+        }
+        return error.SkillBaseChanceNotFound;
+    }
+    return error.CharacterAttributeNotFound;
+}
 
 /// A band of one attribute's values and what it adds to a character's
 /// movement. Rows rather than code, like age_attributes: which attribute drives
@@ -600,6 +626,115 @@ test "movement ignores attributes no band names, and sheets without the banded o
 }
 
 const test_strength = Attribute{ .id = 42, .name = "Strength", .icon = .{ .id = 1, .name = "abacus" }, .short = "STR", .description = "Raw muscle." };
+
+const test_acrobatics = Skill{
+    .id = 1,
+    .name = "Acrobatics",
+    .icon = .{ .id = 1, .name = "abacus" },
+    .kind = .{ .id = 1, .name = "Core" },
+    .attribute = test_agility,
+    .description = "Body control.",
+};
+
+test "CharacterSkill reads the owning character's base chance alongside its saved level" {
+    const TestDatabase = struct {
+        skill: Skill = test_acrobatics,
+        sheet: [1]CharacterAttribute = sheetWithAgility(13),
+        attribute_reads: usize = 0,
+        band_reads: usize = 0,
+
+        pub fn readItem(self: *@This(), _: Allocator, comptime T: type, id: u32) !?T {
+            return if (id == self.skill.id) self.skill else null;
+        }
+
+        pub fn readSubResource(self: *@This(), _: Allocator, comptime Parent: type, comptime Child: type, id: u32) ![]const Child {
+            try std.testing.expectEqual(Character, Parent);
+            try std.testing.expectEqual(@as(u32, 47), id);
+            self.attribute_reads += 1;
+            return &self.sheet;
+        }
+
+        pub fn readAllAlloc(self: *@This(), _: Allocator, comptime T: type) ![]const T {
+            self.band_reads += 1;
+            return &.{
+                .{ .min_value = 13, .max_value = 15, .base_chance = 6 },
+                .{ .min_value = 16, .max_value = 18, .base_chance = 7 },
+            };
+        }
+    };
+    var db = TestDatabase{};
+    const row = RowCharacterSkill{ .character = 47, .skill = test_acrobatics.id, .value = 12 };
+    const entry = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
+    try std.testing.expectEqual(@as(?u32, 6), entry.base_chance);
+    try std.testing.expectEqual(@as(u32, 12), entry.value);
+
+    // A new read uses the newly saved attribute, not the previous base chance.
+    db.sheet = sheetWithAgility(16);
+    const changed = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
+    try std.testing.expectEqual(@as(?u32, 7), changed.base_chance);
+    try std.testing.expectEqual(@as(u32, 12), changed.value);
+
+    // Abilities need neither the character's attributes nor the rule bands.
+    db.skill.attribute = null;
+    db.attribute_reads = 0;
+    db.band_reads = 0;
+    const ability = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
+    try std.testing.expect(ability.base_chance == null);
+    try std.testing.expectEqual(@as(usize, 0), db.attribute_reads);
+    try std.testing.expectEqual(@as(usize, 0), db.band_reads);
+}
+
+test "skill base chances match the rule data for every attribute value" {
+    const parsed = try std.json.parseFromSlice(
+        struct { skill_base_chances: []const SkillBaseChance },
+        std.testing.allocator,
+        @embedFile("../data/skill-base-chances.json"),
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+    const bands = parsed.value.skill_base_chances;
+    const expected = [_]u32{ 3, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 7 };
+    for (expected, 1..) |chance, value| {
+        const sheet = [_]CharacterAttribute{.{
+            .attribute = test_agility,
+            .base = 1,
+            .spent = @intCast(value - 1),
+            .modifier = 0,
+            .value = @intCast(value),
+        }};
+        try std.testing.expectEqual(@as(?u32, chance), try deriveSkillBaseChance(test_acrobatics, &sheet, bands));
+    }
+    for ([_]u32{ 0, 19 }) |value| {
+        const sheet = [_]CharacterAttribute{.{ .attribute = test_agility, .base = value, .spent = 0, .modifier = 0, .value = value }};
+        try std.testing.expectError(error.SkillBaseChanceNotFound, deriveSkillBaseChance(test_acrobatics, &sheet, bands));
+    }
+}
+
+test "skill base chance uses the linked attribute's final value and configured bands" {
+    const sheet = [_]CharacterAttribute{
+        .{ .attribute = test_strength, .base = 3, .spent = 15, .modifier = 0, .value = 18 },
+        .{ .attribute = test_agility, .base = 3, .spent = 12, .modifier = -2, .value = 13 },
+    };
+    // Unordered bands and a custom chance ensure the result comes from data.
+    const bands = [_]SkillBaseChance{
+        .{ .min_value = 16, .max_value = 18, .base_chance = 7 },
+        .{ .min_value = 13, .max_value = 15, .base_chance = 9 },
+    };
+    try std.testing.expectEqual(@as(?u32, 9), try deriveSkillBaseChance(test_acrobatics, &sheet, &bands));
+}
+
+test "an ability without an attribute has no base chance" {
+    var ability = test_acrobatics;
+    ability.attribute = null;
+    try std.testing.expectEqual(@as(?u32, null), try deriveSkillBaseChance(ability, &.{}, &.{}));
+}
+
+test "missing skill inputs do not silently grant a base chance" {
+    try std.testing.expectError(error.CharacterAttributeNotFound, deriveSkillBaseChance(test_acrobatics, &.{}, &.{}));
+    const unrelated = [_]CharacterAttribute{.{ .attribute = test_strength, .base = 3, .spent = 15, .modifier = 0, .value = 18 }};
+    try std.testing.expectError(error.CharacterAttributeNotFound, deriveSkillBaseChance(test_acrobatics, &unrelated, &.{}));
+    try std.testing.expectError(error.SkillBaseChanceNotFound, deriveSkillBaseChance(test_acrobatics, &sheetWithAgility(13), &.{}));
+}
 
 // Deliberately unordered: neither SQL ordering nor fixed attribute ids are
 // part of the calculation's contract.
