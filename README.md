@@ -1,6 +1,6 @@
 # ZTTRPG
 
-ZTTRPG is a web application for a tabletop role-playing game. It is written in Zig and stores its data in PostgreSQL. It keeps a roster of characters, each with a kin, a set of attributes, and a set of skills.
+ZTTRPG is a web application for a tabletop role-playing game. It is written in Zig and stores its data in PostgreSQL. It keeps a roster of characters, each with a kin, an age, a pool of attribute points to spend, a set of attributes, and a set of skills.
 
 Zig is the only toolchain. There is no `node_modules/`, no bundler, and no `package.json`: the browser assets are hand-written and served as they are.
 
@@ -60,11 +60,12 @@ A request enters at the accept loop, is parsed into a `Route`, and is answered b
 flowchart TB
     subgraph browser["Browser"]
         html["Pages<br/>one index.html and item.html per resource"]
-        js["roster.js, instance.js<br/>one pair of scripts for every resource,<br/>driven by data-* attributes"]
+        js["roster.js, instance.js<br/>one pair of scripts for every resource,<br/>driven by data-* attributes.<br/>A page with more to do adds its own,<br/>as the character sheet does."]
     end
 
     subgraph exe["Executable"]
-        main["main.zig<br/>accept loop, one arena per connection"]
+        main["main.zig<br/>accept loop, one task and<br/>one arena per connection"]
+        locked["locked.zig<br/>the one database connection,<br/>behind a mutex"]
         route["route.zig<br/>target string to Route union"]
         handler["handler.zig<br/>what each route does,<br/>and which model it acts on"]
         page["page.zig<br/>partials into HTML, static files"]
@@ -89,8 +90,9 @@ flowchart TB
     handler --> ctx
     page --> ctx
     handler -->|"resource name to model type"| models
-    ctx --> database
-    handler --> database
+    ctx --> locked
+    handler --> locked
+    locked --> database
 
     database -.->|"calls T.fromRow at run time.<br/>No import: db is anytype."| models
     database --> pq
@@ -103,7 +105,8 @@ The dotted arrow is the one edge worth explaining. `database.zig` names no model
 
 | File | Responsibility |
 |---|---|
-| `src/main.zig` | Accepts connections, reads one request, hands it to a handler. |
+| `src/main.zig` | Accepts connections, serves each in its own task, reads one request, hands it to a handler. Refuses with 503 past a fixed number in flight. |
+| `src/locked.zig` | The one libpq connection behind a mutex, so a statement from one request cannot land inside another's transaction. |
 | `src/route.zig` | Parses a target into a `Route`. Touches no database and no file. |
 | `src/handler.zig` | Decides what each route does. Maps a URL name to a model type. |
 | `src/page.zig` | Assembles pages from partials and serves static files. |
@@ -166,20 +169,32 @@ Each connection gets an arena. Every allocation a request makes comes from it, a
 
 A failed query carries a SQLSTATE, which `pq.zig` turns into a named error such as `UniqueViolation`. One function in `context.zig` maps every error to a status, so a duplicate name answers 409 rather than 500. The client gets a fixed message; the real error goes to the log.
 
+Rules that live in the database as triggers, because they read the `configs` table, raise with the SQLSTATE of a CHECK violation, so they reach the client as a 400 through the same map.
+
 ## Data model
 
 ```mermaid
 erDiagram
     icons ||--o{ kins : "icon"
+    icons ||--o{ ages : "icon"
     icons ||--o{ attributes : "icon"
     icons ||--o{ skills : "icon"
     skill_kinds ||--o{ skills : "kind"
+    ages ||--o{ age_attributes : "age"
+    attributes ||--o{ age_attributes : "attribute"
+    attributes ||--o{ movement_modifiers : "attribute"
     kins ||--o{ characters : "kin"
+    ages ||--o{ characters : "age"
     characters ||--o{ character_attributes : "character"
     attributes ||--o{ character_attributes : "attribute"
     characters ||--o{ character_skills : "character"
     skills ||--o{ character_skills : "skill"
 
+    configs {
+        int id PK
+        text name UK
+        text value
+    }
     icons {
         int id PK
         text name UK
@@ -188,6 +203,17 @@ erDiagram
         int id PK
         text name UK
         int icon FK
+        int movement
+    }
+    ages {
+        int id PK
+        text name UK
+        int icon FK
+    }
+    age_attributes {
+        int age PK "also a foreign key"
+        int attribute PK "also a foreign key"
+        int modifier
     }
     attributes {
         int id PK
@@ -195,6 +221,13 @@ erDiagram
         int icon FK
         text short
         text description
+    }
+    movement_modifiers {
+        int id PK
+        int attribute FK
+        int min_value
+        int max_value
+        int modifier
     }
     skill_kinds {
         int id PK
@@ -212,11 +245,16 @@ erDiagram
         text name UK
         int level
         int kin FK
+        int age FK
+        int attribute_points
     }
     character_attributes {
         int character PK "also a foreign key"
         int attribute PK "also a foreign key"
-        int value
+        int base
+        int spent
+        int modifier
+        int value "generated: base + spent + modifier"
     }
     character_skills {
         int character PK "also a foreign key"
@@ -225,9 +263,11 @@ erDiagram
     }
 ```
 
-The two join tables have no `id`: each is keyed by the pair of ids in it. Deleting a character deletes its values with it.
+The join tables have no `id`: each is keyed by the pair of ids in it. Deleting a character deletes its values with it.
 
-The validation rules in `src/model/` mirror the CHECK constraints in `db/`. Keep the two in step: the database enforces integrity, and the model gives the client a 400 instead of a 500.
+`configs` holds named text values that the database reads at write time. A rule that reads one cannot be a CHECK constraint, which sees a single row of a single table, so such rules are triggers. A character's movement is not stored: the server derives it on every read from the kin and the sheet.
+
+The validation rules in `src/model/` mirror the CHECK constraints in `db/`. Keep the two in step: the database enforces integrity, and the model gives the client a 400 instead of a 500. A rule that reads `configs` has no static mirror and is left to the database.
 
 ## Pages
 
@@ -239,6 +279,9 @@ The validation rules in `src/model/` mirror the CHECK constraints in `db/`. Keep
 | `/static/{file}` | A file from `src/web/static/`, such as the CSS, the JavaScript, and the icons. |
 
 Every roster page uses the same `roster.js`, and every record page the same `instance.js`. A page says which columns to show and where to find them with `data-*` attributes, so a new resource needs no new JavaScript.
+
+A page with more to do adds its own script. `instance.js` announces the loaded record as a `CustomEvent` on `document`, and the character page's `static/characters/attributes.js` listens for it.
+
 
 ## HTTP API
 
@@ -260,11 +303,13 @@ Note: the server compares the `Accept` header with the exact text `application/j
 | GET | `/characters/{id}/skills` | The character's skill values. |
 | PUT | `/characters/{id}/skills` | Write skill values, as one array. |
 
-`GET /characters/{id}` carries the character's attribute and skill values. `GET /characters` returns a summary of each character instead, without them.
+`GET /characters/{id}` carries the character's attribute and skill values, its remaining attribute points, and its derived movement. `GET /characters` returns a summary of each character instead, without them.
 
 A sub-collection is written as a whole array in one transaction, which is why a single value has no URL of its own. A body may name a subset: the values it leaves out keep what they had. If any value in the body names something the character does not have, none of them are written.
 
 Values come back ordered by the record they belong to, so a sheet reads the same way on every request and after every save.
+
+An attribute value is written as `spent`, the player's total on that attribute, not a change, so sending the same body twice is harmless. A write the database's rules refuse is a 400.
 
 ### Status codes
 
@@ -275,7 +320,9 @@ Values come back ordered by the record they belong to, so a sheet reads the same
 | 405 | The path does not support that method. |
 | 409 | A unique name is taken, or a delete would orphan rows that reference it. |
 | 413 | The body is too large. |
+| 431 | The request head is too large. |
 | 500 | Anything else. |
+| 503 | Too many connections are being served; try again. |
 
 ### Examples
 
@@ -300,6 +347,7 @@ curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
 | Path | Content |
 |---|---|
 | `src/main.zig` | The server loop. |
+| `src/locked.zig` | A value behind a mutex: the database connection. |
 | `src/route.zig` | URL parsing. |
 | `src/handler.zig` | What each route does. |
 | `src/page.zig` | HTML pages and static files. |
@@ -310,14 +358,14 @@ curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
 | `src/pq.zig` | Minimal Zig bindings for libpq. |
 | `src/migration.zig` | The migration tool. |
 | `src/icons.zig`, `src/sqls.zig` | Build-time generators for the icons and the seed SQL. |
-| `src/web/` | HTML pages, and the CSS, JavaScript, and icons in `static/`. |
-| `src/data/` | The JSON the seed SQL is generated from. |
+| `src/web/` | HTML pages, and the CSS, JavaScript, and icons in `static/`. The character sheet's script is `static/characters/attributes.js`. |
+| `src/data/` | The JSON the seed SQL is generated from, with a schema beside each file. |
 | `db/` | SQL migration files. |
 
 ## Known limitations
 
 - A record is hydrated one referenced row at a time, so reading a character's sheet costs a query per value on it. Only a page showing a sheet pays that, but it wants a join or a batched lookup. See [A request, end to end](#a-request-end-to-end).
-- The server handles one connection at a time and closes it after a single request.
+- Connections are served concurrently up to a fixed number; past it, a connection is answered 503. Every connection is closed after a single request.
 
 ## License
 
