@@ -24,6 +24,9 @@ pub fn main(init: std.process.Init) !void {
 
     try generate(init.io, gpa, Configs);
     try generate(init.io, gpa, Icons);
+    try generate(init.io, gpa, ItemKinds);
+    try generate(init.io, gpa, ItemSupplies);
+    try generate(init.io, gpa, Items);
     try generate(init.io, gpa, Kins);
     try generate(init.io, gpa, Attributes);
     try generate(init.io, gpa, SkillKinds);
@@ -36,12 +39,12 @@ pub fn main(init: std.process.Init) !void {
 }
 
 // The tables. Each names its JSON source, its output file, and the single
-// property of that JSON holding the list to insert. A row of plain strings is
+// property of those JSON files holding the list to insert. A row of plain strings is
 // a list of names; a row of struct fields is one column per field, in order.
 
 const Configs = struct {
     const table_name = "configs";
-    const json_path = "src/data/configs.json";
+    const json_paths = &[_][]const u8{"src/data/configs.json"};
     const out_path = "db/0001-configs.sql";
 
     const Row = struct {
@@ -55,15 +58,79 @@ const Configs = struct {
 /// A JSON Schema enumeration: a list of names and nothing else.
 const Icons = struct {
     const table_name = "icons";
-    const json_path = "src/data/icon-names.schema.json";
+    const json_paths = &[_][]const u8{"src/data/icon-names.schema.json"};
     const out_path = "db/0011-icons.sql";
 
     @"enum": []const []const u8,
 };
 
+const ItemKinds = struct {
+    const table_name = "item_kinds";
+    const json_paths = &[_][]const u8{"src/data/item/item-kinds.json"};
+    const out_path = "db/0021-item-kinds.sql";
+
+    const Row = struct {
+        const lookups = .{ .icon = "icons" };
+
+        name: []const u8,
+        icon: []const u8,
+    };
+
+    item_kinds: []const Row,
+};
+
+const ItemSupplies = struct {
+    const table_name = "item_supplies";
+    const json_paths = &[_][]const u8{"src/data/item/item-supplies.json"};
+    const out_path = "db/0022-item-supplies.sql";
+
+    const Row = struct {
+        name: []const u8,
+        color: []const u8,
+    };
+
+    item_supplies: []const Row,
+};
+
+const Items = struct {
+    const table_name = "items";
+    const json_paths = &[_][]const u8{
+        "src/data/item/animals.json",
+        "src/data/item/armor.json",
+        "src/data/item/clothes.json",
+        "src/data/item/containers.json",
+        "src/data/item/hunting-and-fishing.json",
+        "src/data/item/light-sources.json",
+        "src/data/item/means-of-travel.json",
+        "src/data/item/medicines.json",
+        "src/data/item/melee-weapons.json",
+        "src/data/item/musical-instruments.json",
+        "src/data/item/ranged-weapons.json",
+        "src/data/item/studies-and-magic.json",
+        "src/data/item/tools.json",
+        "src/data/item/trade-goods.json",
+    };
+    const out_path = "db/0023-items.sql";
+
+    const Row = struct {
+        const lookups = .{ .kind = "item_kinds", .supply = "item_supplies", .icon = "icons" };
+
+        name: []const u8,
+        icon: []const u8,
+        kind: []const u8,
+        cost: u32,
+        supply: []const u8,
+        weight: f64 = 1.0,
+        effect: ?[]const u8 = null,
+        description: []const u8,
+    };
+
+    items: []const Row,
+};
+
 const SkillKinds = struct {
     const table_name = "skill_kinds";
-    const json_path = "src/data/skill-kinds.schema.json";
+    const json_paths = &[_][]const u8{"src/data/skill-kinds.schema.json"};
     const out_path = "db/0051-skill-kinds.sql";
 
     @"enum": []const []const u8,
@@ -71,7 +138,7 @@ const SkillKinds = struct {
 
 const Kins = struct {
     const table_name = "kins";
-    const json_path = "src/data/kins.json";
+    const json_paths = &[_][]const u8{"src/data/kins.json"};
     const out_path = "db/0031-kins.sql";
 
     /// The JSON also carries a description, which the table has no column for.
@@ -91,7 +158,7 @@ const Kins = struct {
 
 const Attributes = struct {
     const table_name = "attributes";
-    const json_path = "src/data/attributes.json";
+    const json_paths = &[_][]const u8{"src/data/attributes.json"};
     const out_path = "db/0041-attributes.sql";
 
     const Row = struct {
@@ -108,7 +175,7 @@ const Attributes = struct {
 
 const Skills = struct {
     const table_name = "skills";
-    const json_path = "src/data/skills.json";
+    const json_paths = &[_][]const u8{"src/data/skills.json"};
     const out_path = "db/0052-skills.sql";
 
     const Row = struct {
@@ -126,7 +193,7 @@ const Skills = struct {
 
 const SkillBaseChances = struct {
     const table_name = "skill_base_chances";
-    const json_path = "src/data/skill-base-chances.json";
+    const json_paths = &[_][]const u8{"src/data/skill-base-chances.json"};
     const out_path = "db/0054-skill-base-chances.sql";
 
     const Row = struct {
@@ -140,7 +207,7 @@ const SkillBaseChances = struct {
 
 const MovementModifiers = struct {
     const table_name = "movement_modifiers";
-    const json_path = "src/data/movement-modifiers.json";
+    const json_paths = &[_][]const u8{"src/data/movement-modifiers.json"};
     const out_path = "db/0043-movement-modifiers.sql";
 
     const Row = struct {
@@ -157,7 +224,7 @@ const MovementModifiers = struct {
 
 const DamageBonuses = struct {
     const table_name = "damage_bonuses";
-    const json_path = "src/data/damage-bonuses.json";
+    const json_paths = &[_][]const u8{"src/data/damage-bonuses.json"};
     const out_path = "db/0045-damage-bonuses.sql";
 
     const Row = struct {
@@ -174,7 +241,7 @@ const DamageBonuses = struct {
 /// A join table: both columns hold ids, both come from names in the JSON.
 const AgeAttributes = struct {
     const table_name = "age_attributes";
-    const json_path = "src/data/age-attributes.json";
+    const json_paths = &[_][]const u8{"src/data/age-attributes.json"};
     const out_path = "db/0063-age-attributes.sql";
 
     const Row = struct {
@@ -190,7 +257,7 @@ const AgeAttributes = struct {
 
 const Ages = struct {
     const table_name = "ages";
-    const json_path = "src/data/ages.json";
+    const json_paths = &[_][]const u8{"src/data/ages.json"};
     const out_path = "db/0061-ages.sql";
 
     const Row = struct {
@@ -203,13 +270,28 @@ const Ages = struct {
     ages: []const Row,
 };
 
+const TwoConfigFiles = struct {
+    const json_paths = &[_][]const u8{
+        "src/data/configs.json",
+        "src/data/configs.json",
+    };
+
+    configs: []const Configs.Row,
+};
+
+const MissingConfigFile = struct {
+    const json_paths = &[_][]const u8{"src/data/does-not-exist.json"};
+
+    configs: []const Configs.Row,
+};
+
 /// Reads one table's JSON and writes its INSERT statement.
 fn generate(io: Io, gpa: Allocator, comptime Table: type) !void {
     const table = try readJson(io, gpa, Table);
 
     const rows = @field(table, listField(Table).name);
     if (rows.len == 0) {
-        std.log.err("{s} lists no rows", .{Table.json_path});
+        std.log.err("{s} lists no rows", .{Table.table_name});
         return error.NoRows;
     }
 
@@ -224,9 +306,7 @@ fn generate(io: Io, gpa: Allocator, comptime Table: type) !void {
         if (i > 0) try sql.appendSlice(gpa, ",\n");
 
         appendRow(gpa, &sql, Row, row) catch |err| {
-            // Reported here because this is the layer that knows which file the
-            // offending value came from.
-            std.log.err("{s}: row {d}: {}", .{ Table.json_path, i, err });
+            std.log.err("{s}: row {d}: {}", .{ Table.table_name, i, err });
             return err;
         };
     }
@@ -277,29 +357,81 @@ fn appendRow(gpa: Allocator, sql: *std.ArrayList(u8), comptime Row: type, row: R
     } else {
         inline for (@typeInfo(Row).@"struct".fields, 0..) |field, i| {
             if (i > 0) try sql.appendSlice(gpa, ", ");
-            try appendValue(gpa, sql, comptime lookupOf(Row, field.name), @field(row, field.name));
+            try maybeAppendValue(gpa, sql, comptime lookupOf(Row, field.name), @field(row, field.name));
         }
     }
 
     try sql.appendSlice(gpa, ")");
 }
 
+fn maybeAppendValue(
+    gpa: Allocator,
+    sql: *std.ArrayList(u8),
+    comptime lookup_table: ?[]const u8,
+    value: anytype,
+) !void {
+    switch (@typeInfo(@TypeOf(value))) {
+        .optional => {
+            if (value == null) {
+                try sql.appendSlice(gpa, "NULL");
+            } else {
+                try appendValue(gpa, sql, lookup_table, value.?);
+            }
+        },
+        .null => {
+            try sql.appendSlice(gpa, "NULL");
+        },
+        else => {
+            try appendValue(gpa, sql, lookup_table, value);
+        },
+    }
+}
+
 fn appendValue(
     gpa: Allocator,
     sql: *std.ArrayList(u8),
     comptime lookup_table: ?[]const u8,
-    value: ?[]const u8,
+    value: anytype,
 ) !void {
-    const present = value orelse {
-        try sql.appendSlice(gpa, "NULL");
-        return;
-    };
+    switch (@typeInfo(@TypeOf(value))) {
+        .optional => {
+            @compileError("use maybeAppendValue to pass optional value");
+        },
+        .pointer => |ptr| {
+            switch (ptr.size) {
+                .slice => {
+                    if (ptr.child == u8) {
+                        try appendSlice(gpa, sql, lookup_table, value);
+                    } else {
+                        @compileError("unsupported pointer type: " ++ @typeName(@TypeOf(value)));
+                    }
+                },
+                else => {
+                    @compileError("unsupported pointer type: " ++ @typeName(@TypeOf(value)));
+                },
+            }
+        },
+        .int => {
+            const val_str = try std.fmt.allocPrint(gpa, "{}", .{value});
+            try sql.appendSlice(gpa, val_str);
+        },
+        .float => {
+            const val_str = try std.fmt.allocPrint(gpa, "{}", .{value});
+            try sql.appendSlice(gpa, val_str);
+        },
+        else => {
+            @compileError("unsupported value type: " ++ @typeName(@TypeOf(value)));
+        },
+    }
+}
+
+fn appendSlice(gpa: Allocator, sql: *std.ArrayList(u8), comptime lookup_table: ?[]const u8, slice: []const u8) !void {
     if (lookup_table) |referenced| {
         try sql.appendSlice(gpa, "(SELECT id FROM " ++ referenced ++ " WHERE name = ");
-        try appendQuoted(gpa, sql, present);
+        try appendQuoted(gpa, sql, slice);
         try sql.appendSlice(gpa, " LIMIT 1)");
     } else {
-        try appendQuoted(gpa, sql, present);
+        try appendQuoted(gpa, sql, slice);
     }
 }
 
@@ -322,7 +454,23 @@ fn appendQuoted(gpa: Allocator, sql: *std.ArrayList(u8), value: []const u8) !voi
 }
 
 fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
-    const file = try Io.Dir.cwd().openFile(io, Table.json_path, .{ .mode = .read_only });
+    const field = comptime listField(Table);
+    const Row = @typeInfo(field.type).pointer.child;
+    var rows = std.ArrayList(Row).empty;
+    defer rows.deinit(gpa);
+
+    inline for (Table.json_paths) |json_path| {
+        const table = try readJsonFile(io, gpa, Table, json_path);
+        try rows.appendSlice(gpa, @field(table, field.name));
+    }
+
+    var table: Table = undefined;
+    @field(table, field.name) = try rows.toOwnedSlice(gpa);
+    return table;
+}
+
+fn readJsonFile(io: Io, gpa: Allocator, comptime Table: type, json_path: []const u8) !Table {
+    const file = try Io.Dir.cwd().openFile(io, json_path, .{ .mode = .read_only });
     defer file.close(io);
 
     var staging_buffer: [1024]u8 = undefined;
@@ -331,21 +479,39 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
     var json_reader = std.json.Reader.init(gpa, &file_reader.interface);
     defer json_reader.deinit();
 
+    var diagnostics = std.json.Diagnostics{};
+    json_reader.enableDiagnostics(&diagnostics);
+
     return std.json.parseFromTokenSourceLeaky(
         Table,
         gpa,
         &json_reader,
         .{ .ignore_unknown_fields = true },
     ) catch |err| {
-        std.log.err("{s}: {}", .{ Table.json_path, err });
-        return error.MalformedMetadata;
+        std.log.err("{s}:{}:{}", .{ json_path, diagnostics.getLine(), diagnostics.getColumn() });
+        return err;
     };
 }
 
 const testing = std.testing;
 
 /// Every table this tool writes, for the checks below.
-const all_tables = .{ Configs, Ages, AgeAttributes, MovementModifiers, DamageBonuses, Icons, SkillKinds, Kins, Attributes, Skills, SkillBaseChances };
+const all_tables = .{
+    Configs,
+    Icons,
+    ItemKinds,
+    ItemSupplies,
+    Items,
+    Kins,
+    Attributes,
+    MovementModifiers,
+    DamageBonuses,
+    SkillKinds,
+    Skills,
+    SkillBaseChances,
+    Ages,
+    AgeAttributes,
+};
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {
@@ -357,8 +523,37 @@ test "every table names exactly one JSON property to read its rows from" {
 
         try testing.expect(Table.table_name.len > 0);
         try testing.expect(std.mem.endsWith(u8, Table.out_path, ".sql"));
-        try testing.expect(std.mem.endsWith(u8, Table.json_path, ".json"));
+        try testing.expect(Table.json_paths.len > 0);
+        inline for (Table.json_paths) |json_path| {
+            try testing.expect(std.mem.endsWith(u8, json_path, ".json"));
+        }
     }
+}
+
+test "readJson preserves each path's rows in declared order" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const gpa = arena.allocator();
+
+    const one_file = try readJson(testing.io, gpa, Configs);
+    const two_files = try readJson(testing.io, gpa, TwoConfigFiles);
+
+    try testing.expectEqual(@as(usize, 4), one_file.configs.len);
+    try testing.expectEqual(one_file.configs.len * 2, two_files.configs.len);
+    for (one_file.configs, 0..) |row, i| {
+        try testing.expectEqualStrings(row.name, two_files.configs[i].name);
+        try testing.expectEqualStrings(row.name, two_files.configs[i + one_file.configs.len].name);
+    }
+}
+
+test "readJson propagates a missing source file" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    try testing.expectError(
+        error.FileNotFound,
+        readJson(testing.io, arena.allocator(), MissingConfigFile),
+    );
 }
 
 test "columns are the row's fields, in order" {

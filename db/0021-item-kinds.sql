@@ -1,0 +1,15 @@
+INSERT INTO item_kinds (name, icon) VALUES
+    ($val$Animal$val$, (SELECT id FROM icons WHERE name = $val$paw-print$val$ LIMIT 1)),
+    ($val$Armor$val$, (SELECT id FROM icons WHERE name = $val$breastplate$val$ LIMIT 1)),
+    ($val$Clothes$val$, (SELECT id FROM icons WHERE name = $val$shirt$val$ LIMIT 1)),
+    ($val$Container$val$, (SELECT id FROM icons WHERE name = $val$chest$val$ LIMIT 1)),
+    ($val$Hunting and fishing$val$, (SELECT id FROM icons WHERE name = $val$fishing-hook$val$ LIMIT 1)),
+    ($val$Light source$val$, (SELECT id FROM icons WHERE name = $val$torch$val$ LIMIT 1)),
+    ($val$Means of travel$val$, (SELECT id FROM icons WHERE name = $val$caravan$val$ LIMIT 1)),
+    ($val$Medicine$val$, (SELECT id FROM icons WHERE name = $val$potion-ball$val$ LIMIT 1)),
+    ($val$Melee weapon$val$, (SELECT id FROM icons WHERE name = $val$broadsword$val$ LIMIT 1)),
+    ($val$Musical instrument$val$, (SELECT id FROM icons WHERE name = $val$musical-notes$val$ LIMIT 1)),
+    ($val$Ranged weapon$val$, (SELECT id FROM icons WHERE name = $val$bow-arrow$val$ LIMIT 1)),
+    ($val$Studies and magic$val$, (SELECT id FROM icons WHERE name = $val$spell-book$val$ LIMIT 1)),
+    ($val$Tool$val$, (SELECT id FROM icons WHERE name = $val$wrench$val$ LIMIT 1)),
+    ($val$Trade good$val$, (SELECT id FROM icons WHERE name = $val$coins$val$ LIMIT 1));
