@@ -40,7 +40,7 @@ pub const BodyCharacterAttribute = struct {
 
     /// Nothing to check on one element. The floor is the type, and the ceiling
     /// and the pool are configuration only the database can read, so it
-    /// enforces them: see db/0072 and db/0073.
+    /// enforces them through the character attribute CHECK constraints.
     pub fn validate(_: *const BodyCharacterAttribute) error{}!void {}
 
     /// An empty body is a legal no-op: saving a sheet nobody edited.
@@ -51,7 +51,7 @@ pub const BodyCharacterAttribute = struct {
 
 /// Flat SQL row for the character_attributes table. `value` is a generated
 /// column, base + spent + modifier, read back rather than computed here so the
-/// formula exists once, in db/0070.
+/// formula exists once in the database as a generated column.
 pub const RowCharacterAttribute = struct {
     character: Character.Id,
     attribute: Attribute.Id,
@@ -163,7 +163,7 @@ pub const BodyMovementModifier = struct {
     max_value: u32,
     modifier: i32,
 
-    // Mirrors the CHECK constraint in db/0032-movement-modifiers.sql.
+    // Mirrors the movement modifier table's CHECK constraint.
     pub fn validate(self: *const BodyMovementModifier) error{BandOutOfOrder}!void {
         if (self.min_value > self.max_value) return error.BandOutOfOrder;
     }
@@ -262,7 +262,7 @@ pub const BodyCharacter = struct {
     kin: Kin.Id,
     age: Age.Id,
 
-    // Mirrors the CHECK constraints in db/0001-characters.sql: the database
+    // Mirrors the characters table's CHECK constraints: the database
     // enforces integrity, this gives clients a 400 instead of a 500.
     pub fn validate(self: *const BodyCharacter) error{ EmptyName, LevelOutOfRange }!void {
         if (self.name.len == 0) return error.EmptyName;
@@ -520,7 +520,7 @@ test "validateAll accepts an empty body" {
 }
 
 test "validate rejects values the CHECK constraint would reject" {
-    // db/0080-character-skills.sql says `value >= 0 AND value < 1024`, so
+    // The character skills table says `value >= 0 AND value < 1024`, so
     // 1023 is the largest legal value and 1024 must never reach Postgres.
     const highest_legal = BodyCharacterSkill{ .skill = 1, .value = 1023 };
     try highest_legal.validate();
@@ -531,7 +531,7 @@ test "validate rejects values the CHECK constraint would reject" {
 
 test "an attribute body has no static rule to check" {
     // The ceiling and the pool live in the configs table, which only the
-    // database can read, so db/0072 and db/0073 enforce them and a 1024 here
+    // database can read, so the character attribute constraints enforce them and a 1024 here
     // is refused there with a 400. Validation keeps the one rule Postgres
     // cannot see, a repeated key, in validateAll.
     const anything = BodyCharacterAttribute{ .attribute = 1, .spent = 1024 };
@@ -589,7 +589,7 @@ fn sheetWithAgility(value: u32) [1]CharacterAttribute {
 }
 
 test "a band's edges must be in order" {
-    // db/0032-movement-modifiers.sql says `min_value <= max_value`.
+    // The movement modifier table says `min_value <= max_value`.
     const ordered = BodyMovementModifier{ .attribute = 3, .min_value = 7, .max_value = 9, .modifier = -2 };
     try ordered.validate();
 

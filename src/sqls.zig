@@ -64,7 +64,7 @@ const Icons = struct {
 const SkillKinds = struct {
     const table_name = "skill_kinds";
     const json_path = "src/data/skill-kinds.schema.json";
-    const out_path = "db/0041-skill-kinds.sql";
+    const out_path = "db/0051-skill-kinds.sql";
 
     @"enum": []const []const u8,
 };
@@ -72,7 +72,7 @@ const SkillKinds = struct {
 const Kins = struct {
     const table_name = "kins";
     const json_path = "src/data/kins.json";
-    const out_path = "db/0021-kins.sql";
+    const out_path = "db/0031-kins.sql";
 
     /// The JSON also carries a description, which the table has no column for.
     /// Unknown properties are ignored, so leaving it out here is enough.
@@ -92,7 +92,7 @@ const Kins = struct {
 const Attributes = struct {
     const table_name = "attributes";
     const json_path = "src/data/attributes.json";
-    const out_path = "db/0031-attributes.sql";
+    const out_path = "db/0041-attributes.sql";
 
     const Row = struct {
         const lookups = .{ .icon = "icons" };
@@ -109,7 +109,7 @@ const Attributes = struct {
 const Skills = struct {
     const table_name = "skills";
     const json_path = "src/data/skills.json";
-    const out_path = "db/0042-skills.sql";
+    const out_path = "db/0052-skills.sql";
 
     const Row = struct {
         const lookups = .{ .icon = "icons", .kind = "skill_kinds", .attribute = "attributes" };
@@ -127,7 +127,7 @@ const Skills = struct {
 const SkillBaseChances = struct {
     const table_name = "skill_base_chances";
     const json_path = "src/data/skill-base-chances.json";
-    const out_path = "db/0044-skill-base-chances.sql";
+    const out_path = "db/0054-skill-base-chances.sql";
 
     const Row = struct {
         min_value: []const u8,
@@ -141,7 +141,7 @@ const SkillBaseChances = struct {
 const MovementModifiers = struct {
     const table_name = "movement_modifiers";
     const json_path = "src/data/movement-modifiers.json";
-    const out_path = "db/0033-movement-modifiers.sql";
+    const out_path = "db/0043-movement-modifiers.sql";
 
     const Row = struct {
         const lookups = .{ .attribute = "attributes" };
@@ -158,7 +158,7 @@ const MovementModifiers = struct {
 const DamageBonuses = struct {
     const table_name = "damage_bonuses";
     const json_path = "src/data/damage-bonuses.json";
-    const out_path = "db/0035-damage-bonuses.sql";
+    const out_path = "db/0045-damage-bonuses.sql";
 
     const Row = struct {
         const lookups = .{ .attribute = "attributes" };
@@ -175,7 +175,7 @@ const DamageBonuses = struct {
 const AgeAttributes = struct {
     const table_name = "age_attributes";
     const json_path = "src/data/age-attributes.json";
-    const out_path = "db/0053-age-attributes.sql";
+    const out_path = "db/0063-age-attributes.sql";
 
     const Row = struct {
         const lookups = .{ .age = "ages", .attribute = "attributes" };
@@ -191,7 +191,7 @@ const AgeAttributes = struct {
 const Ages = struct {
     const table_name = "ages";
     const json_path = "src/data/ages.json";
-    const out_path = "db/0051-ages.sql";
+    const out_path = "db/0061-ages.sql";
 
     const Row = struct {
         const lookups = .{ .icon = "icons" };

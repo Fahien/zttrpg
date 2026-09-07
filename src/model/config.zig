@@ -9,7 +9,7 @@ pub const ConfigBody = struct {
     name: []const u8,
     value: []const u8,
 
-    // Mirrors the CHECK constraints in db/0000-configs.sql: the database
+    // Mirrors the configs table's CHECK constraints: the database
     // enforces integrity, this gives clients a 400 instead of a 500.
     pub fn validate(self: *const ConfigBody) error{ EmptyName, EmptyValue }!void {
         if (self.name.len == 0) return error.EmptyName;
@@ -21,7 +21,7 @@ pub const ConfigCreate = ConfigBody;
 pub const ConfigUpdate = ConfigBody;
 
 /// A rule of the game, read by the database at write time: the triggers in
-/// db/0071 to 0073 look these up by name, and the sheet page reads them to
+/// Database triggers look these up by name, and the sheet page reads them to
 /// refuse a click before it becomes a request. Values are text so one table
 /// holds every kind of setting; whoever reads one parses it.
 ///

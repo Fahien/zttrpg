@@ -13,7 +13,7 @@ pub const KinBody = struct {
     icon: Icon.Id,
     movement: u32,
 
-    // Mirrors the CHECK constraints in db/0020-kins.sql: the database enforces
+    // Mirrors the kins table's CHECK constraints: the database enforces
     // integrity, this gives clients a 400 instead of a 500.
     pub fn validate(self: *const KinBody) error{ EmptyName, MovementOutOfRange }!void {
         if (self.name.len == 0) return error.EmptyName;
@@ -74,7 +74,7 @@ test "KinCreate.validate rejects an empty name" {
 }
 
 test "KinCreate.validate rejects a kin that cannot move" {
-    // db/0020-kins.sql says `movement > 0`.
+    // The kins table says `movement > 0`.
     const kin = KinCreate{ .name = "Elf", .icon = 1, .movement = 0 };
     try std.testing.expectError(error.MovementOutOfRange, kin.validate());
 }
