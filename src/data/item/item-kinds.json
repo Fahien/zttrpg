@@ -1,0 +1,20 @@
+{
+    "$schema": "item-kinds.schema.json",
+    "version": "1.0",
+    "item_kinds": [
+        { "name": "Animal", "icon": "paw-print" },
+        { "name": "Armor", "icon": "breastplate" },
+        { "name": "Clothes", "icon": "shirt" },
+        { "name": "Container", "icon": "chest" },
+        { "name": "Hunting and fishing", "icon": "fishing-hook" },
+        { "name": "Light source", "icon": "torch" },
+        { "name": "Means of travel", "icon": "caravan" },
+        { "name": "Medicine", "icon": "potion-ball" },
+        { "name": "Melee weapon", "icon": "broadsword" },
+        { "name": "Musical instrument", "icon": "musical-notes" },
+        { "name": "Ranged weapon", "icon": "bow-arrow" },
+        { "name": "Studies and magic", "icon": "spell-book" },
+        { "name": "Tool", "icon": "wrench" },
+        { "name": "Trade good", "icon": "coins" }
+    ]
+}

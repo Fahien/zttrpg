@@ -1,0 +1,10 @@
+{
+    "$schema": "item-supplies.schema.json",
+    "version": "1.0",
+    "item_supplies": [
+        { "name": "common", "color": "#3a2f1e" },
+        { "name": "uncommon", "color": "#136000" },
+        { "name": "rare", "color": "#0a4fa0" },
+        { "name": "unique", "color": "#6b1fa8" }
+    ]
+}

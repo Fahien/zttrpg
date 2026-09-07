@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-supplies.schema.json",
+    "title": "Item Supplies",
+    "description": "A list of item supply levels",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the item supplies file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the item supplies file."
+        },
+        "item_supplies": {
+            "type": "array",
+            "items": {
+                "$ref": "item-supply.schema.json"
+            }
+        }
+    },
+    "required": [
+        "item_supplies"
+    ]
+}

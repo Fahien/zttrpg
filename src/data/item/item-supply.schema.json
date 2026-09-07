@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-supply.schema.json",
+    "title": "Item Supply",
+    "description": "An item supply level",
+    "type": "object",
+    "properties": {
+        "name": {
+            "$ref": "item-supply-names.schema.json"
+        },
+        "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "A six-digit RGB hex color."
+        }
+    },
+    "required": [
+        "name",
+        "color"
+    ],
+    "additionalProperties": false
+}

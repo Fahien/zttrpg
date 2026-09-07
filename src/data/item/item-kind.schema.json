@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-kind.schema.json",
+    "title": "Item Kind",
+    "description": "An item kind",
+    "type": "object",
+    "properties": {
+        "name": {
+            "$ref": "item-kind-names.schema.json"
+        },
+        "icon": {
+            "$ref": "../icon-names.schema.json",
+            "description": "The icon of the item kind."
+        }
+    },
+    "required": [
+        "name",
+        "icon"
+    ],
+    "additionalProperties": false
+}

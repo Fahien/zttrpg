@@ -21,7 +21,7 @@
             "description": "The icon of the item."
         },
         "kind": {
-            "$ref": "item-kinds.schema.json"
+            "$ref": "item-kind-names.schema.json"
         },
         "cost": {
             "type": "integer",
@@ -29,14 +29,8 @@
             "description": "The cost of the item in copper coins, the smallest coin."
         },
         "supply": {
-            "type": "string",
-            "description": "The supply level of the item.",
-            "enum": [
-                "common",
-                "uncommon",
-                "rare",
-                "unique"
-            ]
+            "$ref": "item-supply-names.schema.json",
+            "description": "The supply level of the item."
         },
         "weight": {
             "type": "number",

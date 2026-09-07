@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "item-supply-names.schema.json",
+    "title": "Item Supply Names",
+    "type": "string",
+    "description": "The name of an item supply level.",
+    "enum": [
+        "common",
+        "uncommon",
+        "rare",
+        "unique"
+    ]
+}
