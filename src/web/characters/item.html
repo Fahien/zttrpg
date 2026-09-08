@@ -1,80 +1,68 @@
-<!DOCTYPE html>
-<!--
----- © 2026 Antonio Caggiano
----- SPDX-License-Identifier: MIT
---->
-<html lang="en">
+<main id="instance-details">
+    <header>
+        <h1 data-field="name">Name</h1>
+        <p class="flex-row">
+            <span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span>
+            <span data-field="kin.name">Kin</span>
+            <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
+            <span data-field="age.name">Age</span>
+        </p>
+    </header>
 
-{{head}}
+    <section id="instance-stats">
+        <h2>Stats</h2>
+        <p>Level: <span data-field="level">1</span></p>
+        <p>Movement: <span data-field="movement">0</span></p>
 
-<body>
-    {{header}}
+        <h3>Damage Bonus</h3>
+        <ul id="damage-bonuses" class="plain-list" aria-live="polite"></ul>
 
-    <main id="instance-details">
-        <header>
-            <h1 data-field="name">Name</h1>
-            <p class="flex-row">
-                <span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span>
-                <span data-field="kin.name">Kin</span>
-                <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
-                <span data-field="age.name">Age</span>
-            </p>
-        </header>
-
-        <section id="instance-stats">
-            <h2>Stats</h2>
-            <p>Level: <span data-field="level">1</span></p>
-            <p>Movement: <span data-field="movement">0</span></p>
-
-            <h3>Damage Bonus</h3>
-            <ul id="damage-bonuses" class="plain-list" aria-live="polite"></ul>
-
-            <h3>Attributes</h3>
-            <!-- A callout, not an error: the player has points to spend. Hidden
+        <h3>Attributes</h3>
+        <!-- A callout, not an error: the player has points to spend. Hidden
                  with the rest of the stepper when the pool is empty. -->
-            <section class="notice" data-requires-points hidden>
-                <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
-            </section>
+        <section class="notice" data-requires-points hidden>
+            <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
+        </section>
 
-            <!-- One row per attribute: the saved value, the points pending on
+        <!-- One row per attribute: the saved value, the points pending on
                  it, and the stepper that moves them. Everything that spends
                  points starts hidden and is revealed only while the character
                  still has points to spend. -->
-            <ul class="plain-list" data-list="attributes">
-                <template>
-                    <li class="flex-row" data-field="attribute.id:data-attribute-id">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="attribute.icon.name:icon"></span></span>
-                        <span class="grow" data-field="attribute.name"></span>
-                        <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
-                        <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon" data-requires-points hidden></span>
-                        <button type="button" class="button-small" data-action="decrease-attribute" data-field="attribute.id:data-attribute-id" data-requires-points hidden>-</button>
-                        <button type="button" class="button-small" data-action="increase-attribute" data-field="attribute.id:data-attribute-id" data-requires-points hidden>+</button>
-                    </li>
-                </template>
-            </ul>
+        <ul class="plain-list" data-list="attributes">
+            <template>
+                <li class="flex-row" data-field="attribute.id:data-attribute-id">
+                    <span class="icon-frame" data-icon-size="1"><span
+                            data-field="attribute.icon.name:icon"></span></span>
+                    <span class="grow" data-field="attribute.name"></span>
+                    <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
+                    <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon"
+                        data-requires-points hidden></span>
+                    <button type="button" class="button-small" data-action="decrease-attribute"
+                        data-field="attribute.id:data-attribute-id" data-requires-points hidden>-</button>
+                    <button type="button" class="button-small" data-action="increase-attribute"
+                        data-field="attribute.id:data-attribute-id" data-requires-points hidden>+</button>
+                </li>
+            </template>
+        </ul>
 
-            <button type="button" id="submit-attributes" data-action="submit-attributes" data-requires-points hidden>Submit Attributes</button>
-        </section>
+        <button type="button" id="submit-attributes" data-action="submit-attributes" data-requires-points hidden>Submit
+            Attributes</button>
+    </section>
 
-        <section id="instance-skills">
-            <h2>Skills</h2>
-            <ul data-list="skills">
-                <template>
-                    <li data-field="skill.id:data-skill-id">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
-                        <span data-field="skill.name"></span>
-                        <span data-field="value"></span>
-                        <small data-base-chance hidden></small>
-                    </li>
-                </template>
-            </ul>
-        </section>
-    </main>
+    <section id="instance-skills">
+        <h2>Skills</h2>
+        <ul data-list="skills">
+            <template>
+                <li data-field="skill.id:data-skill-id">
+                    <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                    <span data-field="skill.name"></span>
+                    <span data-field="value"></span>
+                    <small data-base-chance hidden></small>
+                </li>
+            </template>
+        </ul>
+    </section>
+</main>
 
-    {{footer}}
-
-    <script src="/static/instance.js" data-resource="characters"></script>
-    <script src="/static/characters/attributes.js"></script>
-</body>
-
-</html>
+<script src="/static/instance.js" data-resource="characters"></script>
+<script src="/static/characters/attributes.js"></script>

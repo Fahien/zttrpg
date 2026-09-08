@@ -60,10 +60,17 @@ fn servePage(ctx: *Context, sub_path: []const u8, title: []const u8) !void {
     var web_dir = try Io.Dir.cwd().openDir(ctx.io, web_root, .{});
     defer web_dir.close(ctx.io);
 
+    // A missing layout is a server error: the requested page may exist, but it
+    // cannot be assembled without the shared document around it.
+    var layout = readFile(ctx, web_dir, "layout.html", max_file_size) catch {
+        return ctx.respondError(error.PartialMissing);
+    };
+
     // A missing page is a 404: the request named something that is not there.
-    var content = readFile(ctx, web_dir, sub_path, max_file_size) catch {
+    const content = readFile(ctx, web_dir, sub_path, max_file_size) catch {
         return ctx.notFound();
     };
+    layout = try replace(ctx.gpa, layout, "{{content}}", content);
 
     // A missing partial is different: every page needs them, so the page that
     // was asked for does exist and this server cannot assemble it.
@@ -71,12 +78,12 @@ fn servePage(ctx: *Context, sub_path: []const u8, title: []const u8) !void {
         const partial = readFile(ctx, web_dir, "partials/" ++ name ++ ".html", max_partial_size) catch {
             return ctx.respondError(error.PartialMissing);
         };
-        content = try replace(ctx.gpa, content, "{{" ++ name ++ "}}", partial);
+        layout = try replace(ctx.gpa, layout, "{{" ++ name ++ "}}", partial);
     }
 
-    content = try replace(ctx.gpa, content, "{{title}}", title);
+    layout = try replace(ctx.gpa, layout, "{{title}}", title);
 
-    try ctx.respondBytes("text/html", content);
+    try ctx.respondBytes("text/html", layout);
 }
 
 fn readFile(ctx: *Context, dir: Io.Dir, sub_path: []const u8, limit: usize) ![]u8 {
@@ -138,10 +145,12 @@ test "replace substitutes every occurrence" {
     try std.testing.expectEqualStrings("nothing here", absent);
 }
 
-test "every resource with HTML enabled ships its index and item pages" {
+test "the shared layout and every routed HTML fragment ship" {
     // Pages are read from disk at request time, so a missing file would only
-    // surface as a runtime 404. Embedding each expected page here makes
-    // "resource without its HTML" fail the build instead.
+    // surface as a runtime error. Embedding the layout and each expected
+    // fragment makes a missing file fail the build instead.
+    _ = @embedFile("web/layout.html");
+    _ = @embedFile("web/index.html");
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
         if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
         inline for (@typeInfo(Page).@"enum".fields) |page| {
@@ -150,19 +159,14 @@ test "every resource with HTML enabled ships its index and item pages" {
     }
 }
 
-test "every page substitutes the partials this file writes in" {
-    // servePage names these three; a page that spells one differently would
-    // render with a literal {{header}} in it and nothing would fail.
-    inline for (@typeInfo(Resource).@"enum".fields) |resource| {
-        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
-        inline for (.{ "index", "item" }) |page| {
-            const html = @embedFile("web/" ++ resource.name ++ "/" ++ page ++ ".html");
-            inline for (.{ "{{head}}", "{{header}}", "{{footer}}" }) |placeholder| {
-                if (std.mem.find(u8, html, placeholder) == null) {
-                    std.debug.print("{s}/{s}.html is missing {s}\n", .{ resource.name, page, placeholder });
-                    return error.MissingPlaceholder;
-                }
-            }
+test "the layout substitutes every shared component and page fragment" {
+    // servePage writes these placeholders into the layout. A misspelling would
+    // otherwise send every route a document missing its shared UI or content.
+    const layout = @embedFile("web/layout.html");
+    inline for (.{ "{{head}}", "{{header}}", "{{content}}", "{{footer}}" }) |placeholder| {
+        if (std.mem.find(u8, layout, placeholder) == null) {
+            std.debug.print("layout.html is missing {s}\n", .{placeholder});
+            return error.MissingPlaceholder;
         }
     }
 }

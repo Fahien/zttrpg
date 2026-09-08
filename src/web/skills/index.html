@@ -1,36 +1,20 @@
-<!DOCTYPE html>
-<!--
----- © 2026 Antonio Caggiano
----- SPDX-License-Identifier: MIT
---->
-<html lang="en">
+<h1 id="resource-name">Skills</h1>
+<form id="instance-form">
+    <label for="name">Skill Name:</label>
+    <input type="text" id="name" name="name" required>
+    <label for="icon">Icon:</label>
+    <select id="icon" name="icon" data-resource="icons" required></select>
+    <label for="kind">Kind:</label>
+    <select id="kind" name="kind" data-resource="skill_kinds" required></select>
+    <label for="attribute">Attribute:</label>
+    <select id="attribute" name="attribute" data-resource="attributes" data-nullable>
+        <option value="">None (ability)</option>
+    </select>
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description" required>
+    <button type="submit">Add Skill</button>
+</form>
+<table id="roster"></table>
 
-{{head}}
-
-<body>
-    {{header}}
-
-    <h1 id="resource-name">Skills</h1>
-    <form id="instance-form">
-        <label for="name">Skill Name:</label>
-        <input type="text" id="name" name="name" required>
-        <label for="icon">Icon:</label>
-        <select id="icon" name="icon" data-resource="icons" required></select>
-        <label for="kind">Kind:</label>
-        <select id="kind" name="kind" data-resource="skill_kinds" required></select>
-        <label for="attribute">Attribute:</label>
-        <select id="attribute" name="attribute" data-resource="attributes" data-nullable>
-            <option value="">None (ability)</option>
-        </select>
-        <label for="description">Description:</label>
-        <input type="text" id="description" name="description" required>
-        <button type="submit">Add Skill</button>
-    </form>
-    <table id="roster"></table>
-
-    {{footer}}
-
-    <script src="/static/roster.js" data-resource="skills" data-fields="icon.name:icon,name:text,kind.name:text,description:text"></script>
-</body>
-
-</html>
+<script src="/static/roster.js" data-resource="skills"
+    data-fields="icon.name:icon,name:text,kind.name:text,description:text"></script>
