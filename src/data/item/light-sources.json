@@ -9,7 +9,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 0,
-            "effect": "Required to light torches, candles, or lanterns, and to make a fire.",
+            "effect": "Needed to light a fire, or a torch, candle, or lantern.",
             "description": "A small kit containing flint and tinder, used to start fires."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 30,
             "supply": "common",
             "weight": 1,
-            "effect": "Holds ten doses. Each dose keeps an oil lamp or lantern burning for up to one shift of time.",
+            "effect": "Ten doses. One dose feeds an oil lamp or lantern for a shift.",
             "description": "A small jug of oil used to fuel lamps and lanterns."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 1000,
             "supply": "common",
             "weight": 1,
-            "effect": "Lights 10m radius for a shift, roll D8 each stretch. On 1 it goes out and needs refill.",
+            "effect": "Lights 10 meters around for a shift. Roll D8 each stretch; a 1 means it has gone out and wants refilling.",
             "description": "A metal lantern that can be used to light a small area."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Lights 10m radius for a shift, roll D6 each stretch. On 1 it goes out and needs refill.",
+            "effect": "Lights 10 meters around for a shift. Roll D6 each stretch; a 1 means it has gone out and wants refilling.",
             "description": "A small oil lamp that can be used to light a small area."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 1,
             "supply": "common",
             "weight": 0,
-            "effect": "Lights 4m radius for a shift, roll D4 each stretch. On 1 it goes out.",
+            "effect": "Lights 4 meters around for a shift. Roll D4 each stretch; a 1 means it has gone out.",
             "description": "A small candle made of tallow, used to provide light."
         },
         {
@@ -59,7 +59,7 @@
             "cost": 5,
             "supply": "common",
             "weight": 1,
-            "effect": "Lights 4m radius for a shift, roll D6 each stretch or used as weapon. On 1 it goes out.",
+            "effect": "Lights 4 meters around for a shift, or serves as a weapon. Roll D6 each stretch; a 1 means it has gone out.",
             "description": "A wooden stick with a cloth soaked in oil at one end, used to provide light."
         }
     ]

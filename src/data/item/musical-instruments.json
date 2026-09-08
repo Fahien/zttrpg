@@ -9,7 +9,7 @@
             "cost": 3000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Reduces the WP cost of the Music ability to 1 and increases range to 50 meters.",
+            "effect": "The MUSICIAN ability costs 1 WP and reaches 50 meters.",
             "description": "A traditional wind instrument made of a bag and pipes, often used in folk music."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 400,
             "supply": "common",
             "weight": 1,
-            "effect": "Increases range of the Music ability to 20 meters.",
+            "effect": "The MUSICIAN ability reaches 20 meters.",
             "description": "A percussion instrument made of a hollow body and a membrane, used in various musical styles."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 1,
-            "effect": "Reduces the WP cost of the Music ability to 2.",
+            "effect": "The MUSICIAN ability costs 2 WP.",
             "description": "A woodwind instrument made of a tube with holes, played by blowing air across an opening."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 800,
             "supply": "uncommon",
             "weight": 2,
-            "effect": "Reduces the WP cost of the Music ability to 1.",
+            "effect": "The MUSICIAN ability costs 1 WP.",
             "description": "A stringed instrument played by plucking the strings, often associated with classical music."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 600,
             "supply": "common",
             "weight": 1,
-            "effect": "Increases range of the Music ability to 100 meters.",
+            "effect": "The MUSICIAN ability reaches 100 meters.",
             "description": "A wind instrument made from an animal's horn or from metal, sounded by blowing into it."
         },
         {
@@ -59,7 +59,7 @@
             "cost": 2000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Reduces the WP cost of the Music ability to 1.",
+            "effect": "The MUSICIAN ability costs 1 WP.",
             "description": "A stringed instrument with a U-shaped body, often used in ancient music."
         }
     ]

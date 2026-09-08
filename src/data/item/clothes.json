@@ -9,7 +9,7 @@
             "cost": 200,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Protects against some journey mishaps (page 102).",
+            "effect": "Shields you from some journey mishaps (page 102).",
             "description": "Sturdy footwear designed for walking long distances.",
             "equip_slots": [
                 "boots"
@@ -22,7 +22,7 @@
             "cost": 80,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Protects against some journey mishaps (page 102).",
+            "effect": "Shields you from some journey mishaps (page 102).",
             "description": "A long, loose outer garment worn for warmth or protection.",
             "equip_slots": [
                 "cloak"
@@ -35,7 +35,7 @@
             "cost": 1000,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Boon on CHA-based skills when the GM finds it reasonable.",
+            "effect": "Boon on CHA-based skills where the GM agrees it helps.",
             "description": "Expensive and elegant clothing, often made from luxurious materials.",
             "equip_slots": [
                 "shirt"
@@ -48,7 +48,7 @@
             "cost": 100,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Boon on BUSHCRAFT for resisting cold (page 54).",
+            "effect": "Boon on BUSHCRAFT rolls against cold (page 54).",
             "description": "A garment made from animal fur, providing warmth and protection.",
             "equip_slots": [
                 "shirt"
@@ -61,7 +61,7 @@
             "cost": 5,
             "supply": "common",
             "weight": 0,
-            "effect": "Bane on CHA-based skills when the GM finds it reasonable.",
+            "effect": "Bane on CHA-based skills where the GM agrees it hurts.",
             "description": "Tattered and worn clothing, often associated with poverty or hardship.",
             "equip_slots": [
                 "shirt"
@@ -74,7 +74,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 0,
-            "effect": "Required to avoid a bane on CHA-based skills.",
+            "effect": "Without them, CHA-based skills take a bane.",
             "description": "Basic clothing suitable for everyday wear.",
             "equip_slots": [
                 "shirt"

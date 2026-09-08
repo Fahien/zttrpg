@@ -9,7 +9,7 @@
             "cost": 600,
             "supply": "common",
             "weight": 0,
-            "effect": "Can carry two people and 10 weight units.",
+            "effect": "Room for two people and 10 weight units.",
             "description": "A small, narrow boat, perfect for navigating rivers and lakes."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 1500,
             "supply": "common",
             "weight": 0,
-            "effect": "Pulled by one horse or donkey. Can carry two people and 50 weight units.",
+            "effect": "One horse or donkey pulls it. Room for two people and 50 weight units.",
             "description": "A wheeled vehicle, often used for transporting goods or people."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 1500,
             "supply": "common",
             "weight": 0,
-            "effect": "Can carry four people and 50 weight units.",
+            "effect": "Room for four people and 50 weight units.",
             "description": "A small boat powered by oars, suitable for lakes and rivers."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 4000,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Can carry six people and 100 weight units.",
+            "effect": "Room for six people and 100 weight units.",
             "description": "A boat powered by sails, ideal for open waters."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 3000,
             "supply": "common",
             "weight": 0,
-            "effect": "Pulled by two horses or donkeys. Can carry four people and 100 weight units.",
+            "effect": "Two horses or donkeys pull it. Room for four people and 100 weight units.",
             "description": "A large, four-wheeled vehicle, often used for transporting goods overland."
         }
     ]

@@ -8,7 +8,7 @@
             "kind": "Animal",
             "cost": 40,
             "supply": "common",
-            "effect": "Yields one ration of food when slaughtered (Cooking, page 103).",
+            "effect": "Slaughtered, it gives 1 ration (cooking, page 103).",
             "description": "A small domesticated bird, often kept for its eggs and meat."
         },
         {
@@ -18,7 +18,7 @@
             "cost": 40000,
             "supply": "rare",
             "weight": 0,
-            "effect": "Can carry one rider and 10 weight units, or two riders.",
+            "effect": "Carries a rider plus 10 weight units, or two riders.",
             "description": "A horse trained for battle, capable of carrying a rider and their gear."
         },
         {
@@ -28,7 +28,7 @@
             "cost": 1000,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Yields D4 rations of food (milk) per day, and 2D10 rations of food when slaughtered (Cooking, page 103).",
+            "effect": "Gives D4 rations of milk a day, and 2D10 rations when slaughtered (cooking, page 103).",
             "description": "A large domesticated animal, often kept for its milk and meat."
         },
         {
@@ -38,7 +38,7 @@
             "cost": 1200,
             "supply": "common",
             "weight": 0,
-            "effect": "Can carry 10 weight units. Cannot be ridden.",
+            "effect": "Carries 10 weight units. Not a mount.",
             "description": "A small, sturdy animal, often used for carrying loads."
         },
         {
@@ -48,7 +48,7 @@
             "cost": 1500,
             "supply": "common",
             "weight": 0,
-            "effect": "Protects its owner. For stats, see page 99.",
+            "effect": "Guards its owner. Stats on page 99.",
             "description": "A trained dog, often used for protection and companionship."
         },
         {
@@ -57,7 +57,7 @@
             "kind": "Animal",
             "cost": 200,
             "supply": "uncommon",
-            "effect": "Flies home to its dovecote when released, wherever it is.",
+            "effect": "Released anywhere, it flies back to its home loft.",
             "description": "A trained pigeon, often used for communication."
         },
         {
@@ -67,7 +67,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 0,
-            "effect": "Yields 2D6 rations of food when slaughtered (Cooking, page 103).",
+            "effect": "Slaughtered, it gives 2D6 rations (cooking, page 103).",
             "description": "A domesticated animal, often kept for its meat."
         },
         {
@@ -77,7 +77,7 @@
             "cost": 6000,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Can carry one rider and 10 weight units.",
+            "effect": "Carries a rider plus 10 weight units.",
             "description": "A horse trained for riding, capable of carrying a rider and their gear."
         },
         {
@@ -87,7 +87,7 @@
             "cost": 300,
             "supply": "common",
             "weight": 0,
-            "effect": "Yields 2D4 rations of food when slaughtered (Cooking, page 103).",
+            "effect": "Slaughtered, it gives 2D4 rations (cooking, page 103).",
             "description": "A domesticated animal, often kept for its wool and meat."
         }
     ]

@@ -8,7 +8,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 1,
-            "effect": "Boon on INT rolls for solving mathematical problems.",
+            "effect": "Boon on INT rolls for arithmetic.",
             "description": "A counting frame with beads that can be moved along rods. It is used for performing arithmetic calculations.",
             "kind": "Trade good"
         },
@@ -18,7 +18,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to avoid a bane on rolls to avoid the effects of cold (page 54).",
+            "effect": "Without one, rolls against the cold take a bane (page 54).",
             "description": "A large piece of woolen cloth used for warmth.",
             "kind": "Trade good"
         },
@@ -28,7 +28,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Opposed roll for INT determines who wins.",
+            "effect": "An opposed INT roll decides the winner.",
             "description": "A game played on a checkered board with pieces that move in different ways. It is used for strategic thinking and planning.",
             "kind": "Trade good"
         },
@@ -38,7 +38,7 @@
             "cost": 10,
             "supply": "common",
             "weight": 0,
-            "effect": "Chance determines who wins.",
+            "effect": "Luck alone decides the winner.",
             "description": "A small cube with numbers on each side. It is used for games of chance.",
             "kind": "Trade good"
         },
@@ -48,7 +48,7 @@
             "cost": 400,
             "supply": "common",
             "weight": 2,
-            "effect": "Boon on BUSHCRAFT rolls for cooking (page 103).",
+            "effect": "Cooking BUSHCRAFT rolls gain a boon (page 103).",
             "description": "A portable kitchen used for cooking food in the field.",
             "kind": "Trade good"
         },
@@ -58,7 +58,7 @@
             "cost": 10,
             "weight": 0.25,
             "supply": "common",
-            "effect": "Eat one per day, otherwise you become hungry (page 54).",
+            "effect": "One a day keeps hunger off (page 54).",
             "description": "A pre-packaged meal that can be eaten in the field.",
             "kind": "Trade good"
         },
@@ -68,7 +68,7 @@
             "cost": 300,
             "supply": "common",
             "weight": 1,
-            "effect": "Can be used to secure a rope. Can be thrown and secured with an ACROBATICS roll up to STR meters (STRx2 with a bane).",
+            "effect": "Anchors a rope. Thrown, it catches on an ACROBATICS roll at up to STR meters, or twice that with a bane.",
             "description": "A hook with a rope attached to it. It is used for climbing and securing objects.",
             "kind": "Trade good"
         },
@@ -78,7 +78,7 @@
             "cost": 2000,
             "supply": "rare",
             "weight": 1,
-            "effect": "Boon on SLEIGHT OF HAND rolls for picking locks.",
+            "effect": "Lockpicking SLEIGHT OF HAND rolls gain a boon.",
             "description": "A set of advanced tools used for picking locks. It is used for breaking and entering.",
             "kind": "Trade good"
         },
@@ -88,7 +88,7 @@
             "cost": 100,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Required to avoid a bane on SLEIGHT OF HAND rolls for picking locks.",
+            "effect": "Without them, lockpicking SLEIGHT OF HAND rolls take a bane.",
             "description": "A set of tools used for picking locks. It is used for breaking and entering.",
             "kind": "Trade good"
         },
@@ -98,7 +98,7 @@
             "cost": 3000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Boon on SPOT HIDDEN.",
+            "effect": "SPOT HIDDEN rolls gain a boon.",
             "description": "A glass lens used for magnifying small objects. It is used for examining details.",
             "kind": "Trade good"
         },
@@ -108,7 +108,7 @@
             "cost": 500,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Required to avoid a bane on BUSHCRAFT rolls for leading the way.",
+            "effect": "Without one, BUSHCRAFT rolls to lead the way take a bane.",
             "description": "A representation of an area of land. It is used for navigation.",
             "kind": "Trade good"
         },
@@ -118,7 +118,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Can be thrown at a humanoid enemy within 10 meters, as an action. Next turn the enemy must make an EVADE roll (not an action) in order to move.",
+            "effect": "As an action, scatter them at a humanoid within 10 meters. On its next turn it must pass an EVADE roll, no action needed, before it can move.",
             "description": "A small glass ball used for playing games. It is used for entertainment.",
             "kind": "Trade good"
         },
@@ -128,7 +128,7 @@
             "cost": 1000,
             "supply": "common",
             "weight": 1,
-            "effect": "Locks a door or chest. Can take 20 points of damage, armor rating 5.",
+            "effect": "Secures a door or chest. Armor rating 5, breaks after 20 damage.",
             "description": "A lock that can be used to secure a door or chest. It is used for security.",
             "kind": "Trade good"
         },
@@ -138,7 +138,7 @@
             "cost": 500,
             "supply": "common",
             "weight": 1,
-            "effect": "Boon on CHA-based skill rolls when the GM finds it reasonable.",
+            "effect": "Boon on CHA-based skill rolls where the GM agrees it helps.",
             "description": "A fragrant liquid used for scent. It is used for personal hygiene and attraction.",
             "kind": "Trade good"
         },
@@ -148,7 +148,7 @@
             "cost": 50,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Opposed roll for BLUFFING determines who wins.",
+            "effect": "An opposed BLUFFING roll decides the winner.",
             "description": "A set of cards used for playing games. It is used for entertainment.",
             "kind": "Trade good"
         },
@@ -158,7 +158,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to fire bows or crossbows.",
+            "effect": "Ammunition for bows and crossbows.",
             "description": "A container with iron head arrows. It is used for archery.",
             "kind": "Trade good"
         },
@@ -168,7 +168,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to fire bows or crossbows. The effectiveness of armor is doubled.",
+            "effect": "Ammunition for bows and crossbows. Armor counts double against them.",
             "description": "A container with wooden head arrows. It is used for archery.",
             "kind": "Trade good"
         },
@@ -178,7 +178,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Boon on ACROBATICS rolls for climbing, but the rope must be secured.",
+            "effect": "Climbing ACROBATICS rolls gain a boon once the rope is anchored.",
             "description": "A strong rope made of hemp. It is used for climbing and securing objects.",
             "kind": "Trade good"
         },
@@ -188,7 +188,7 @@
             "cost": 1000,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Boon on ACROBATICS rolls for climbing, but the rope must be secured.",
+            "effect": "Climbing ACROBATICS rolls gain a boon once the rope is anchored.",
             "description": "A strong rope made of silk. It is used for climbing and securing objects.",
             "kind": "Trade good"
         },
@@ -198,7 +198,7 @@
             "cost": 1000,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to avoid a bane when fighting from horseback.",
+            "effect": "Without one, fighting from horseback takes a bane.",
             "description": "A seat for a rider on a horse or other animal. It is used for riding.",
             "kind": "Trade good"
         },
@@ -208,7 +208,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to avoid a bane on BUSHCRAFT rolls for making camp.",
+            "effect": "Without one, BUSHCRAFT rolls to make camp take a bane.",
             "description": "A fur-lined bag used for sleeping. It is used for warmth and comfort.",
             "kind": "Trade good"
         },
@@ -218,7 +218,7 @@
             "cost": 5000,
             "supply": "rare",
             "weight": 1,
-            "effect": "Boon on BUSHCRAFT rolls for leading the way during journeys.",
+            "effect": "BUSHCRAFT rolls to lead the way on a journey gain a boon.",
             "description": "A telescope used for viewing distant objects. It is used for navigation and observation.",
             "kind": "Trade good"
         },
@@ -228,7 +228,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 2,
-            "effect": "Can accommodate up to two people. Grants a boon on BUSHCRAFT rolls for making camp. Only one person rolls, but others can help.",
+            "effect": "Sleeps two. BUSHCRAFT rolls to make camp gain a boon; one person rolls and the rest may help.",
             "description": "A portable shelter made of cloth or other material. It is used for camping.",
             "kind": "Trade good"
         },
@@ -238,7 +238,7 @@
             "cost": 400,
             "supply": "common",
             "weight": 4,
-            "effect": "Can accommodate up to six people. Grants a boon on BUSHCRAFT rolls for making camp. Only one person rolls, but others can help.",
+            "effect": "Sleeps six. BUSHCRAFT rolls to make camp gain a boon; one person rolls and the rest may help.",
             "description": "A larger portable shelter made of cloth or other material. It is used for camping.",
             "kind": "Trade good"
         },
@@ -248,7 +248,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 0,
-            "effect": "Can be heard from up to 100 meters away.",
+            "effect": "Carries 100 meters.",
             "description": "A small instrument that produces a high-pitched sound. It is used for signaling.",
             "kind": "Trade good"
         }

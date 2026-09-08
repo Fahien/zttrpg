@@ -22,7 +22,7 @@
             "armor": 2,
             "cost": 1000,
             "supply": "uncommon",
-            "effect": "Bane on SNEAKING rolls.",
+            "effect": "SNEAKING rolls take a bane.",
             "equip_slots": [
                 "armor"
             ]
@@ -35,7 +35,7 @@
             "armor": 4,
             "cost": 5000,
             "supply": "uncommon",
-            "effect": "Bane on EVADE and SNEAKING rolls.",
+            "effect": "EVADE and SNEAKING rolls take a bane.",
             "equip_slots": [
                 "armor"
             ]
@@ -48,7 +48,7 @@
             "armor": 6,
             "cost": 50000,
             "supply": "rare",
-            "effect": "Bane on ACROBATICS, EVADE, and SNEAKING rolls.",
+            "effect": "ACROBATICS, EVADE, and SNEAKING rolls take a bane.",
             "equip_slots": [
                 "armor"
             ]
@@ -61,7 +61,7 @@
             "armor": 1,
             "cost": 1200,
             "supply": "common",
-            "effect": "Bane on AWARENESS rolls.",
+            "effect": "AWARENESS rolls take a bane.",
             "equip_slots": [
                 "helmet"
             ]
@@ -74,7 +74,7 @@
             "armor": 2,
             "cost": 10000,
             "supply": "rare",
-            "effect": "Bane on AWARENESS and all ranged attacks.",
+            "effect": "AWARENESS rolls and every ranged attack take a bane.",
             "equip_slots": [
                 "helmet"
             ]

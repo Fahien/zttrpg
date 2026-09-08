@@ -9,7 +9,7 @@
             "cost": 300,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A small charm or pendant, often imbued with magical properties."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 2500,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Boon on skill rolls in a specific subject. The cost varies depending on the subject.",
+            "effect": "Boon on skill rolls about its subject. Price depends on the subject.",
             "description": "A tome filled with knowledge, often containing spells or ancient lore."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 500,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A decorative pin or clasp, often used to fasten clothing."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 1,
             "supply": "common",
             "weight": 0,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A piece of chalk, often used for drawing or writing on surfaces."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 5000,
             "supply": "unique",
             "weight": 1,
-            "effect": "The cost varies depending on the content and may be much higher.",
+            "effect": "Price depends on the contents and can run far higher.",
             "description": "A book of spells and magical knowledge, often written in an ancient language."
         },
         {
@@ -59,7 +59,7 @@
             "cost": 2500,
             "supply": "rare",
             "weight": 1,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A device used to measure time, often made of glass and sand."
         },
         {
@@ -69,7 +69,7 @@
             "cost": 500,
             "supply": "common",
             "weight": 1,
-            "effect": "Empty, can be used as a grimoire.",
+            "effect": "Blank. Works as a grimoire once filled.",
             "description": "A blank notebook, perfect for jotting down notes or sketches."
         },
         {
@@ -79,7 +79,7 @@
             "cost": 1800,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A crystal ball or orb, often used for divination or scrying."
         },
         {
@@ -89,7 +89,7 @@
             "cost": 20,
             "supply": "uncommon",
             "weight": 0,
-            "effect": "Can be used to write down spells.",
+            "effect": "For writing spells down.",
             "description": "A single sheet of paper, often used for writing or drawing."
         },
         {
@@ -99,7 +99,7 @@
             "cost": 10,
             "supply": "common",
             "weight": 0,
-            "effect": "Can be used to write down spells.",
+            "effect": "For writing spells down.",
             "description": "A piece of parchment, often used for writing or drawing."
         },
         {
@@ -109,7 +109,7 @@
             "cost": 1000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Can be used to write down spells.",
+            "effect": "For writing spells down.",
             "description": "A quill pen and ink, often used for writing or drawing."
         },
         {
@@ -119,7 +119,7 @@
             "cost": 500,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A container for holding relics or sacred objects, often used in religious practices."
         },
         {
@@ -129,7 +129,7 @@
             "cost": 1000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Can be used as a focus for spells.",
+            "effect": "Serves as a spell focus.",
             "description": "A slender stick or rod, often used as a magical focus or tool."
         }
     ]

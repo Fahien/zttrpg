@@ -9,7 +9,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 1,
-            "effect": "Autohit 2D6 damage against a door or wall. Takes no damage.",
+            "effect": "Hits a door or wall automatically for 2D6 and never breaks.",
             "description": "A heavy metal bar with a curved end, used for prying open doors or crates."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 100,
             "supply": "common",
             "weight": 1,
-            "effect": "Autohit 2D4 damage against a door or wall. Takes no damage.",
+            "effect": "Hits a door or wall automatically for 2D4 and never breaks.",
             "description": "A heavy metal hammer, used for driving nails or breaking things."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 30,
             "supply": "common",
             "weight": 0,
-            "effect": "Mends clothes with a CRAFTING roll.",
+            "effect": "Repairs clothing on a CRAFTING roll.",
             "description": "A small needle and a spool of thread, used for sewing or mending clothes."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 300,
             "supply": "common",
             "weight": 1,
-            "effect": "Autohit 2D8 damage against a door or wall. Takes no damage.",
+            "effect": "Hits a door or wall automatically for 2D8 and never breaks.",
             "description": "A heavy metal pickaxe, used for breaking rocks or digging."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 500,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Cuts metal or wood in one stretch.",
+            "effect": "Gets through wood or metal in a stretch.",
             "description": "A sharp saw, used for cutting wood or other materials."
         },
         {
@@ -59,7 +59,7 @@
             "cost": 200,
             "supply": "common",
             "weight": 1,
-            "effect": "Reduces the time spent digging by half.",
+            "effect": "Halves digging time.",
             "description": "A heavy shovel, used for digging or moving dirt."
         },
         {
@@ -69,7 +69,7 @@
             "cost": 300,
             "supply": "common",
             "weight": 2,
-            "effect": "Autohit 2D10 damage against a door or wall. Takes no damage.",
+            "effect": "Hits a door or wall automatically for 2D10 and never breaks.",
             "description": "A heavy sledgehammer, used for breaking down walls or doors."
         },
         {
@@ -79,7 +79,7 @@
             "cost": 2000,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Used for CRAFTING (page 34).",
+            "effect": "CRAFTING gear (page 34).",
             "description": "A set of tools used for blacksmithing, including a hammer, tongs, and anvil."
         },
         {
@@ -89,7 +89,7 @@
             "cost": 800,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Used for CRAFTING (page 34).",
+            "effect": "CRAFTING gear (page 34).",
             "description": "A set of tools used for carpentry, including saws, hammers, and chisels."
         },
         {
@@ -99,7 +99,7 @@
             "cost": 500,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Used for CRAFTING (page 34).",
+            "effect": "CRAFTING gear (page 34).",
             "description": "A set of tools used for tanning hides, including knives and scrapers."
         }
     ]

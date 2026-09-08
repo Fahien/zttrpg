@@ -9,7 +9,7 @@
             "cost": 50,
             "supply": "common",
             "weight": 1,
-            "effect": "Required to avoid a bane on HEALING rolls for saving lives. Each attempt consumes a bandage.",
+            "effect": "Without one, HEALING rolls to save a life take a bane. Each try uses one up.",
             "description": "A roll of bandages used for treating wounds."
         },
         {
@@ -19,7 +19,7 @@
             "cost": 100,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Boon on HEALING rolls for resisting disease (page 53).",
+            "effect": "Boon on HEALING rolls against disease (page 53).",
             "description": "A dose of herbal concoction used for treating diseases."
         },
         {
@@ -29,7 +29,7 @@
             "cost": 5000,
             "supply": "rare",
             "weight": 0,
-            "effect": "Instantly heals 2D6 HP.",
+            "effect": "Restores 2D6 HP on the spot.",
             "description": "A potion that instantly heals wounds."
         },
         {
@@ -39,7 +39,7 @@
             "cost": 200,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "See page 52.",
+            "effect": "Rules on page 52.",
             "description": "A dose of lethal poison that can be used to harm others."
         },
         {
@@ -49,7 +49,7 @@
             "cost": 120,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "See page 53.",
+            "effect": "Rules on page 53.",
             "description": "A dose of paralyzing poison that can be used to harm others."
         },
         {
@@ -59,7 +59,7 @@
             "cost": 60,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "See page 53.",
+            "effect": "Rules on page 53.",
             "description": "A dose of sleeping poison that can be used to harm others."
         },
         {
@@ -69,7 +69,7 @@
             "cost": 1500,
             "supply": "uncommon",
             "weight": 1,
-            "effect": "Boon on HEALING rolls for saving lives.",
+            "effect": "Boon on HEALING rolls to save a life.",
             "description": "A set of surgical instruments used for performing surgeries."
         }
     ]
