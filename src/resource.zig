@@ -15,6 +15,7 @@ pub const Definition = struct {
 };
 
 pub const Resource = enum {
+    item_supplies,
     ages,
     configs,
     movement_modifiers,
@@ -29,6 +30,7 @@ pub const Resource = enum {
     /// One registration ties a URL name to its model and supported operations.
     pub fn definition(comptime resource: Resource) Definition {
         return switch (resource) {
+            .item_supplies => .{ .Model = zttrpg.ItemSupply },
             .ages => .{ .Model = zttrpg.Age },
             .configs => .{ .Model = zttrpg.Config },
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },

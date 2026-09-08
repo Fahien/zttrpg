@@ -6,6 +6,9 @@ const std = @import("std");
 const config = @import("config.zig");
 pub const Config = config.Config;
 
+const item_supply = @import("item_supply.zig");
+pub const ItemSupply = item_supply.ItemSupply;
+
 const age = @import("age.zig");
 pub const Age = age.Age;
 

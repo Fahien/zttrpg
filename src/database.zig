@@ -226,6 +226,11 @@ pub const Database = struct {
         return ret;
     }
 
+    /// A model declares Row and fromRow when its stored and returned shapes differ.
+    /// For example, fromRow can expand foreign-key IDs into nested records.
+    /// Without Row, the database reads the model directly, so its fields must
+    /// match the stored columns.
+    ///
     /// Turns a stored row into the model it is served as.
     ///
     /// The query layer knows nothing about any particular model: a model whose
