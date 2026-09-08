@@ -7,6 +7,7 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 const Age = @import("age.zig").Age;
+const Profession = @import("profession.zig").Profession;
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
@@ -260,6 +261,7 @@ pub const BodyCharacter = struct {
     name: []const u8,
     level: u32,
     kin: Kin.Id,
+    profession: Profession.Id,
     age: Age.Id,
 
     // Mirrors the characters table's CHECK constraints: the database
@@ -277,6 +279,7 @@ pub const RowCharacter = struct {
     name: []const u8,
     level: u32,
     kin: Kin.Id,
+    profession: Profession.Id,
     age: Age.Id,
     attribute_points: u32,
 };
@@ -296,10 +299,12 @@ pub const CharacterSummary = struct {
     name: []const u8,
     level: u32,
     kin: Kin,
+    profession: Profession,
     age: Age,
 
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSummary {
         const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
+        const profession = (try db.readItem(gpa, Profession, row.profession)) orelse return error.ProfessionNotFound;
         const age = (try db.readItem(gpa, Age, row.age)) orelse return error.AgeNotFound;
 
         return .{
@@ -307,6 +312,7 @@ pub const CharacterSummary = struct {
             .name = row.name,
             .level = row.level,
             .kin = kin,
+            .profession = profession,
             .age = age,
         };
     }
@@ -329,6 +335,7 @@ pub const Character = struct {
     name: []const u8,
     level: u32,
     kin: Kin,
+    profession: Profession,
     age: Age,
     attribute_points: u32,
     /// Derived from the kin and the sheet on every read: see deriveMovement.
@@ -351,6 +358,7 @@ pub const Character = struct {
             .name = summary.name,
             .level = summary.level,
             .kin = summary.kin,
+            .profession = summary.profession,
             .age = summary.age,
             .attribute_points = row.attribute_points,
             .movement = deriveMovement(summary.kin.movement, attributes, bands),

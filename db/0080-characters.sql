@@ -20,10 +20,12 @@ CREATE TABLE characters (
     name TEXT UNIQUE NOT NULL,
     level INTEGER NOT NULL,
     kin INTEGER NOT NULL,
+    profession INTEGER NOT NULL,
     age INTEGER NOT NULL,
     attribute_points INTEGER NOT NULL DEFAULT configured_attribute_points(),
     CHECK (level >= 1 AND level <= 100),
     CHECK (name <> ''),
+    FOREIGN KEY (profession) REFERENCES professions(id),
     FOREIGN KEY (kin) REFERENCES kins(id),
     FOREIGN KEY (age) REFERENCES ages(id),
     CHECK (attribute_points >= 0)
