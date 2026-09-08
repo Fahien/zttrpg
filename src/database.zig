@@ -592,6 +592,7 @@ test "getParams renders fields as C strings in declaration order" {
         .name = "Grog",
         .level = 3,
         .kin = 1,
+        .profession = 1,
         .age = 1,
     });
     defer {

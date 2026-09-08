@@ -23,6 +23,10 @@
         "icon": {
             "$ref": "../icon-names.schema.json",
             "description": "The icon of the age."
+        },
+        "trained_skill_count": {
+            "type": "integer",
+            "description": "The number of trained skills for the age."
         }
     }
 }

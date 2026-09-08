@@ -6,6 +6,7 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+const Icon = @import("icon.zig").Icon;
 const Age = @import("age.zig").Age;
 const Profession = @import("profession.zig").Profession;
 const Kin = @import("kin.zig").Kin;
@@ -370,23 +371,53 @@ pub const Character = struct {
 };
 
 test "CreateCharacter.validate accepts a well-formed character" {
-    const character = CreateCharacter{ .name = "Grog", .level = 1, .kin = 1, .age = 1 };
+    const character = CreateCharacter{
+        .name = "Grog",
+        .level = 1,
+        .kin = 1,
+        .profession = 1,
+        .age = 1,
+    };
     try character.validate();
 }
 
 test "CreateCharacter.validate rejects an empty name" {
-    const character = CreateCharacter{ .name = "", .level = 3, .kin = 1, .age = 1 };
+    const character = CreateCharacter{
+        .name = "",
+        .level = 3,
+        .kin = 1,
+        .profession = 1,
+        .age = 1,
+    };
     try std.testing.expectError(error.EmptyName, character.validate());
 }
 
 test "CreateCharacter.validate rejects levels out of range" {
-    const zero = CreateCharacter{ .name = "Grog", .level = 0, .kin = 1, .age = 1 };
+    const zero = CreateCharacter{
+        .name = "Grog",
+        .level = 0,
+        .kin = 1,
+        .profession = 1,
+        .age = 1,
+    };
     try std.testing.expectError(error.LevelOutOfRange, zero.validate());
 
-    const too_high = CreateCharacter{ .name = "Grog", .level = 101, .kin = 1, .age = 1 };
+    const too_high = CreateCharacter{
+        .name = "Grog",
+        .level = 101,
+        .kin = 1,
+        .profession = 1,
+        .age = 1,
+    };
     try std.testing.expectError(error.LevelOutOfRange, too_high.validate());
 
-    const max = CreateCharacter{ .name = "Grog", .level = 100, .kin = 1, .age = 1 };
+    const max = CreateCharacter{
+        .name = "Grog",
+        .level = 100,
+        .kin = 1,
+        .profession = 1,
+        .age = 1,
+    };
     try max.validate();
 }
 
@@ -394,13 +425,16 @@ test "Character serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" }, .movement = 10 };
-    const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
+    const icon = Icon{ .id = 1, .name = "abacus" };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10 };
+    const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
+    const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
     const character = Character{
         .id = 1,
         .name = "Alice",
         .level = 2,
         .kin = kin,
+        .profession = profession,
         .age = age,
         .attribute_points = 54,
         .movement = 10,
@@ -411,7 +445,7 @@ test "Character serializes to the JSON wire shape" {
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}},"attribute_points":54,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -419,14 +453,16 @@ test "a summary is a character without its sheet" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = .{ .id = 1, .name = "abacus" }, .movement = 10 };
-    const age = Age{ .id = 1, .name = "Old", .icon = .{ .id = 1, .name = "abacus" } };
-    const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .age = age };
+    const icon = Icon{ .id = 1, .name = "abacus" };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10 };
+    const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
+    const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
+    const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .profession = profession, .age = age };
     try std.json.Stringify.value(summary, .{}, &out.writer);
 
     // The roster renders these four fields, so this is all a list has to carry.
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"}}}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8}}
     , out.written());
 }
 
@@ -434,7 +470,7 @@ test "CreateCharacter parses from a JSON body" {
     const parsed = try std.json.parseFromSlice(
         CreateCharacter,
         std.testing.allocator,
-        \\{"name":"Grog","level":3,"kin":1,"age":1}
+        \\{"name":"Grog","level":3,"kin":1,"profession":1,"age":1}
     ,
         .{},
     );
@@ -696,7 +732,7 @@ test "skill base chances match the rule data for every attribute value" {
     const parsed = try std.json.parseFromSlice(
         struct { skill_base_chances: []const SkillBaseChance },
         std.testing.allocator,
-        @embedFile("../data/skill-base-chances.json"),
+        @embedFile("../data/skill/skill-base-chances.json"),
         .{ .ignore_unknown_fields = true },
     );
     defer parsed.deinit();

@@ -4,15 +4,18 @@
     "ages": [
         {
             "name": "Young",
-            "icon": "baby-face"
+            "icon": "baby-face",
+            "trained_skill_count": 8
         },
         {
             "name": "Adult",
-            "icon": "person"
+            "icon": "person",
+            "trained_skill_count": 10
         },
         {
             "name": "Old",
-            "icon": "wizard-face"
+            "icon": "wizard-face",
+            "trained_skill_count": 12
         }
     ]
 }
