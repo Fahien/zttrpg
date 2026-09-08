@@ -197,16 +197,20 @@ CREATE FUNCTION save_character_creation(
 ) RETURNS VOID AS $fn$
 DECLARE
     remaining_points INTEGER;
+    remaining_attribute_points INTEGER;
     selected_specialization_id INTEGER;
     existing_skill_count INTEGER;
     existing_specialization_count INTEGER;
     new_skill_count INTEGER;
     new_specialization_count INTEGER;
 BEGIN
-    SELECT trained_skill_points, specialization
-    INTO STRICT remaining_points, selected_specialization_id
+    -- Lock the character while checking both creation pools. An attribute
+    -- save cannot race a training save past this persisted-state rule.
+    SELECT trained_skill_points, attribute_points, specialization
+    INTO STRICT remaining_points, remaining_attribute_points, selected_specialization_id
     FROM characters
-    WHERE id = selected_character;
+    WHERE id = selected_character
+    FOR UPDATE;
 
     IF selected_specialization IS NULL OR NOT EXISTS (
         SELECT 1
@@ -233,6 +237,13 @@ BEGIN
         FROM unnest(selected_skills) AS selected(skill)
     ) THEN
         RAISE EXCEPTION 'trained skill request contains a duplicate'
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    -- A specialization may still be chosen before attributes are finished,
+    -- but selecting any skill must wait until every attribute point is saved.
+    IF cardinality(selected_skills) > 0 AND remaining_attribute_points > 0 THEN
+        RAISE EXCEPTION 'all attribute points must be spent before training skills'
             USING ERRCODE = 'check_violation';
     END IF;
 

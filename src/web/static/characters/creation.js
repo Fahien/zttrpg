@@ -54,6 +54,10 @@ function adoptCharacter(nextCharacter) {
     specializationId = character.specialization?.id ??
         (currentChoiceStillExists ? specializationId : (specializations.length === 1 ? specializations[0].id : null));
 
+    // Training begins only after the persisted attribute pool is empty. A
+    // refresh that shows points again invalidates any stale local selection.
+    if (!trainingUnlocked()) pendingSkillIds.clear();
+
     // Attribute saves preserve local choices but may change their previews.
     // A training save clears pending before reaching here.
     for (const id of pendingSkillIds) {
@@ -62,6 +66,10 @@ function adoptCharacter(nextCharacter) {
     }
     if (character.creation_complete) pendingSkillIds.clear();
     render();
+}
+
+function trainingUnlocked() {
+    return character.attribute_points === 0;
 }
 
 /** @returns {any[]} */
@@ -129,6 +137,7 @@ function onTrainingButtonClick(event) {
     const id = Number(button.dataset.skillId);
     if (!Number.isSafeInteger(id)) return;
 
+    if (!trainingUnlocked()) return;
     if (button.dataset.action === 'increase-training') {
         addPendingSkill(id);
     } else if (button.dataset.action === 'decrease-training') {
@@ -140,6 +149,7 @@ function onTrainingButtonClick(event) {
 
 /** @param {number} id */
 function addPendingSkill(id) {
+    if (!trainingUnlocked()) return;
     const entry = character.skills.find((item) => item.skill.id === id);
     if (!entry || entry.base_chance === null || entry.value > 0 || pendingSkillIds.has(id)) return;
     if (availableTrainingPoints <= 0 || selectedSpecialization() === null) return;
@@ -171,9 +181,14 @@ function render() {
     }
 
     picker.hidden = false;
-    submitButton.hidden = false;
     renderSpecializations();
-    renderSkills();
+    if (trainingUnlocked()) {
+        submitButton.hidden = false;
+        renderSkills();
+    } else {
+        submitButton.hidden = true;
+        hideTrainingControls();
+    }
     renderStatus();
 }
 
@@ -251,7 +266,7 @@ function renderSkills() {
 
 /** @param {boolean} inSpecialization @param {ReturnType<typeof trainingState>} state */
 function canAddSkill(inSpecialization, state) {
-    if (submitting || availableTrainingPoints <= 0 || selectedSpecialization() === null) return false;
+    if (!trainingUnlocked() || submitting || availableTrainingPoints <= 0 || selectedSpecialization() === null) return false;
     const nextSpecialization = state.selectedSpecialization + (inSpecialization ? 1 : 0);
     const nextTotal = state.selectedTotal + 1;
     const nextOther = state.selectedOther + (inSpecialization ? 0 : 1);
@@ -263,10 +278,14 @@ function renderStatus() {
     const specialization = selectedSpecialization();
     const state = trainingState();
     pointsElement.textContent = String(availableTrainingPoints);
-    trainedSkillHelp.textContent = specialization === null
+    trainedSkillHelp.textContent = !trainingUnlocked()
+        ? `Spend all ${character.attribute_points} remaining attribute point${character.attribute_points === 1 ? '' : 's'} before selecting training skills.`
+        : specialization === null
         ? `Choose a specialization, then spend ${state.requiredTotal} training points.`
         : `${state.selectedSpecialization}/6 specialization skills trained; ${state.selectedTotal}/${state.requiredTotal} training points assigned.`;
-    status.textContent = submitError || (availableTrainingPoints === 0
+    status.textContent = submitError || (!trainingUnlocked()
+        ? 'Training unlocks after all attribute points are saved.'
+        : availableTrainingPoints === 0
         ? 'Training is complete. Spend the remaining attribute points to complete character creation.'
         : pendingSkillIds.size > 0
             ? `${pendingSkillIds.size} training point${pendingSkillIds.size === 1 ? '' : 's'} pending save.`
@@ -297,7 +316,7 @@ function renderSheetSkills() {
 
 async function onSubmit() {
     const specialization = selectedSpecialization();
-    if (submitting || specialization === null || pendingSkillIds.size === 0) return;
+    if (!trainingUnlocked() || submitting || specialization === null || pendingSkillIds.size === 0) return;
     submitting = true;
     submitError = '';
     render();
