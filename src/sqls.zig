@@ -13,6 +13,24 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+/// Every table this tool writes, for the checks below.
+const all_tables = .{
+    Configs,
+    Icons,
+    ItemKinds,
+    ItemSupplies,
+    Items,
+    Kins,
+    Attributes,
+    MovementModifiers,
+    DamageBonuses,
+    SkillKinds,
+    Skills,
+    SkillBaseChances,
+    Ages,
+    AgeAttributes,
+};
+
 /// Generate the insertion SQL files in the `db` directory.
 pub fn main(init: std.process.Init) !void {
     // A build tool that runs once and exits: everything it reads and builds
@@ -22,20 +40,9 @@ pub fn main(init: std.process.Init) !void {
 
     const gpa = arena.allocator();
 
-    try generate(init.io, gpa, Configs);
-    try generate(init.io, gpa, Icons);
-    try generate(init.io, gpa, ItemKinds);
-    try generate(init.io, gpa, ItemSupplies);
-    try generate(init.io, gpa, Items);
-    try generate(init.io, gpa, Kins);
-    try generate(init.io, gpa, Attributes);
-    try generate(init.io, gpa, SkillKinds);
-    try generate(init.io, gpa, Skills);
-    try generate(init.io, gpa, SkillBaseChances);
-    try generate(init.io, gpa, Ages);
-    try generate(init.io, gpa, AgeAttributes);
-    try generate(init.io, gpa, MovementModifiers);
-    try generate(init.io, gpa, DamageBonuses);
+    inline for (all_tables) |Table| {
+        try generate(init.io, gpa, Table);
+    }
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -494,24 +501,6 @@ fn readJsonFile(io: Io, gpa: Allocator, comptime Table: type, json_path: []const
 }
 
 const testing = std.testing;
-
-/// Every table this tool writes, for the checks below.
-const all_tables = .{
-    Configs,
-    Icons,
-    ItemKinds,
-    ItemSupplies,
-    Items,
-    Kins,
-    Attributes,
-    MovementModifiers,
-    DamageBonuses,
-    SkillKinds,
-    Skills,
-    SkillBaseChances,
-    Ages,
-    AgeAttributes,
-};
 
 test "every table names exactly one JSON property to read its rows from" {
     inline for (all_tables) |Table| {
