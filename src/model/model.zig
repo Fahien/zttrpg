@@ -8,6 +8,8 @@ pub const Config = config.Config;
 
 const item_supply = @import("item_supply.zig");
 pub const ItemSupply = item_supply.ItemSupply;
+const item_kind = @import("item_kind.zig");
+pub const ItemKind = item_kind.ItemKind;
 
 const age = @import("age.zig");
 pub const Age = age.Age;

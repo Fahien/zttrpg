@@ -42,6 +42,7 @@ pub const Definition = struct {
 /// Adding a tag and a `definition` arm is enough to connect a model to the
 /// generic route and handler code.
 pub const Resource = enum {
+    item_kinds,
     item_supplies,
     ages,
     configs,
@@ -61,6 +62,7 @@ pub const Resource = enum {
     /// resource does not support that operation.
     pub fn definition(comptime resource: Resource) Definition {
         return switch (resource) {
+            .item_kinds => .{ .Model = zttrpg.ItemKind },
             .item_supplies => .{ .Model = zttrpg.ItemSupply },
             .ages => .{ .Model = zttrpg.Age },
             .configs => .{ .Model = zttrpg.Config },
