@@ -15,10 +15,7 @@ pub const ResourceItem = struct {
 
 /// SubResource is a subset of Resource that can be used to identify sub-resources of a resource.
 /// For example, a character can have attributes and skills.
-pub const SubResource = enum {
-    attributes,
-    skills,
-};
+pub const SubResource = @import("resource.zig").SubResource;
 
 /// SubCollection represents a sub-resource collection of a resource item.
 /// For example, a character can have a collection of attributes or skills.

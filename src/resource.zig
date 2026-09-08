@@ -6,6 +6,31 @@
 
 const zttrpg = @import("zttrpg");
 
+/// A resource nested under an item URL. Its definition supplies both the
+/// parent model and the operation shape, keeping route dispatch independent of
+/// any particular game concept.
+pub const SubResource = enum {
+    attributes,
+    skills,
+    creation,
+
+    pub fn definition(comptime subresource: SubResource) SubDefinition {
+        return switch (subresource) {
+            .attributes => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterAttribute, .kind = .collection },
+            .skills => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterSkill, .kind = .collection },
+            .creation => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterCreation, .kind = .action },
+        };
+    }
+};
+
+pub const SubResourceKind = enum { collection, action };
+
+pub const SubDefinition = struct {
+    Parent: type,
+    Model: type,
+    kind: SubResourceKind,
+};
+
 /// The model type and HTTP capabilities for one registered resource.
 ///
 /// The handler reads collections as `Model.Summary` when that declaration
@@ -34,6 +59,17 @@ pub const Definition = struct {
     /// Whether browser GET requests can serve the HTML pages for this resource.
     /// The handler serves JSON when this is false or Accept is exactly JSON.
     html: bool = true,
+
+    /// Nested operations this resource permits. The route parser recognizes
+    /// their common URL shape; this registration says which parent owns them.
+    subresources: []const SubResource = &.{},
+
+    pub fn hasSubresource(comptime definition: Definition, comptime subresource: SubResource) bool {
+        inline for (definition.subresources) |registered| {
+            if (registered == subresource) return true;
+        }
+        return false;
+    }
 };
 
 /// A URL resource and its model registration.
@@ -78,7 +114,7 @@ pub const Resource = enum {
                 .delete = false,
                 .html = false,
             },
-            .characters => .{ .Model = zttrpg.Character },
+            .characters => .{ .Model = zttrpg.Character, .subresources = &.{ .attributes, .skills, .creation } },
             .kins => .{ .Model = zttrpg.Kin },
             .skill_kinds => .{ .Model = zttrpg.SkillKind },
             .skills => .{ .Model = zttrpg.Skill },

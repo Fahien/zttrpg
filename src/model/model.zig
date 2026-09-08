@@ -20,6 +20,7 @@ const character = @import("character.zig");
 pub const Character = character.Character;
 pub const CharacterAttribute = character.CharacterAttribute;
 pub const CharacterSkill = character.CharacterSkill;
+pub const CharacterCreation = character.CharacterCreation;
 pub const CharacterSummary = character.CharacterSummary;
 pub const MovementModifier = character.MovementModifier;
 

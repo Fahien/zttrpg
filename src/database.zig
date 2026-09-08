@@ -172,6 +172,19 @@ pub const Database = struct {
         try self.conn.commitTransaction();
     }
 
+    /// A metadata-defined nested action has its own atomic database operation,
+    /// unlike a row collection whose generic update is above. The handler
+    /// reaches both through the same sub-resource definition.
+    pub fn applySubAction(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Action: type, parent_id: u32, body: Action.Body) !void {
+        _ = Parent;
+        comptime {
+            if (!@hasDecl(Action, "apply")) {
+                @compileError(@typeName(Action) ++ " must define apply for a nested action.");
+            }
+        }
+        try Action.apply(self, gpa, parent_id, body);
+    }
+
     fn getCols(comptime T: type) []const u8 {
         comptime var cols: []const u8 = "";
         const field_count = @typeInfo(T).@"struct".fields.len;
@@ -404,14 +417,14 @@ pub const Database = struct {
 const all_models = .{ Character, Item, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points, creation_complete, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
     try std.testing.expectEqualStrings("id, name, icon, description", comptime Database.getCols(Profession.Row));
     try std.testing.expectEqualStrings("id, name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
-    try std.testing.expectEqualStrings("name, level, kin, age", comptime Database.getCols(Character.Create));
+    try std.testing.expectEqualStrings("name, level, kin, profession, age", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon, movement", comptime Database.getCols(Kin.Create));
     try std.testing.expectEqualStrings("name, icon, kind, attribute, description", comptime Database.getCols(Skill.Create));
     try std.testing.expectEqualStrings("name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item.Create));
@@ -436,7 +449,7 @@ test "every model names the table it is stored in" {
 }
 
 test "getPlaceholders numbers parameters from $1" {
-    try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Character.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3, $4, $5", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Kin.Create));
     try std.testing.expectEqualStrings("$1, $2, $3, $4, $5", comptime Database.getPlaceholders(Skill.Create));
     try std.testing.expectEqualStrings("$1, $2, $3, $4, $5, $6, $7, $8", comptime Database.getPlaceholders(Item.Create));
@@ -446,7 +459,7 @@ test "getSetClauses derives the id placeholder from the field count" {
     // Regression guard: a hardcoded `WHERE id = $3` once broke PUT /kins/<id>,
     // because Kin.Update has one body field and its id parameter is $2.
     try std.testing.expectEqualStrings(
-        "name = $1, level = $2, kin = $3, age = $4 WHERE id = $5",
+        "name = $1, level = $2, kin = $3, profession = $4, age = $5 WHERE id = $6",
         comptime Database.getSetClauses(Character.Update),
     );
     try std.testing.expectEqualStrings(
@@ -497,7 +510,7 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     );
     // The roster reads summaries, so this is the query behind /characters.
     try std.testing.expectEqualStrings(
-        "SELECT id, name, level, kin, age, attribute_points FROM characters ORDER BY id",
+        "SELECT id, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points FROM characters ORDER BY id",
         comptime Database.readAllQuery(Character.Summary),
     );
 }

@@ -188,6 +188,7 @@ pub fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
         error.MovementOutOfRange,
         error.BandOutOfOrder,
         error.LevelOutOfRange,
+        error.InvalidTrainedSkillCount,
         error.ValueOutOfRange,
         error.DuplicateEntry,
         => .{ .status = .bad_request, .message = "The request body is not valid." },

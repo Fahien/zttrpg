@@ -191,37 +191,34 @@ fn deleteItem(ctx: *Context, comptime T: type, id: u32) !void {
     try ctx.respondText(.ok, "Deleted item with ID {d}.\n", .{id});
 }
 
-/// The type a sub-collection's rows are read and written as. Naming the mapping
-/// once is what keeps the read path and the write path from drifting apart.
-fn ChildOf(comptime subresource: SubResource) type {
-    return switch (subresource) {
-        .attributes => zttrpg.CharacterAttribute,
-        .skills => zttrpg.CharacterSkill,
-    };
-}
-
 fn handleSubCollection(ctx: *Context, sub: SubCollection) !void {
-    // SubResource says which names are sub-collections, not which resources
-    // have them, so /kins/3/skills parses. This is where it stops.
-    if (sub.resource != .characters) return ctx.notFound();
+    switch (sub.resource) {
+        inline else => |resource| {
+            const resource_definition = comptime resource.definition();
+            switch (sub.subresource) {
+                inline else => |subresource| {
+                    if (!comptime resource_definition.hasSubresource(subresource)) return ctx.notFound();
 
-    // `inline else` makes the tag comptime-known inside the arm, so one switch
-    // serves every method instead of one switch per method.
-    switch (sub.subresource) {
-        inline else => |subresource| {
-            const Child = ChildOf(subresource);
-
-            switch (ctx.method()) {
-                // No HTML page lives at this URL: a browser asking for one gets
-                // a 404 rather than being told GET is not allowed.
-                .GET => if (ctx.wantsJson())
-                    try respondSubCollection(ctx, zttrpg.Character, Child, sub.id)
-                else
-                    try ctx.notFound(),
-
-                .PUT => try updateSubCollection(ctx, zttrpg.Character, Child, sub.id),
-
-                else => try ctx.methodNotAllowed(),
+                    const definition = comptime subresource.definition();
+                    const Parent = definition.Parent;
+                    const Model = definition.Model;
+                    switch (comptime definition.kind) {
+                        .collection => switch (ctx.method()) {
+                            // No HTML page lives at this URL: a browser asking for one gets
+                            // a 404 rather than being told GET is not allowed.
+                            .GET => if (ctx.wantsJson())
+                                try respondSubCollection(ctx, Parent, Model, sub.id)
+                            else
+                                try ctx.notFound(),
+                            .PUT => try updateSubCollection(ctx, Parent, Model, sub.id),
+                            else => try ctx.methodNotAllowed(),
+                        },
+                        .action => switch (ctx.method()) {
+                            .PUT => try applySubAction(ctx, Parent, Model, sub.id),
+                            else => try ctx.methodNotAllowed(),
+                        },
+                    }
+                },
             }
         },
     }
@@ -270,6 +267,25 @@ fn updateSubCollection(
     // database debited and the movement derived from the new values. Answer
     // with the whole character, as a create does, so the page re-renders from
     // the same shape it loaded rather than bookkeeping the consequences itself.
+    try respondItem(ctx, Parent, parent_id);
+}
+
+fn applySubAction(
+    ctx: *Context,
+    comptime Parent: type,
+    comptime Action: type,
+    parent_id: u32,
+) !void {
+    const body = try parseBody(ctx, Action.Body, max_sub_collection_body) orelse return;
+    Action.Body.validate(&body) catch |err| return ctx.respondError(err);
+
+    {
+        const db = try ctx.db.lock();
+        defer ctx.db.unlock();
+        db.applySubAction(ctx.gpa, Parent, Action, parent_id, body) catch |err|
+            return ctx.respondError(err);
+    }
+
     try respondItem(ctx, Parent, parent_id);
 }
 
@@ -325,19 +341,26 @@ fn expectRejectedRequest(comptime method: []const u8, comptime path: []const u8,
     try std.testing.expect(std.mem.startsWith(u8, output.written(), "HTTP/1.1 " ++ status ++ "\r\n"));
 }
 
-test "every sub-collection can be written, not only read" {
-    // The PUT path reaches the database through ChildOf, Child.Body and
-    // validateAll. A sub-resource whose model is missing any of them would
-    // only break when someone sent a PUT, so pin it at build time instead.
+test "every registered sub-resource declares the operation its handler needs" {
+    // The dispatch path is driven by SubResource.definition and Resource
+    // metadata. Pinning the required declarations here makes a newly added
+    // nested operation fail at build time rather than on its first request.
     inline for (@typeInfo(SubResource).@"enum".fields) |field| {
-        const Child = ChildOf(@enumFromInt(field.value));
+        const subresource: SubResource = @enumFromInt(field.value);
+        const definition = comptime subresource.definition();
+        const Model = definition.Model;
 
-        try std.testing.expect(@hasDecl(Child, "table_name"));
-        try std.testing.expect(@hasDecl(Child, "Body"));
-        try std.testing.expect(@hasDecl(Child.Body, "validateAll"));
-
-        // The URL already names the character, so the body must not repeat it:
-        // the two could disagree.
-        try std.testing.expect(!@hasField(Child.Body, "character"));
+        try std.testing.expect(@hasDecl(Model, "Body"));
+        try std.testing.expect(!@hasField(Model.Body, "character"));
+        switch (comptime definition.kind) {
+            .collection => {
+                try std.testing.expect(@hasDecl(Model, "table_name"));
+                try std.testing.expect(@hasDecl(Model.Body, "validateAll"));
+            },
+            .action => {
+                try std.testing.expect(@hasDecl(Model, "apply"));
+                try std.testing.expect(@hasDecl(Model.Body, "validate"));
+            },
+        }
     }
 }

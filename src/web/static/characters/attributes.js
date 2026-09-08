@@ -34,6 +34,7 @@ let movementModifiers = null;
 let damageBonusRules = null;
 
 document.addEventListener('instanceLoaded', onInstanceLoaded);
+document.addEventListener('characterUpdated', onCharacterUpdated);
 
 const list = /** @type {HTMLElement} */ (document.querySelector('[data-list="attributes"]'));
 list.addEventListener('click', onAttributeButtonClick);
@@ -86,6 +87,14 @@ function onInstanceLoaded(event) {
     }
 
     initAttributesUpdate(character);
+}
+
+/** Keeps the attribute step in sync after another creation step saves. */
+function onCharacterUpdated(event) {
+    const character = /** @type {CustomEvent} */ (event).detail;
+    if (!character) return;
+    adoptCharacter(character);
+    render();
 }
 
 /**
@@ -395,6 +404,7 @@ async function onSubmitAttributes() {
 
         if (response.ok) {
             adoptCharacter(await response.json());
+            document.dispatchEvent(new CustomEvent('characterUpdated', { detail: originalCharacter }));
             hideStatus();
         } else {
             for (const attributeId of editAttributeMap.keys()) {

@@ -11,6 +11,24 @@
         </p>
     </header>
 
+    <section id="character-creation" aria-labelledby="character-creation-heading">
+        <h2 id="character-creation-heading">Character Creation</h2>
+        <p id="creation-status" aria-live="polite"></p>
+
+        <div id="creation-picker" hidden>
+            <fieldset id="specialization-picker">
+                <legend>Specialization</legend>
+                <p id="specialization-help">Choose a specialization.</p>
+                <ul id="specialization-options" class="plain-list"></ul>
+            </fieldset>
+
+            <section class="notice" aria-live="polite">
+                <p>Training points to spend: <span id="trained-skill-points" data-quality="uncommon">0</span></p>
+                <p id="trained-skill-help"></p>
+            </section>
+        </div>
+    </section>
+
     <section id="instance-stats">
         <h2>Stats</h2>
         <p>Level: <span data-field="level">1</span></p>
@@ -53,6 +71,7 @@
 
     <section id="instance-skills">
         <h2>Skills</h2>
+        <button type="button" id="submit-creation" hidden>Submit Skills</button>
         <ul data-list="skills">
             <template>
                 <li data-field="skill.id:data-skill-id">
@@ -60,6 +79,10 @@
                     <span data-field="skill.name"></span>
                     <span data-field="value"></span>
                     <small data-base-chance hidden></small>
+                    <small data-specialization-skill hidden>Specialization skill</small>
+                    <small data-training-state hidden></small>
+                    <button type="button" class="button-small" data-action="decrease-training" hidden>−</button>
+                    <button type="button" class="button-small" data-action="increase-training" hidden>+</button>
                 </li>
             </template>
         </ul>
@@ -68,3 +91,4 @@
 
 <script src="/static/instance.js" data-resource="characters"></script>
 <script src="/static/characters/attributes.js"></script>
+<script src="/static/characters/creation.js"></script>

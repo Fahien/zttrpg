@@ -15,7 +15,9 @@ pub const AgeBody = struct {
 
     pub fn validate(self: *const AgeBody) !void {
         if (self.name.len == 0) return error.EmptyName;
-        if (self.trained_skill_count == 0) return error.EmptyTrainedSkillCount;
+        if (self.trained_skill_count != 8 and self.trained_skill_count != 10 and self.trained_skill_count != 12) {
+            return error.InvalidTrainedSkillCount;
+        }
     }
 };
 
@@ -68,9 +70,12 @@ test "AgeCreate.validate rejects an empty name" {
     const age = AgeCreate{ .name = "", .icon = 1, .trained_skill_count = 12 };
     try std.testing.expectError(error.EmptyName, age.validate());
 }
-test "AgeCreate.validate rejects a zero trained skill count" {
+test "AgeCreate.validate rejects a trained skill count outside the three age rules" {
     const age = AgeCreate{ .name = "Old", .icon = 1, .trained_skill_count = 0 };
-    try std.testing.expectError(error.EmptyTrainedSkillCount, age.validate());
+    try std.testing.expectError(error.InvalidTrainedSkillCount, age.validate());
+
+    const unsupported = AgeCreate{ .name = "Old", .icon = 1, .trained_skill_count = 9 };
+    try std.testing.expectError(error.InvalidTrainedSkillCount, unsupported.validate());
 }
 
 test "Age serializes to the JSON wire shape" {

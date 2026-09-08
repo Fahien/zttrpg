@@ -21,12 +21,16 @@ CREATE TABLE characters (
     level INTEGER NOT NULL,
     kin INTEGER NOT NULL,
     profession INTEGER NOT NULL,
+    specialization INTEGER,
     age INTEGER NOT NULL,
     attribute_points INTEGER NOT NULL DEFAULT configured_attribute_points(),
+    trained_skill_points INTEGER NOT NULL DEFAULT 0,
     CHECK (level >= 1 AND level <= 100),
     CHECK (name <> ''),
     FOREIGN KEY (profession) REFERENCES professions(id),
+    FOREIGN KEY (specialization) REFERENCES profession_specializations(id),
     FOREIGN KEY (kin) REFERENCES kins(id),
     FOREIGN KEY (age) REFERENCES ages(id),
-    CHECK (attribute_points >= 0)
+    CHECK (attribute_points >= 0),
+    CHECK (trained_skill_points >= 0)
 );

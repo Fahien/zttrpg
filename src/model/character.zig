@@ -9,6 +9,7 @@ const Allocator = std.mem.Allocator;
 const Icon = @import("icon.zig").Icon;
 const Age = @import("age.zig").Age;
 const Profession = @import("profession.zig").Profession;
+const Specialization = @import("profession.zig").Specialization;
 const Kin = @import("kin.zig").Kin;
 const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
@@ -275,14 +276,73 @@ pub const BodyCharacter = struct {
 
 pub const CreateCharacter = BodyCharacter;
 pub const UpdateCharacter = BodyCharacter;
+
+/// The remaining choices a player makes after the character row has been
+/// created. The URL supplies the character id, so it must not be repeated in
+/// this body.
+pub const BodyCharacterCreation = struct {
+    specialization: ?Specialization.Id = null,
+    skills: []const Skill.Id,
+
+    pub fn validate(self: *const BodyCharacterCreation) error{DuplicateEntry}!void {
+        for (self.skills, 0..) |skill, i| {
+            for (self.skills[i + 1 ..]) |other| {
+                if (skill == other) return error.DuplicateEntry;
+            }
+        }
+    }
+};
+
+/// The non-row operation exposed at /characters/:id/creation. Its database
+/// function owns the cross-table rules; this model only gives the generic
+/// action handler its request shape and invokes that atomic operation.
+pub const CharacterCreation = struct {
+    pub const Body = BodyCharacterCreation;
+
+    pub fn apply(db: anytype, gpa: Allocator, character_id: Character.Id, body: Body) !void {
+        _ = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
+
+        const character_id_param: [*:0]const u8 = (try std.fmt.allocPrintSentinel(gpa, "{d}", .{character_id}, 0)).ptr;
+        const specialization_param: ?[*:0]const u8 = if (body.specialization) |specialization|
+            (try std.fmt.allocPrintSentinel(gpa, "{d}", .{specialization}, 0)).ptr
+        else
+            null;
+        const skills_param = try formatSkillArray(gpa, body.skills);
+
+        const result = try db.conn.execParams(
+            "SELECT save_character_creation($1, $2, $3::INTEGER[])",
+            &.{ character_id_param, specialization_param, skills_param },
+        );
+        defer result.deinit();
+        if (result.len() != 1) return error.UnexpectedResult;
+    }
+};
+
+fn formatSkillArray(gpa: Allocator, skills: []const Skill.Id) ![*:0]const u8 {
+    var text = std.ArrayList(u8).empty;
+    defer text.deinit(gpa);
+
+    try text.append(gpa, '{');
+    for (skills, 0..) |skill, i| {
+        if (i != 0) try text.append(gpa, ',');
+        const id = try std.fmt.allocPrint(gpa, "{d}", .{skill});
+        defer gpa.free(id);
+        try text.appendSlice(gpa, id);
+    }
+    try text.append(gpa, '}');
+    return (try gpa.dupeZ(u8, text.items)).ptr;
+}
+
 pub const RowCharacter = struct {
     id: Character.Id,
     name: []const u8,
     level: u32,
     kin: Kin.Id,
     profession: Profession.Id,
+    specialization: ?Specialization.Id,
     age: Age.Id,
     attribute_points: u32,
+    trained_skill_points: u32,
 };
 
 /// A character without its sheet: what a roster row needs and no more.
@@ -337,8 +397,11 @@ pub const Character = struct {
     level: u32,
     kin: Kin,
     profession: Profession,
+    specialization: ?Specialization,
     age: Age,
     attribute_points: u32,
+    trained_skill_points: u32,
+    creation_complete: bool,
     /// Derived from the kin and the sheet on every read: see deriveMovement.
     movement: i32,
     damage_bonuses: []const CharacterDamageBonus,
@@ -353,6 +416,11 @@ pub const Character = struct {
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
         const bands = try db.readAllAlloc(gpa, MovementModifier);
         const rules = try db.readAllAlloc(gpa, DamageBonus);
+        const specialization = if (row.specialization) |id|
+            (try db.readItem(gpa, Specialization, id)) orelse return error.SpecializationNotFound
+        else
+            null;
+        const skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id);
 
         return .{
             .id = summary.id,
@@ -360,15 +428,29 @@ pub const Character = struct {
             .level = summary.level,
             .kin = summary.kin,
             .profession = summary.profession,
+            .specialization = specialization,
             .age = summary.age,
             .attribute_points = row.attribute_points,
+            .trained_skill_points = row.trained_skill_points,
+            .creation_complete = deriveCreationComplete(row.attribute_points, row.trained_skill_points, specialization),
             .movement = deriveMovement(summary.kin.movement, attributes, bands),
             .damage_bonuses = try deriveDamageBonuses(gpa, attributes, rules),
             .attributes = attributes,
-            .skills = try db.readSubResource(gpa, Character, CharacterSkill, row.id),
+            .skills = skills,
         };
     }
 };
+
+/// Creation status is a view of persisted choices. The database validates the
+/// same conditions when choices are saved; calculating it here keeps the JSON
+/// truthful after a profession, age, or attribute-point update.
+pub fn deriveCreationComplete(
+    attribute_points: u32,
+    trained_skill_points: u32,
+    specialization: ?Specialization,
+) bool {
+    return attribute_points == 0 and trained_skill_points == 0 and specialization != null;
+}
 
 test "CreateCharacter.validate accepts a well-formed character" {
     const character = CreateCharacter{
@@ -435,8 +517,11 @@ test "Character serializes to the JSON wire shape" {
         .level = 2,
         .kin = kin,
         .profession = profession,
+        .specialization = null,
         .age = age,
         .attribute_points = 54,
+        .trained_skill_points = 8,
+        .creation_complete = false,
         .movement = 10,
         .damage_bonuses = &.{},
         .attributes = &.{},
@@ -445,7 +530,7 @@ test "Character serializes to the JSON wire shape" {
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -478,6 +563,24 @@ test "CreateCharacter parses from a JSON body" {
 
     try std.testing.expectEqualStrings("Grog", parsed.value.name);
     try std.testing.expectEqual(3, parsed.value.level);
+}
+
+test "CharacterCreation parses the persisted choice body and rejects repeated skills" {
+    const parsed = try std.json.parseFromSlice(
+        BodyCharacterCreation,
+        std.testing.allocator,
+        \\{"specialization":4,"skills":[3,7,9]}
+    ,
+        .{},
+    );
+    defer parsed.deinit();
+
+    try std.testing.expectEqual(@as(?Specialization.Id, 4), parsed.value.specialization);
+    try std.testing.expectEqualSlices(Skill.Id, &.{ 3, 7, 9 }, parsed.value.skills);
+    try parsed.value.validate();
+
+    const repeated = BodyCharacterCreation{ .specialization = 4, .skills = &.{ 3, 7, 3 } };
+    try std.testing.expectError(error.DuplicateEntry, repeated.validate());
 }
 
 test "the summary is the character minus the sheet, and reads the same row" {
@@ -548,6 +651,7 @@ test "a request body carries no character id: the URL already named it" {
     try std.testing.expect(@hasField(RowCharacterAttribute, "character"));
     try std.testing.expect(!@hasField(BodyCharacterAttribute, "character"));
     try std.testing.expect(!@hasField(BodyCharacterSkill, "character"));
+    try std.testing.expect(!@hasField(BodyCharacterCreation, "character"));
 }
 
 test "validateAll accepts a well-formed body" {
@@ -679,6 +783,22 @@ const test_acrobatics = Skill{
     .attribute = test_agility,
     .description = "Body control.",
 };
+
+test "creation completion is derived from the two exhausted point pools" {
+    const specialization = Specialization{
+        .id = 1,
+        .name = "Default",
+        .description = "Test specialization.",
+        .skills = &.{},
+        .heroic_skill = null,
+        .items = &.{},
+    };
+    try std.testing.expect(deriveCreationComplete(0, 0, specialization));
+    try std.testing.expect(!deriveCreationComplete(1, 0, specialization));
+    try std.testing.expect(!deriveCreationComplete(0, 1, specialization));
+    try std.testing.expect(!deriveCreationComplete(0, 0, null));
+
+}
 
 test "CharacterSkill reads the owning character's base chance alongside its saved level" {
     const TestDatabase = struct {

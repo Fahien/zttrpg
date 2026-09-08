@@ -274,6 +274,7 @@ const Ages = struct {
 
         name: []const u8,
         icon: []const u8,
+        trained_skill_count: u32,
     };
 
     ages: []const Row,
