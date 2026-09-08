@@ -370,3 +370,9 @@ curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
+
+## Credits
+
+The icons come from the [game-icons.net](https://game-icons.net) collection and are licensed [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). `zig build icons` copies them from the collection into `src/web/static/icons/`, and every page credits the authors in its footer. Icons made by Delapouite, Lorc, Skoll, Sbed, Willdabeast, DarkZaitzev, Caro Asercion, Lucas, Faithtoken, John Redman, Cathelineau, Carl Olsen, HeavenlyDog, Starseeker, and other contributors to the collection.
+
+The base stylesheet is [water.css](https://github.com/kognise/water.css) by Kognise, under the MIT license.
