@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "profession.schema.json",
+    "title": "Profession",
+    "description": "A profession and its playable specializations.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "icon", "description", "specializations"],
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the profession file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the profession file."
+        },
+        "name": {
+            "$ref": "profession-names.schema.json"
+        },
+        "icon": {
+            "$ref": "../icon-names.schema.json",
+            "description": "The icon of the profession."
+        },
+        "description": {
+            "type": "string",
+            "description": "The description of the profession."
+        },
+        "specializations": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Complete playable specializations. A singleton uses the name Default.",
+            "items": {
+                "$ref": "specialization.schema.json"
+            }
+        }
+    }
+}

@@ -10,6 +10,13 @@
             "description": "Mastery of body movement and agility."
         },
         {
+            "name": "Animism",
+            "attribute": "Willpower",
+            "icon": "magic-swirl",
+            "kind": "Secondary",
+            "description": "Magic entrusted by the spirits that inhabit the natural world."
+        },
+        {
             "name": "Awareness",
             "attribute": "Intelligence",
             "icon": "awareness",
@@ -59,6 +66,13 @@
             "description": "Quick reflexes and dodging capabilities."
         },
         {
+            "name": "Elementalism",
+            "attribute": "Willpower",
+            "icon": "magic-swirl",
+            "kind": "Secondary",
+            "description": "Magic shaped through the four elements that make up all things."
+        },
+        {
             "name": "Healing",
             "attribute": "Intelligence",
             "icon": "healing",
@@ -85,6 +99,13 @@
             "icon": "book-cover",
             "kind": "Core",
             "description": "Knowledge of folklore, mythology, and historycal legends."
+        },
+        {
+            "name": "Mentalism",
+            "attribute": "Willpower",
+            "icon": "magic-swirl",
+            "kind": "Secondary",
+            "description": "Magic manifested through self-control, discipline, and the mind."
         },
         {
             "name": "Performance",

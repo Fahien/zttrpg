@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "$id": "professions.schema.json",
+    "title": "Professions",
+    "description": "A list of professions",
+    "type": "object",
+    "properties": {
+        "$schema": {
+            "type": "string",
+            "description": "The schema version of the professions file."
+        },
+        "version": {
+            "type": "string",
+            "description": "The version of the professions file."
+        },
+        "professions": {
+            "type": "array",
+            "items": {
+                "$ref": "profession.schema.json"
+            }
+        }
+    }
+}

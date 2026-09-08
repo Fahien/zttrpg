@@ -1,0 +1,572 @@
+{
+  "$schema": "professions.schema.json",
+  "version": "1.0",
+  "professions": [
+    {
+      "name": "Artisan",
+      "icon": "anvil",
+      "description": "Proud makers who turn raw matter into useful order, from bridges and homes to tools, weapons, and leather armor. Their practical craft makes them valued in every village.",
+      "specializations": [
+        {
+          "name": "Blacksmith",
+          "description": "Blacksmiths forge and repair the metal tools, weapons, and armor that keep a community working and defended.",
+          "skills": [
+            "Axes",
+            "Brawling",
+            "Crafting",
+            "Hammers",
+            "Knives",
+            "Sleight of Hand",
+            "Spot Hidden",
+            "Swords"
+          ],
+          "heroic_skill": "Master Blacksmith",
+          "items": [
+            [
+              "Light Warhammer",
+              "Leather",
+              "Blacksmithing Tools"
+            ]
+          ]
+        },
+        {
+          "name": "Carpenter",
+          "description": "Carpenters shape timber into strong tools, structures, and furnishings, joining careful measurements with practical labor.",
+          "skills": [
+            "Axes",
+            "Brawling",
+            "Crafting",
+            "Hammers",
+            "Knives",
+            "Sleight of Hand",
+            "Spot Hidden",
+            "Swords"
+          ],
+          "heroic_skill": "Master Carpenter",
+          "items": [
+            [
+              "Handaxe",
+              "Leather",
+              "Carpentry Tools",
+              "Hemp Rope (10 meters)"
+            ]
+          ]
+        },
+        {
+          "name": "Tanner",
+          "description": "Tanners turn hides into durable leather for armor and everyday goods, knowing the worth of every part of an animal.",
+          "skills": [
+            "Axes",
+            "Brawling",
+            "Crafting",
+            "Hammers",
+            "Knives",
+            "Sleight of Hand",
+            "Spot Hidden",
+            "Swords"
+          ],
+          "heroic_skill": "Master Tanner",
+          "items": [
+            [
+              "Knife",
+              "Leather",
+              "Tanning Tools",
+              "Lantern",
+              "Lamp Oil"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bard",
+      "icon": "lyre",
+      "description": "Singers, musicians, and storytellers preserve ancient deeds and carry new ones forward in song. They roam markets and inns or perform for the powerful, always seeking a tale worth making immortal.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A performer who turns music, stories, and charm into a living and a legacy.",
+          "skills": [
+            "Acrobatics",
+            "Bluffing",
+            "Evade",
+            "Knives",
+            "Languages",
+            "Myths and Legends",
+            "Performance",
+            "Persuasion"
+          ],
+          "heroic_skill": "Musician",
+          "items": [
+            [
+              "Lyre",
+              "Knife",
+              "Oil Lamp",
+              "Lamp Oil"
+            ],
+            [
+              "Flute",
+              "Dagger",
+              "Hemp Rope (10 meters)"
+            ],
+            [
+              "Horn",
+              "Knife"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Fighter",
+      "icon": "diamond-hilt",
+      "description": "Weapon specialists earn their living by violence, whether with sword, spear, or crossbow. Some value clean efficiency over bloodshed, while others bear hard memories from lives spent near death.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A trained combatant prepared to make a living with weapons and discipline.",
+          "skills": [
+            "Axes",
+            "Bows",
+            "Brawling",
+            "Crossbows",
+            "Evade",
+            "Hammers",
+            "Spears",
+            "Swords"
+          ],
+          "heroic_skill": "Veteran",
+          "items": [
+            [
+              "Long Sword",
+              "Small Shield",
+              "Chainmail"
+            ],
+            [
+              "Battleaxe",
+              "Small Shield",
+              "Chainmail"
+            ],
+            [
+              "Flail",
+              "Small Shield",
+              "Chainmail"
+            ],
+            [
+              "Mace",
+              "Small Shield",
+              "Chainmail"
+            ],
+            [
+              "Short Sword",
+              "Light Crossbow",
+              "Quiver of Iron Head Arrows",
+              "Leather"
+            ],
+            [
+              "Handaxe",
+              "Light Crossbow",
+              "Quiver of Iron Head Arrows",
+              "Leather"
+            ],
+            [
+              "Short Spear",
+              "Light Crossbow",
+              "Quiver of Iron Head Arrows",
+              "Leather"
+            ],
+            [
+              "Long Spear",
+              "Studded Leather",
+              "Great Helm"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hunter",
+      "icon": "high-shot",
+      "description": "Hunters stalk and snare prey in the wild, treating its death and every useful part as a sacred responsibility. The harsh wilderness is their true home, though its solitude can make society difficult.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A wilderness tracker who finds food, follows prey, and survives far from settled roads.",
+          "skills": [
+            "Acrobatics",
+            "Awareness",
+            "Bows",
+            "Bushcraft",
+            "Hunting and Fishing",
+            "Knives",
+            "Slings",
+            "Sneaking"
+          ],
+          "heroic_skill": "Companion",
+          "items": [
+            [
+              "Dagger",
+              "Short Bow",
+              "Quiver of Iron Head Arrows",
+              "Leather",
+              "Sleeping Fur",
+              "Hemp Rope (10 meters)",
+              "Bear Trap"
+            ],
+            [
+              "Knife",
+              "Longbow",
+              "Quiver of Iron Head Arrows",
+              "Leather",
+              "Sleeping Fur",
+              "Hemp Rope (10 meters)",
+              "Fishing Rod"
+            ],
+            [
+              "Dagger",
+              "Sling",
+              "Leather",
+              "Sleeping Fur",
+              "Hemp Rope (10 meters)",
+              "Bear Trap"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Knight",
+      "icon": "mounted-knight",
+      "description": "Warriors bound by an oath to an order, lord, god, or another higher cause. Its rules guide every thought and deed, and many devote themselves to defending a person or place.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "An oath-bound warrior who serves a cause through training, duty, and arms.",
+          "skills": [
+            "Beast Lore",
+            "Hammers",
+            "Myths and Legends",
+            "Performance",
+            "Persuasion",
+            "Riding",
+            "Spears",
+            "Swords"
+          ],
+          "heroic_skill": "Guardian",
+          "items": [
+            [
+              "Long Sword",
+              "Small Shield",
+              "Plate Armor",
+              "Great Helm"
+            ],
+            [
+              "Mace",
+              "Small Shield",
+              "Plate Armor",
+              "Great Helm"
+            ],
+            [
+              "Flail",
+              "Small Shield",
+              "Chainmail",
+              "Great Helm"
+            ],
+            [
+              "Light Warhammer",
+              "Small Shield",
+              "Chainmail",
+              "Great Helm"
+            ],
+            [
+              "Short Sword",
+              "Lance",
+              "Small Shield",
+              "Chainmail",
+              "Great Helm",
+              "Riding Horse"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mage",
+      "icon": "crystal-wand",
+      "description": "Mages study the ancient forces that run through nature and the world, following schools with very different theories of magic and its source.",
+      "specializations": [
+        {
+          "name": "Animist",
+          "description": "Animists draw magic from the spirits that inhabit every part of the natural world.",
+          "skills": [
+            "Animism",
+            "Beast Lore",
+            "Bushcraft",
+            "Evade",
+            "Healing",
+            "Hunting and Fishing",
+            "Sneaking",
+            "Staves"
+          ],
+          "heroic_skill": null,
+          "items": [
+            [
+              "Staff",
+              "Orbuculum",
+              "Grimoire"
+            ],
+            [
+              "Knife",
+              "Wand",
+              "Grimoire"
+            ],
+            [
+              "Amulet",
+              "Grimoire",
+              "Sleeping Fur"
+            ]
+          ]
+        },
+        {
+          "name": "Elementalist",
+          "description": "Elementalists command magic through the four elements that form the essence of all things.",
+          "skills": [
+            "Elementalism",
+            "Awareness",
+            "Evade",
+            "Healing",
+            "Languages",
+            "Myths and Legends",
+            "Spot Hidden",
+            "Staves"
+          ],
+          "heroic_skill": null,
+          "items": [
+            [
+              "Staff",
+              "Orbuculum",
+              "Grimoire"
+            ],
+            [
+              "Knife",
+              "Wand",
+              "Grimoire"
+            ],
+            [
+              "Amulet",
+              "Grimoire",
+              "Sleeping Fur"
+            ]
+          ]
+        },
+        {
+          "name": "Mentalist",
+          "description": "Mentalists manifest magic through self-control, discipline, and the power cultivated within their own minds.",
+          "skills": [
+            "Mentalism",
+            "Acrobatics",
+            "Awareness",
+            "Brawling",
+            "Evade",
+            "Healing",
+            "Languages",
+            "Myths and Legends"
+          ],
+          "heroic_skill": null,
+          "items": [
+            [
+              "Staff",
+              "Orbuculum",
+              "Grimoire"
+            ],
+            [
+              "Knife",
+              "Wand",
+              "Grimoire"
+            ],
+            [
+              "Amulet",
+              "Grimoire",
+              "Sleeping Fur"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mariner",
+      "icon": "saber-and-pistol",
+      "description": "Sailors and waterfolk belong to the waves, rivers, and lakes, bound to the water by love, respect, and dread. Their trade ranges from pirates and ferrymen to whalers, explorers, and captains.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A sailor at home among waves, rivers, and lakes, whatever their place aboard a vessel.",
+          "skills": [
+            "Acrobatics",
+            "Awareness",
+            "Hunting and Fishing",
+            "Knives",
+            "Languages",
+            "Seamanship",
+            "Swimming",
+            "Swords"
+          ],
+          "heroic_skill": "Sea Legs",
+          "items": [
+            [
+              "Knife",
+              "Short Bow",
+              "Quiver of Iron Head Arrows",
+              "Hemp Rope (10 meters)",
+              "Grappling Hook"
+            ],
+            [
+              "Scimitar",
+              "Leather",
+              "Hemp Rope (10 meters)",
+              "Grappling Hook"
+            ],
+            [
+              "Trident",
+              "Spyglass",
+              "Hemp Rope (10 meters)",
+              "Grappling Hook"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Merchant",
+      "icon": "locked-chest",
+      "description": "Merchants turn what they have into more, buying cheaply and selling dearly. They run settled shops or travel with caravans and adventurers in search of markets, customers, and rare goods.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A trader who reads people, prices, and opportunities wherever goods can change hands.",
+          "skills": [
+            "Awareness",
+            "Bartering",
+            "Bluffing",
+            "Evade",
+            "Knives",
+            "Persuasion",
+            "Sleight of Hand",
+            "Spot Hidden"
+          ],
+          "heroic_skill": "Treasure Hunter",
+          "items": [
+            [
+              "Dagger",
+              "Sleeping Fur",
+              "Hemp Rope (10 meters)",
+              "Donkey"
+            ],
+            [
+              "Knife",
+              "Sleeping Fur",
+              "Lantern",
+              "Lamp Oil",
+              "Field Kitchen",
+              "Donkey",
+              "Cart"
+            ],
+            [
+              "Dagger",
+              "Sleeping Fur",
+              "Large Tent",
+              "Oil Lamp",
+              "Lamp Oil",
+              "Backpack"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Scholar",
+      "icon": "scroll-unfurled",
+      "description": "Scholars pursue knowledge of nature, forgotten history, and the hidden structures of the world. They seek sources in the field, from monster lore and plants to ancient languages and lost scripts.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A seeker of sources and understanding, trained to connect scattered facts into useful knowledge.",
+          "skills": [
+            "Awareness",
+            "Beast Lore",
+            "Bushcraft",
+            "Evade",
+            "Healing",
+            "Languages",
+            "Myths and Legends",
+            "Spot Hidden"
+          ],
+          "heroic_skill": "Intuition",
+          "items": [
+            [
+              "Staff",
+              "Notebook",
+              "Quill & Ink",
+              "Sleeping Fur"
+            ],
+            [
+              "Knife",
+              "Book",
+              "Sleeping Fur",
+              "Lamp Oil",
+              "Oil Lamp"
+            ],
+            [
+              "Short Sword",
+              "Bandages (10)",
+              "Sleeping Poison (dose)",
+              "Sleeping Fur",
+              "Lantern",
+              "Lamp Oil"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Thief",
+      "icon": "assassin-pocket",
+      "description": "Professional takers of other people’s property include burglars, pickpockets, charlatans, and highwaymen. Some work through guilds and quiet guile, while others favor blades and the night.",
+      "specializations": [
+        {
+          "name": "Default",
+          "description": "A resourceful operator who acquires what others fail to guard, through guile, speed, or force.",
+          "skills": [
+            "Acrobatics",
+            "Awareness",
+            "Bluffing",
+            "Evade",
+            "Knives",
+            "Sleight of Hand",
+            "Sneaking",
+            "Spot Hidden"
+          ],
+          "heroic_skill": "Backstabbing",
+          "items": [
+            [
+              "Dagger",
+              "Sling",
+              "Hemp Rope (10 meters)",
+              "Grappling Hook"
+            ],
+            [
+              "Knife",
+              "Simple Lockpicks"
+            ],
+            [
+              "Dagger",
+              "Dagger",
+              "Marbles",
+              "Hemp Rope (10 meters)"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

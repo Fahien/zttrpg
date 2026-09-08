@@ -55,6 +55,7 @@ pub const Resource = enum {
     skills,
     icons,
     attributes,
+    professions,
 
     /// Return the model and HTTP capabilities for this resource.
     ///
@@ -83,6 +84,12 @@ pub const Resource = enum {
             .skills => .{ .Model = zttrpg.Skill },
             .icons => .{ .Model = zttrpg.Icon },
             .attributes => .{ .Model = zttrpg.Attribute },
+            .professions => .{
+                .Model = zttrpg.Profession,
+                .create = false,
+                .update = false,
+                .delete = false,
+            },
         };
     }
 };

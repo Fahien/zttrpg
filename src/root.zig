@@ -20,6 +20,7 @@ pub const DamageBonus = model.DamageBonus;
 pub const Icon = model.Icon;
 pub const Kin = model.Kin;
 pub const MovementModifier = model.MovementModifier;
+pub const Profession = model.Profession;
 pub const Skill = model.Skill;
 pub const SkillBaseChance = model.SkillBaseChance;
 pub const SkillKind = model.SkillKind;

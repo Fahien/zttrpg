@@ -17,6 +17,7 @@ const Icon = model.Icon;
 const Item = model.Item;
 const Kin = model.Kin;
 const MovementModifier = model.MovementModifier;
+const Profession = model.Profession;
 const Skill = model.Skill;
 
 pub const Database = struct {
@@ -83,9 +84,10 @@ pub const Database = struct {
     fn readSubResourceQuery(comptime Parent: type, comptime Child: type) [:0]const u8 {
         const cols = Database.getCols(RowOfT(Child));
 
+        const order_by = if (@hasDecl(Child, "order_by")) Child.order_by else Child.Body.key_name;
         return "SELECT " ++ cols ++ " FROM " ++ Child.table_name ++
             " WHERE " ++ Parent.resource_name ++ " = $1" ++
-            " ORDER BY " ++ Child.Body.key_name;
+            " ORDER BY " ++ order_by;
     }
 
     pub fn readSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32) ![]Child {
@@ -405,6 +407,7 @@ test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
+    try std.testing.expectEqualStrings("id, name, icon, description", comptime Database.getCols(Profession.Row));
     try std.testing.expectEqualStrings("id, name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.

@@ -29,6 +29,7 @@ const all_tables = .{
     SkillBaseChances,
     Ages,
     AgeAttributes,
+    Professions,
 };
 
 /// Generate the insertion SQL files in the `db` directory.
@@ -43,6 +44,7 @@ pub fn main(init: std.process.Init) !void {
     inline for (all_tables) |Table| {
         try generate(init.io, gpa, Table);
     }
+    try generateProfessionRelations(init.io, gpa);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -277,6 +279,44 @@ const Ages = struct {
     ages: []const Row,
 };
 
+/// Profession identity is a regular table. Its nested mechanics are flattened
+/// by generateProfessionRelations below, keeping the source JSON ergonomic
+/// without sacrificing relational constraints in PostgreSQL.
+const Professions = struct {
+    const table_name = "professions";
+    const json_paths = &[_][]const u8{"src/data/profession/professions.json"};
+    const out_path = "db/0071-professions.sql";
+
+    const Row = struct {
+        const lookups = .{ .icon = "icons" };
+
+        name: []const u8,
+        icon: []const u8,
+        description: []const u8,
+    };
+
+    professions: []const Row,
+};
+
+const ProfessionSpecializationData = struct {
+    name: []const u8,
+    description: []const u8,
+    skills: []const []const u8,
+    heroic_skill: ?[]const u8,
+    items: []const []const []const u8,
+};
+
+const ProfessionData = struct {
+    name: []const u8,
+    specializations: []const ProfessionSpecializationData,
+};
+
+const ProfessionDataFile = struct {
+    const json_paths = Professions.json_paths;
+
+    professions: []const ProfessionData,
+};
+
 const TwoConfigFiles = struct {
     const json_paths = &[_][]const u8{
         "src/data/configs.json",
@@ -322,6 +362,119 @@ fn generate(io: Io, gpa: Allocator, comptime Table: type) !void {
     try Io.Dir.cwd().writeFile(io, .{ .data = sql.items, .sub_path = Table.out_path, .flags = .{} });
 
     std.log.info("{s}: {d} rows", .{ Table.out_path, rows.len });
+}
+
+/// Flattens each complete specialization into its relational rows. The source
+/// keeps skills and packages as ordered arrays; `position` and `package_index`
+/// make that ordering explicit in the database and in the served response.
+fn generateProfessionRelations(io: Io, gpa: Allocator) !void {
+    const source = try readJsonFile(io, gpa, ProfessionDataFile, ProfessionDataFile.json_paths[0]);
+
+    try generateProfessionSpecializations(io, gpa, source.professions);
+    try generateProfessionSkills(io, gpa, source.professions);
+    try generateProfessionItems(io, gpa, source.professions);
+}
+
+fn beginSql(gpa: Allocator, table: []const u8, columns: []const u8) !std.ArrayList(u8) {
+    var sql = std.ArrayList(u8).empty;
+    try sql.appendSlice(gpa, "INSERT INTO ");
+    try sql.appendSlice(gpa, table);
+    try sql.appendSlice(gpa, " (");
+    try sql.appendSlice(gpa, columns);
+    try sql.appendSlice(gpa, ") VALUES\n");
+    return sql;
+}
+
+fn writeSql(io: Io, gpa: Allocator, sql: *std.ArrayList(u8), path: []const u8, row_count: usize) !void {
+    if (row_count == 0) return error.NoRows;
+    try sql.appendSlice(gpa, ";\n");
+    try Io.Dir.cwd().writeFile(io, .{ .data = sql.items, .sub_path = path, .flags = .{} });
+    std.log.info("{s}: {d} rows", .{ path, row_count });
+}
+
+fn appendSpecializationLookup(
+    gpa: Allocator,
+    sql: *std.ArrayList(u8),
+    profession_name: []const u8,
+    specialization_name: []const u8,
+) !void {
+    try sql.appendSlice(gpa, "(SELECT specialization.id FROM profession_specializations specialization JOIN professions profession ON profession.id = specialization.profession WHERE profession.name = ");
+    try appendQuoted(gpa, sql, profession_name);
+    try sql.appendSlice(gpa, " AND specialization.name = ");
+    try appendQuoted(gpa, sql, specialization_name);
+    try sql.appendSlice(gpa, " LIMIT 1)");
+}
+
+fn appendRowPrefix(gpa: Allocator, sql: *std.ArrayList(u8), row_count: usize) !void {
+    if (row_count > 0) try sql.appendSlice(gpa, ",\n");
+    try sql.appendSlice(gpa, "    (");
+}
+
+fn generateProfessionSpecializations(io: Io, gpa: Allocator, professions: []const ProfessionData) !void {
+    var sql = try beginSql(gpa, "profession_specializations", "profession, name, description, heroic_skill");
+    defer sql.deinit(gpa);
+
+    var row_count: usize = 0;
+    for (professions) |profession| for (profession.specializations) |specialization| {
+        try appendRowPrefix(gpa, &sql, row_count);
+        try appendSlice(gpa, &sql, "professions", profession.name);
+        try sql.appendSlice(gpa, ", ");
+        try appendQuoted(gpa, &sql, specialization.name);
+        try sql.appendSlice(gpa, ", ");
+        try appendQuoted(gpa, &sql, specialization.description);
+        try sql.appendSlice(gpa, ", ");
+        try maybeAppendValue(gpa, &sql, "skills", specialization.heroic_skill);
+        try sql.appendSlice(gpa, ")");
+        row_count += 1;
+    };
+
+    try writeSql(io, gpa, &sql, "db/0072-profession-specializations.sql", row_count);
+}
+
+fn generateProfessionSkills(io: Io, gpa: Allocator, professions: []const ProfessionData) !void {
+    var sql = try beginSql(gpa, "profession_specialization_skills", "specialization, skill, position");
+    defer sql.deinit(gpa);
+
+    var row_count: usize = 0;
+    for (professions) |profession| for (profession.specializations) |specialization| {
+        for (specialization.skills, 1..) |skill, position| {
+            try appendRowPrefix(gpa, &sql, row_count);
+            try appendSpecializationLookup(gpa, &sql, profession.name, specialization.name);
+            try sql.appendSlice(gpa, ", ");
+            try appendSlice(gpa, &sql, "skills", skill);
+            try sql.appendSlice(gpa, ", ");
+            try appendValue(gpa, &sql, null, position);
+            try sql.appendSlice(gpa, ")");
+            row_count += 1;
+        }
+    };
+
+    try writeSql(io, gpa, &sql, "db/0073-profession-specialization-skills.sql", row_count);
+}
+
+fn generateProfessionItems(io: Io, gpa: Allocator, professions: []const ProfessionData) !void {
+    var sql = try beginSql(gpa, "profession_specialization_items", "specialization, package_index, position, item");
+    defer sql.deinit(gpa);
+
+    var row_count: usize = 0;
+    for (professions) |profession| for (profession.specializations) |specialization| {
+        for (specialization.items, 1..) |package, package_index| {
+            for (package, 1..) |item, position| {
+                try appendRowPrefix(gpa, &sql, row_count);
+                try appendSpecializationLookup(gpa, &sql, profession.name, specialization.name);
+                try sql.appendSlice(gpa, ", ");
+                try appendValue(gpa, &sql, null, package_index);
+                try sql.appendSlice(gpa, ", ");
+                try appendValue(gpa, &sql, null, position);
+                try sql.appendSlice(gpa, ", ");
+                try appendSlice(gpa, &sql, "items", item);
+                try sql.appendSlice(gpa, ")");
+                row_count += 1;
+            }
+        }
+    };
+
+    try writeSql(io, gpa, &sql, "db/0074-profession-specialization-items.sql", row_count);
 }
 
 /// The one property of a table's JSON that holds its list. Declaring a second
@@ -532,6 +685,33 @@ test "readJson propagates a missing source file" {
         error.FileNotFound,
         readJson(testing.io, arena.allocator(), MissingConfigFile),
     );
+}
+
+test "profession source has complete specializations, including Mage's null heroic skills" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+
+    const source = try readJsonFile(testing.io, arena.allocator(), ProfessionDataFile, ProfessionDataFile.json_paths[0]);
+    try testing.expectEqual(@as(usize, 10), source.professions.len);
+
+    var specialization_count: usize = 0;
+    var mage_specialization_count: usize = 0;
+    for (source.professions) |profession| {
+        try testing.expect(profession.specializations.len > 0);
+        for (profession.specializations) |specialization| {
+            specialization_count += 1;
+            try testing.expectEqual(@as(usize, 8), specialization.skills.len);
+            try testing.expect(specialization.items.len > 0);
+            for (specialization.items) |package| try testing.expect(package.len > 0);
+
+            if (std.mem.eql(u8, profession.name, "Mage")) {
+                mage_specialization_count += 1;
+                try testing.expect(specialization.heroic_skill == null);
+            }
+        }
+    }
+    try testing.expectEqual(@as(usize, 14), specialization_count);
+    try testing.expectEqual(@as(usize, 3), mage_specialization_count);
 }
 
 test "columns are the row's fields, in order" {

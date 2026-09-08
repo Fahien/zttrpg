@@ -431,3 +431,50 @@ textarea {
     font-size: .9em;
     line-height: 1.2;
 }
+
+/* Profession pages keep linked rules and selectable equipment easy to scan. */
+.profession-specialization {
+    margin-top: 1em;
+}
+
+.profession-reference-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13em, 1fr));
+    gap: .4em 1em;
+}
+
+.profession-reference {
+    display: inline-flex;
+    align-items: center;
+    gap: .4em;
+}
+
+.profession-gear-packages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+    gap: 1em;
+}
+
+.profession-gear-package {
+    margin: 0;
+}
+
+.profession-gear-package h4 {
+    margin-bottom: .4em;
+}
+
+.profession-gear {
+    display: grid;
+    gap: .4em;
+}
+
+.profession-item-count {
+    min-width: 2.5em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.profession-magic-note {
+    color: var(--text-muted);
+    font-style: italic;
+}

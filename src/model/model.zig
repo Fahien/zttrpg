@@ -42,6 +42,9 @@ pub const SkillKind = skill.SkillKind;
 const skill_base_chance = @import("skill_base_chance.zig");
 pub const SkillBaseChance = skill_base_chance.SkillBaseChance;
 
+const profession = @import("profession.zig");
+pub const Profession = profession.Profession;
+
 test {
     // Test discovery is lazy: a file's tests are only collected when the file
     // is referenced from a test context, so name each model file here.
