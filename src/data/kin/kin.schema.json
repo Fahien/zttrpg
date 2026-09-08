@@ -23,7 +23,7 @@
             "description": "The name of the kin. Kins are also created through the API, so there is no fixed list."
         },
         "icon": {
-            "$ref": "icon-names.schema.json",
+            "$ref": "../icon-names.schema.json",
             "description": "The icon of the kin."
         },
         "movement": {

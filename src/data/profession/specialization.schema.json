@@ -24,12 +24,12 @@
             "maxItems": 8,
             "uniqueItems": true,
             "items": {
-                "$ref": "../skill-names.schema.json"
+                "$ref": "../skill/skill-names.schema.json"
             }
         },
         "heroic_skill": {
             "anyOf": [
-                { "$ref": "../skill-names.schema.json" },
+                { "$ref": "../skill/skill-names.schema.json" },
                 { "type": "null" }
             ],
             "description": "The starting heroic skill, or null when this specialization starts with magic instead."

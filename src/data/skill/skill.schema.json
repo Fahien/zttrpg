@@ -23,7 +23,7 @@
             "$ref": "skill-names.schema.json"
         },
         "icon": {
-            "$ref": "icon-names.schema.json",
+            "$ref": "../icon-names.schema.json",
             "description": "The icon of the skill."
         },
         "kind": {
@@ -31,7 +31,7 @@
         },
         "attribute": {
             "anyOf": [
-                { "$ref": "attribute-names.schema.json" },
+                { "$ref": "../attribute/attribute-names.schema.json" },
                 { "type": "null" }
             ],
             "default": null,

@@ -53,7 +53,7 @@ pub fn main(init: std.process.Init) !void {
 
 const Configs = struct {
     const table_name = "configs";
-    const json_paths = &[_][]const u8{"src/data/configs.json"};
+    const json_paths = &[_][]const u8{"src/data/config/configs.json"};
     const out_path = "db/0001-configs.sql";
 
     const Row = struct {
@@ -139,7 +139,7 @@ const Items = struct {
 
 const SkillKinds = struct {
     const table_name = "skill_kinds";
-    const json_paths = &[_][]const u8{"src/data/skill-kinds.schema.json"};
+    const json_paths = &[_][]const u8{"src/data/skill/skill-kinds.schema.json"};
     const out_path = "db/0051-skill-kinds.sql";
 
     @"enum": []const []const u8,
@@ -147,7 +147,7 @@ const SkillKinds = struct {
 
 const Kins = struct {
     const table_name = "kins";
-    const json_paths = &[_][]const u8{"src/data/kins.json"};
+    const json_paths = &[_][]const u8{"src/data/kin/kins.json"};
     const out_path = "db/0031-kins.sql";
 
     /// The JSON also carries a description, which the table has no column for.
@@ -167,7 +167,7 @@ const Kins = struct {
 
 const Attributes = struct {
     const table_name = "attributes";
-    const json_paths = &[_][]const u8{"src/data/attributes.json"};
+    const json_paths = &[_][]const u8{"src/data/attribute/attributes.json"};
     const out_path = "db/0041-attributes.sql";
 
     const Row = struct {
@@ -184,7 +184,7 @@ const Attributes = struct {
 
 const Skills = struct {
     const table_name = "skills";
-    const json_paths = &[_][]const u8{"src/data/skills.json"};
+    const json_paths = &[_][]const u8{"src/data/skill/skills.json"};
     const out_path = "db/0052-skills.sql";
 
     const Row = struct {
@@ -202,7 +202,7 @@ const Skills = struct {
 
 const SkillBaseChances = struct {
     const table_name = "skill_base_chances";
-    const json_paths = &[_][]const u8{"src/data/skill-base-chances.json"};
+    const json_paths = &[_][]const u8{"src/data/skill/skill-base-chances.json"};
     const out_path = "db/0054-skill-base-chances.sql";
 
     const Row = struct {
@@ -216,7 +216,7 @@ const SkillBaseChances = struct {
 
 const MovementModifiers = struct {
     const table_name = "movement_modifiers";
-    const json_paths = &[_][]const u8{"src/data/movement-modifiers.json"};
+    const json_paths = &[_][]const u8{"src/data/movement-modifier/movement-modifiers.json"};
     const out_path = "db/0043-movement-modifiers.sql";
 
     const Row = struct {
@@ -233,7 +233,7 @@ const MovementModifiers = struct {
 
 const DamageBonuses = struct {
     const table_name = "damage_bonuses";
-    const json_paths = &[_][]const u8{"src/data/damage-bonuses.json"};
+    const json_paths = &[_][]const u8{"src/data/damage-bonus/damage-bonuses.json"};
     const out_path = "db/0045-damage-bonuses.sql";
 
     const Row = struct {
@@ -250,7 +250,7 @@ const DamageBonuses = struct {
 /// A join table: both columns hold ids, both come from names in the JSON.
 const AgeAttributes = struct {
     const table_name = "age_attributes";
-    const json_paths = &[_][]const u8{"src/data/age-attributes.json"};
+    const json_paths = &[_][]const u8{"src/data/age/age-attributes.json"};
     const out_path = "db/0063-age-attributes.sql";
 
     const Row = struct {
@@ -266,7 +266,7 @@ const AgeAttributes = struct {
 
 const Ages = struct {
     const table_name = "ages";
-    const json_paths = &[_][]const u8{"src/data/ages.json"};
+    const json_paths = &[_][]const u8{"src/data/age/ages.json"};
     const out_path = "db/0061-ages.sql";
 
     const Row = struct {
@@ -319,15 +319,15 @@ const ProfessionDataFile = struct {
 
 const TwoConfigFiles = struct {
     const json_paths = &[_][]const u8{
-        "src/data/configs.json",
-        "src/data/configs.json",
+        "src/data/config/configs.json",
+        "src/data/config/configs.json",
     };
 
     configs: []const Configs.Row,
 };
 
 const MissingConfigFile = struct {
-    const json_paths = &[_][]const u8{"src/data/does-not-exist.json"};
+    const json_paths = &[_][]const u8{"src/data/config/does-not-exist.json"};
 
     configs: []const Configs.Row,
 };

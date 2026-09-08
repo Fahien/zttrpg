@@ -15,7 +15,7 @@
         },
         "attribute": {
             "type": "string",
-            "$ref": "attribute-names.schema.json",
+            "$ref": "../attribute/attribute-names.schema.json",
             "description": "The name of the attribute, as in attributes.json."
         },
         "modifier": {

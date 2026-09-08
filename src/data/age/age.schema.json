@@ -21,7 +21,7 @@
             "$ref": "age-names.schema.json"
         },
         "icon": {
-            "$ref": "icon-names.schema.json",
+            "$ref": "../icon-names.schema.json",
             "description": "The icon of the age."
         }
     }

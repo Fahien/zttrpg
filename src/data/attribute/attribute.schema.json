@@ -19,7 +19,7 @@
             "description": "The name of the attribute."
         },
         "icon": {
-            "$ref": "icon-names.schema.json",
+            "$ref": "../icon-names.schema.json",
             "description": "The icon of the attribute."
         },
         "short": {
