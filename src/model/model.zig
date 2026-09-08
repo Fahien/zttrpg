@@ -41,26 +41,17 @@ pub const SkillBaseChance = skill_base_chance.SkillBaseChance;
 test {
     // Test discovery is lazy: a file's tests are only collected when the file
     // is referenced from a test context, so name each model file here.
-    _ = config;
-    _ = age;
-    _ = character;
-    _ = kin;
-    _ = skill;
-    _ = skill_base_chance;
-    _ = icon;
-    _ = attribute;
-    _ = damage_bonus;
+    std.testing.refAllDecls(@This());
 }
-
-/// Every model a query can return, including the two join-table rows.
-const all_models = .{ Age, Config, MovementModifier, DamageBonus, Character, CharacterSummary, CharacterAttribute, CharacterSkill, Icon, Attribute, Kin, Skill, SkillKind, SkillBaseChance };
 
 test "a model that splits its stored shape says how to rebuild itself" {
     // Database.hydrate is generic: for any model whose Row differs from the
     // model itself, it calls fromRow and knows nothing else about it. Declaring
     // one without the other is the mistake this catches -- and it catches it
     // for every model, not just the ones some query happens to instantiate.
-    inline for (all_models) |Model| {
+    const all_decls = comptime std.meta.declarations(@This());
+    inline for (all_decls) |decl| {
+        const Model = @field(@This(), decl.name);
         if (@hasDecl(Model, "Row")) {
             try std.testing.expect(@hasDecl(Model, "fromRow"));
         }
@@ -74,7 +65,9 @@ test "models are plain data" {
     // -- and would be wrong to call, since models share their nested records.
     // Reintroducing either means reintroducing ownership: decide that on
     // purpose rather than by adding a constructor out of habit.
-    inline for (all_models) |Model| {
+    const all_decls = comptime std.meta.declarations(@This());
+    inline for (all_decls) |decl| {
+        const Model = @field(@This(), decl.name);
         try std.testing.expect(!@hasDecl(Model, "init"));
         try std.testing.expect(!@hasDecl(Model, "deinit"));
     }

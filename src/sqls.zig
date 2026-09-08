@@ -404,19 +404,8 @@ fn appendValue(
         .optional => {
             @compileError("use maybeAppendValue to pass optional value");
         },
-        .pointer => |ptr| {
-            switch (ptr.size) {
-                .slice => {
-                    if (ptr.child == u8) {
-                        try appendSlice(gpa, sql, lookup_table, value);
-                    } else {
-                        @compileError("unsupported pointer type: " ++ @typeName(@TypeOf(value)));
-                    }
-                },
-                else => {
-                    @compileError("unsupported pointer type: " ++ @typeName(@TypeOf(value)));
-                },
-            }
+        .pointer => {
+            try appendSlice(gpa, sql, lookup_table, value);
         },
         .int => {
             const val_str = try std.fmt.allocPrint(gpa, "{}", .{value});
@@ -608,10 +597,10 @@ test "an absent lookup emits SQL NULL instead of a quoted value" {
     const gpa = testing.allocator;
     var sql = std.ArrayList(u8).empty;
     defer sql.deinit(gpa);
-    try appendValue(gpa, &sql, "attributes", null);
+    try maybeAppendValue(gpa, &sql, "attributes", null);
     try testing.expectEqualStrings("NULL", sql.items);
     sql.clearRetainingCapacity();
-    try appendValue(gpa, &sql, "attributes", "Agility");
+    try maybeAppendValue(gpa, &sql, "attributes", "Agility");
     try testing.expectEqualStrings("(SELECT id FROM attributes WHERE name = $val$Agility$val$ LIMIT 1)", sql.items);
 }
 
