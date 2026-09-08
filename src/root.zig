@@ -8,6 +8,7 @@ const model = @import("model/model.zig");
 
 pub const ItemSupply = model.ItemSupply;
 pub const ItemKind = model.ItemKind;
+pub const Item = model.Item;
 pub const Age = model.Age;
 pub const Attribute = model.Attribute;
 pub const Character = model.Character;

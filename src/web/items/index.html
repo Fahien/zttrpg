@@ -1,0 +1,24 @@
+<h1 id="resource-name">Items</h1>
+<form id="instance-form">
+    <label for="name">Name:</label>
+    <input type="text" id="name" name="name" required>
+    <label for="icon">Icon:</label>
+    <select id="icon" name="icon" data-resource="icons" data-number required></select>
+    <label for="kind">Kind:</label>
+    <select id="kind" name="kind" data-resource="item_kinds" data-number required></select>
+    <label for="supply">Supply:</label>
+    <select id="supply" name="supply" data-resource="item_supplies" data-number required></select>
+    <label for="cost">Cost:</label>
+    <input type="number" id="cost" name="cost" min="0" step="1" data-number required>
+    <label for="weight">Weight:</label>
+    <input type="number" id="weight" name="weight" min="0" step="any" value="1" data-number required>
+    <label for="effect">Effect:</label>
+    <input type="text" id="effect" name="effect" data-nullable>
+    <label for="description">Description:</label>
+    <textarea id="description" name="description" required></textarea>
+    <button type="submit">Add Item</button>
+</form>
+<table id="roster"></table>
+
+<script src="/static/roster.js" data-resource="items"
+    data-fields="icon.name:icon,name:text,kind.name:text,supply.name:text,cost:number,weight:number"></script>

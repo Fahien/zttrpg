@@ -44,6 +44,7 @@ pub const Definition = struct {
 pub const Resource = enum {
     item_kinds,
     item_supplies,
+    items,
     ages,
     configs,
     movement_modifiers,
@@ -64,6 +65,7 @@ pub const Resource = enum {
         return switch (resource) {
             .item_kinds => .{ .Model = zttrpg.ItemKind },
             .item_supplies => .{ .Model = zttrpg.ItemSupply },
+            .items => .{ .Model = zttrpg.Item },
             .ages => .{ .Model = zttrpg.Age },
             .configs => .{ .Model = zttrpg.Config },
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },

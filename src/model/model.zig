@@ -10,6 +10,8 @@ const item_supply = @import("item_supply.zig");
 pub const ItemSupply = item_supply.ItemSupply;
 const item_kind = @import("item_kind.zig");
 pub const ItemKind = item_kind.ItemKind;
+const item = @import("item.zig");
+pub const Item = item.Item;
 
 const age = @import("age.zig");
 pub const Age = age.Age;

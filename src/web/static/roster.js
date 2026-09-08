@@ -210,11 +210,24 @@ function initializeForm() {
     instanceForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevent the default form submission behavior.
 
-        /** @type {Record<string, FormDataEntryValue | null>} */
+        /** @type {Record<string, FormDataEntryValue | number | null>} */
         const newInstance = Object.fromEntries(new FormData(instanceForm));
-        for (const select of instanceForm.querySelectorAll('select[data-nullable]')) {
-            if (select instanceof HTMLSelectElement && select.value === '') {
-                newInstance[select.name] = null;
+        for (const field of instanceForm.querySelectorAll('[data-nullable]')) {
+            if (
+                (field instanceof HTMLInputElement ||
+                    field instanceof HTMLSelectElement ||
+                    field instanceof HTMLTextAreaElement) &&
+                field.value === ''
+            ) {
+                newInstance[field.name] = null;
+            }
+        }
+        for (const field of instanceForm.querySelectorAll('[data-number]')) {
+            if (
+                (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) &&
+                field.value !== ''
+            ) {
+                newInstance[field.name] = Number(field.value);
             }
         }
 

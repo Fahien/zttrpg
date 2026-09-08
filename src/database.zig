@@ -14,6 +14,7 @@ const Character = model.Character;
 const CharacterAttribute = model.CharacterAttribute;
 const CharacterSkill = model.CharacterSkill;
 const Icon = model.Icon;
+const Item = model.Item;
 const Kin = model.Kin;
 const MovementModifier = model.MovementModifier;
 const Skill = model.Skill;
@@ -282,6 +283,7 @@ pub const Database = struct {
         const present = value orelse return error.UnexpectedNull;
         return switch (@typeInfo(T)) {
             .int => try std.fmt.parseInt(T, present, 10),
+            .float => try std.fmt.parseFloat(T, present),
             .pointer => if (T == []const u8 or T == []u8)
                 try gpa.dupe(u8, present)
             else
@@ -296,6 +298,7 @@ pub const Database = struct {
         return switch (@typeInfo(T)) {
             .optional => if (value) |present| try formatParam(gpa, present) else null,
             .int => try std.fmt.allocPrintSentinel(gpa, "{d}", .{value}, 0),
+            .float => try std.fmt.allocPrintSentinel(gpa, "{}", .{value}, 0),
             .pointer => if (T == []const u8 or T == []u8)
                 try gpa.dupeZ(u8, value)
             else
@@ -347,6 +350,9 @@ pub const Database = struct {
     }
 
     pub fn getSetClauses(comptime T: type) []const u8 {
+        // Long update bodies repeat comptimePrint once per field. Keep this
+        // generic query builder usable for a normal record such as Item.
+        @setEvalBranchQuota(10_000);
         comptime var set_clauses: []const u8 = "";
         const fields = @typeInfo(T).@"struct".fields;
         inline for (0..fields.len) |i| {
@@ -393,17 +399,19 @@ pub const Database = struct {
     }
 };
 
-const all_models = .{ Character, Kin, Skill };
+const all_models = .{ Character, Item, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin, age, attribute_points, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
     try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
+    try std.testing.expectEqualStrings("id, name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item));
     // Insert columns come from the Create type, which must never carry `id`:
     // getPlaceholders and getParams both assume every field is insertable.
     try std.testing.expectEqualStrings("name, level, kin, age", comptime Database.getCols(Character.Create));
     try std.testing.expectEqualStrings("name, icon, movement", comptime Database.getCols(Kin.Create));
     try std.testing.expectEqualStrings("name, icon, kind, attribute, description", comptime Database.getCols(Skill.Create));
+    try std.testing.expectEqualStrings("name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item.Create));
 }
 
 test "no Create type carries an id column" {
@@ -428,6 +436,7 @@ test "getPlaceholders numbers parameters from $1" {
     try std.testing.expectEqualStrings("$1, $2, $3, $4", comptime Database.getPlaceholders(Character.Create));
     try std.testing.expectEqualStrings("$1, $2, $3", comptime Database.getPlaceholders(Kin.Create));
     try std.testing.expectEqualStrings("$1, $2, $3, $4, $5", comptime Database.getPlaceholders(Skill.Create));
+    try std.testing.expectEqualStrings("$1, $2, $3, $4, $5, $6, $7, $8", comptime Database.getPlaceholders(Item.Create));
 }
 
 test "getSetClauses derives the id placeholder from the field count" {
@@ -444,6 +453,10 @@ test "getSetClauses derives the id placeholder from the field count" {
     try std.testing.expectEqualStrings(
         "name = $1, icon = $2, kind = $3, attribute = $4, description = $5 WHERE id = $6",
         comptime Database.getSetClauses(Skill.Update),
+    );
+    try std.testing.expectEqualStrings(
+        "name = $1, icon = $2, kind = $3, cost = $4, supply = $5, weight = $6, effect = $7, description = $8 WHERE id = $9",
+        comptime Database.getSetClauses(Item.Update),
     );
 }
 
@@ -530,6 +543,7 @@ test "a model without a Row type queries its own fields" {
     try std.testing.expectEqual(Skill.Row, Database.RowOfT(Skill));
     try std.testing.expectEqual(Kin.Row, Database.RowOfT(Kin));
     try std.testing.expectEqual(Icon, Database.RowOfT(Icon));
+    try std.testing.expectEqual(Item.Row, Database.RowOfT(Item));
     try std.testing.expectEqual(Character.Row, Database.RowOfT(Character));
 }
 
@@ -543,6 +557,16 @@ test "nullable SQL values preserve null, zero, and empty strings" {
     const empty = try Database.parseValue(?[]const u8, gpa, "");
     defer gpa.free(empty.?);
     try std.testing.expectEqualStrings("", empty.?);
+}
+
+test "floating SQL values round-trip through the generic codec" {
+    const gpa = std.testing.allocator;
+    try std.testing.expectEqual(@as(f64, 0.25), try Database.parseValue(f64, gpa, "0.25"));
+    try std.testing.expectEqual(@as(?f64, null), try Database.parseValue(?f64, gpa, null));
+
+    const param = try Database.formatParam(gpa, @as(f64, 0.25));
+    defer gpa.free(std.mem.span(param.?));
+    try std.testing.expectEqualStrings("0.25", std.mem.span(param.?));
 }
 
 test "nullable parameters bind null pointers and retain the update id" {
