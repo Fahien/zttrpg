@@ -192,12 +192,14 @@ dialog {
 
 section {
     position: relative;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background-color: var(--background-alt);
-    box-shadow:
-        inset 0 0 0 1px var(--bevel),
-        inset 0 0 4px var(--vignette);
+    /*
+     border: 1px solid var(--border); 
+     border-radius: 4px;
+     background-color: var(--background-alt);
+     box-shadow:
+     inset 0 0 0 1px var(--bevel),
+     inset 0 0 4px var(--vignette);
+     */
     padding: 0 1em 0 1em;
 }
 
