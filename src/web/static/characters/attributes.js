@@ -250,7 +250,8 @@ function deriveDamageBonus(attributeId, rules) {
  */
 function deriveSkillValue(entry, bands) {
     const attribute = entry.skill.attribute;
-    if (attribute === null) return entry.value;
+    const hasBaseChance = entry.skill.kind.base_chance;
+    if (attribute === null || !hasBaseChance) return entry.value;
     const value = (originalAttributeMap.get(attribute.id) || 0) + (editAttributeMap.get(attribute.id) || 0);
     const band = bands.find((candidate) => value >= candidate.min_value && value <= candidate.max_value);
     return band ? band.base_chance * (entry.trained ? 2 : 1) : entry.value;

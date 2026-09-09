@@ -111,7 +111,8 @@ function isDefaultSpecialization(specialization) {
     return specialization.name === 'Default';
 }
 
-/** @returns {Set<number>} */
+/** The set of skill IDs that belong to the currently selected specialization.
+ * @returns {Set<number>} */
 function selectedSpecializationSkillIds() {
     const specialization = selectedSpecialization();
     return new Set((specialization?.skills ?? [])
@@ -397,11 +398,22 @@ function hideTrainingControls() {
 }
 
 function renderSheetSkills() {
+    const specializationSkillIds = selectedSpecializationSkillIds();
     for (const entry of character.skills) {
         const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const value = row.querySelector('[data-field="value"]');
-        if (value) value.textContent = String(pendingSkillIds.has(entry.skill.id) ? entry.value * 2 : entry.value);
+        if (value) {
+            let displayValue = entry.value;
+            if (specializationSkillIds.has(entry.skill.id)) {
+                if (entry.skill.kind.base_chance) {
+                    displayValue = displayValue * 2;
+                } else {
+                    displayValue = 1;
+                }
+            }
+            value.textContent = String(displayValue);
+        }
     }
 }
 
