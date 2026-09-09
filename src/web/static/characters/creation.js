@@ -17,19 +17,23 @@ let availableTrainingPoints = 0;
 let submitting = false;
 let submitError = '';
 
-const picker = /** @type {HTMLElement} */ (document.getElementById('creation-picker'));
 const status = /** @type {HTMLElement} */ (document.getElementById('creation-status'));
+const creationFieldset = /** @type {HTMLFieldSetElement} */ (document.getElementById('character-creation'));
 const specializationOptions = /** @type {HTMLElement} */ (document.getElementById('specialization-options'));
 const specializationHelp = /** @type {HTMLElement} */ (document.getElementById('specialization-help'));
+const specializationTemplate = /** @type {HTMLTemplateElement} */ (specializationOptions.querySelector('template'));
+const specializationSummary = /** @type {HTMLElement} */ (document.getElementById('selected-specialization'));
 const trainedSkillHelp = /** @type {HTMLElement} */ (document.getElementById('trained-skill-help'));
 const pointsElement = /** @type {HTMLElement} */ (document.getElementById('trained-skill-points'));
 const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-creation'));
-const skillList = /** @type {HTMLElement} */ (document.querySelector('[data-list="skills"]'));
+const skillSourceList = /** @type {HTMLElement} */ (document.querySelector('[data-list="skills"]'));
+const skillGroups = /** @type {HTMLElement} */ (document.getElementById('skill-groups'));
+const skillKindTemplate = /** @type {HTMLTemplateElement} */ (document.getElementById('skill-kind-template'));
 
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 document.addEventListener('characterUpdated', onCharacterUpdated);
 specializationOptions.addEventListener('change', onSpecializationChange);
-skillList.addEventListener('click', onTrainingButtonClick);
+skillGroups.addEventListener('click', onTrainingButtonClick);
 submitButton.addEventListener('click', onSubmit);
 
 /** @param {Event} event */
@@ -169,18 +173,20 @@ function addPendingSkill(id) {
 
 function render() {
     if (!character) return;
+    groupSkills();
     renderSheetSkills();
+    renderTrainingNotice();
+    renderSpecializationSummary();
     if (character.creation_complete) {
-        picker.hidden = true;
         submitButton.hidden = true;
         hideTrainingControls();
         const name = character.specialization?.name;
         status.textContent = name ? `Character creation complete: ${name}.` : 'Character creation complete.';
+        status.hidden = false;
         status.classList.remove('error');
         return;
     }
 
-    picker.hidden = false;
     renderSpecializations();
     if (trainingUnlocked()) {
         submitButton.hidden = false;
@@ -193,34 +199,80 @@ function render() {
 }
 
 function renderSpecializations() {
-    specializationOptions.replaceChildren();
     const specializations = character.profession.specializations;
-    const singleton = specializations.length === 1;
     const locked = trainingState().savedTotal > 0;
-    specializationHelp.textContent = singleton
-        ? 'This profession has one specialization, selected automatically.'
-        : locked
-            ? 'Specialization is locked after training points have been saved.'
-            : 'Choose a specialization before training skills.';
+    creationFieldset.hidden = specializations.length === 0 || specializationId !== null;
+    if (creationFieldset.hidden) return;
+
+    specializationHelp.textContent = locked
+        ? 'Specialization is locked after training points have been saved.'
+        : 'Choose a specialization before training skills.';
+    for (const option of specializationOptions.querySelectorAll('[data-specialization-option]')) option.remove();
 
     for (const specialization of specializations) {
-        const li = document.createElement('li');
-        const label = document.createElement('label');
-        const input = document.createElement('input');
-        input.type = 'radio';
-        input.name = 'specialization';
+        const option = specializationTemplate.content.cloneNode(true);
+        const li = /** @type {HTMLElement} */ (option.querySelector('[data-specialization-option]'));
+        const input = /** @type {HTMLInputElement} */ (li.querySelector('input[name="specialization"]'));
+        const name = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-name]'));
+        const description = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-description]'));
         input.value = String(specialization.id);
         input.checked = specialization.id === specializationId;
-        input.disabled = singleton || locked || submitting;
-        label.append(input, ` ${specialization.name}`);
-        li.append(label);
+        input.disabled = locked || submitting;
+        name.textContent = ` ${specialization.name}`;
         if (specialization.description) {
-            const description = document.createElement('small');
             description.textContent = ` ${specialization.description}`;
-            li.append(description);
+            description.hidden = false;
         }
-        specializationOptions.append(li);
+        specializationOptions.append(option);
     }
+}
+
+function renderSpecializationSummary() {
+    const specialization = selectedSpecialization();
+    specializationSummary.hidden = specialization === null;
+    if (specialization !== null) {
+        const name = specializationSummary.querySelector('span');
+        if (name) name.textContent = specialization.name;
+    }
+}
+
+function renderTrainingNotice() {
+    pointsElement.textContent = String(availableTrainingPoints);
+    for (const element of document.querySelectorAll('[data-requires-training-points]')) {
+        if (element instanceof HTMLElement) element.hidden = availableTrainingPoints <= 0;
+    }
+}
+
+function groupSkills() {
+    // instance.js expands this source list once. Once its rows have moved into
+    // their groups, later character updates only refresh those same rows.
+    if (!skillSourceList.querySelector('[data-skill-id]')) return;
+
+    /** @type {Map<string, HTMLUListElement>} */
+    const listsByKind = new Map();
+    skillGroups.replaceChildren();
+    for (const entry of character.skills) {
+        const row = findSkillRow(entry.skill.id);
+        if (!row) continue;
+        const kind = entry.skill.kind.name;
+        let list = listsByKind.get(kind);
+        if (!list) {
+            const group = skillKindTemplate.content.cloneNode(true);
+            const section = /** @type {HTMLElement} */ (group.querySelector('.skill-kind'));
+            const heading = /** @type {HTMLElement} */ (section.querySelector('[data-skill-kind]'));
+            list = /** @type {HTMLUListElement} */ (section.querySelector('ul'));
+            heading.textContent = kind;
+            listsByKind.set(kind, list);
+            skillGroups.append(group);
+        }
+        list.append(row);
+    }
+}
+
+/** @param {number} id */
+function findSkillRow(id) {
+    return skillGroups.querySelector(`[data-skill-id="${id}"]`) ??
+        skillSourceList.querySelector(`[data-skill-id="${id}"]`);
 }
 
 function renderSkills() {
@@ -228,7 +280,7 @@ function renderSkills() {
     const state = trainingState();
     const hasSpecialization = selectedSpecialization() !== null;
     for (const entry of character.skills) {
-        const row = skillList.querySelector(`[data-skill-id="${entry.skill.id}"]`);
+        const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const inSpecialization = specializationSkillIds.has(entry.skill.id);
         const specializationLabel = row.querySelector('[data-specialization-skill]');
@@ -277,7 +329,6 @@ function canAddSkill(inSpecialization, state) {
 function renderStatus() {
     const specialization = selectedSpecialization();
     const state = trainingState();
-    pointsElement.textContent = String(availableTrainingPoints);
     trainedSkillHelp.textContent = !trainingUnlocked()
         ? `Spend all ${character.attribute_points} remaining attribute point${character.attribute_points === 1 ? '' : 's'} before selecting training skills.`
         : specialization === null
@@ -291,26 +342,22 @@ function renderStatus() {
             ? `${pendingSkillIds.size} training point${pendingSkillIds.size === 1 ? '' : 's'} pending save.`
             : 'Training points pending.');
     status.classList.toggle('error', submitError.length > 0);
+    status.hidden = false;
     submitButton.disabled = pendingSkillIds.size === 0 || specialization === null || submitting;
 }
 
 function hideTrainingControls() {
-    for (const element of skillList.querySelectorAll('[data-specialization-skill], [data-training-state], button[data-action="increase-training"], button[data-action="decrease-training"]')) {
+    for (const element of skillGroups.querySelectorAll('[data-specialization-skill], [data-training-state], button[data-action="increase-training"], button[data-action="decrease-training"]')) {
         if (element instanceof HTMLElement) element.hidden = true;
     }
 }
 
 function renderSheetSkills() {
     for (const entry of character.skills) {
-        const row = document.querySelector(`[data-list="skills"] [data-skill-id="${entry.skill.id}"]`);
+        const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const value = row.querySelector('[data-field="value"]');
         if (value) value.textContent = String(entry.value);
-        const baseChance = row.querySelector('[data-base-chance]');
-        if (baseChance instanceof HTMLElement) {
-            baseChance.hidden = entry.base_chance === null;
-            baseChance.textContent = entry.base_chance === null ? '' : `(Base chance: ${entry.base_chance})`;
-        }
     }
 }
 

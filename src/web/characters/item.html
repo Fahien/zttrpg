@@ -9,6 +9,7 @@
             <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
             <span data-field="age.name">Age</span>
         </p>
+        <p id="selected-specialization" hidden>Specialization: <span></span></p>
     </header>
 
     <fieldset id="instance-stats">
@@ -52,32 +53,36 @@
     </fieldset>
 
 
-    <fieldset id="character-creation" aria-labelledby="character-creation-heading">
+    <fieldset id="character-creation" hidden>
         <legend>Specialization</legend>
         <p id="specialization-help">Choose a specialization.</p>
-        <ul id="specialization-options" class="plain-list"></ul>
-
-        <div id="creation-picker" hidden>
-
-        </div>
+        <ul id="specialization-options" class="plain-list">
+            <template>
+                <li class="specialization-option" data-specialization-option>
+                    <label><input type="radio" name="specialization"><span data-specialization-name></span></label>
+                    <small data-specialization-description hidden></small>
+                </li>
+            </template>
+        </ul>
     </fieldset>
 
     <fieldset id="instance-skills">
         <legend>Skills</legend>
         
-        <section class="notice" aria-live="polite">
+        <section class="notice" data-requires-training-points hidden aria-live="polite">
             <p>Training points to spend: <span id="trained-skill-points" data-quality="uncommon">0</span></p>
             <p id="trained-skill-help"></p>
         </section>
 
         <button type="button" id="submit-creation" hidden>Submit Skills</button>
-        <ul data-list="skills">
+        <p id="creation-status" hidden aria-live="polite"></p>
+        <section id="skill-groups" aria-live="polite"></section>
+        <ul class="plain-list" data-list="skills" hidden>
             <template>
-                <li data-field="skill.id:data-skill-id">
+                <li class="flex-row skill-row" data-field="skill.id:data-skill-id">
                     <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
-                    <span data-field="skill.name"></span>
-                    <span data-field="value"></span>
-                    <small data-base-chance hidden></small>
+                    <span class="grow" data-field="skill.name"></span>
+                    <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
                     <small data-specialization-skill hidden>Specialization skill</small>
                     <small data-training-state hidden></small>
                     <button type="button" class="button-small" data-action="decrease-training" hidden>-</button>
@@ -85,6 +90,12 @@
                 </li>
             </template>
         </ul>
+        <template id="skill-kind-template">
+            <section class="skill-kind">
+                <h3 data-skill-kind></h3>
+                <ul class="plain-list skill-kind-list"></ul>
+            </section>
+        </template>
     </fieldset>
 </main>
 

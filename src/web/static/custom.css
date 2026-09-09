@@ -434,6 +434,23 @@ textarea {
     line-height: 1.2;
 }
 
+/* Character skills retain the attribute row treatment while each kind gets a
+   compact, independently scannable group. */
+.skill-kind {
+    margin-top: 1em;
+    padding: 0;
+}
+
+.skill-kind:first-child {
+    margin-top: 0;
+}
+
+.skill-kind-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(17em, 1fr));
+    gap: .4em 1em;
+}
+
 /* Profession pages keep linked rules and selectable equipment easy to scan. */
 .profession-specialization {
     margin-top: 1em;

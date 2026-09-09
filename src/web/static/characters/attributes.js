@@ -140,19 +140,13 @@ function adoptCharacter(character) {
         originalSpentMap.set(attr.attribute.id, attr.spent);
     }
 
-    // Skill base chances follow saved attributes, on load and after a submit.
+    // Saved skill values follow an attribute submit as well.
     for (const entry of character.skills) {
-        const row = document.querySelector(`[data-list="skills"] [data-skill-id="${entry.skill.id}"]`);
+        const row = document.querySelector(`[data-skill-id="${entry.skill.id}"]`);
         if (!row) continue;
 
         const value = row.querySelector('[data-field="value"]');
         if (value) value.textContent = String(entry.value);
-
-        const baseChance = row.querySelector('[data-base-chance]');
-        if (baseChance instanceof HTMLElement) {
-            baseChance.hidden = entry.base_chance === null;
-            baseChance.textContent = entry.base_chance === null ? '' : `(Base chance: ${entry.base_chance})`;
-        }
     }
 }
 
