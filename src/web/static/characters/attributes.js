@@ -33,6 +33,9 @@ let movementModifiers = null;
 /** @type {{ attribute: number, min_value: number, die_sides: number }[] | null} */
 let damageBonusRules = null;
 
+/** @type {{ min_value: number, max_value: number, base_chance: number }[] | null} */
+let skillBaseChances = null;
+
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 document.addEventListener('characterUpdated', onCharacterUpdated);
 
@@ -107,14 +110,16 @@ async function initAttributesUpdate(character) {
     // The rules come from the same server as the sheet. Without them the
     // stepper stays hidden: a click the page cannot check is not offered.
     try {
-        const [max, bands, damageRules] = await Promise.all([
+        const [max, bands, damageRules, skillBands] = await Promise.all([
             fetchConfigValue('attribute_max'),
             fetchJson('/movement_modifiers'),
             fetchJson('/damage_bonuses'),
+            fetchJson('/skill_base_chances'),
         ]);
         attributeMax = max;
         movementModifiers = bands;
         damageBonusRules = damageRules;
+        skillBaseChances = skillBands;
     } catch (error) {
         showStatus(`Rules not loaded: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -227,6 +232,20 @@ function deriveDamageBonus(attributeId, rules) {
     return selected === null ? null : selected.die_sides;
 }
 
+/**
+ * Maps a draft governing attribute to the one skill value shown on the sheet.
+ * The multiplier preserves already-saved training during later recalculation.
+ * @param {*} entry
+ * @param {NonNullable<typeof skillBaseChances>} bands
+ */
+function deriveSkillValue(entry, bands) {
+    const attribute = entry.skill.attribute;
+    if (attribute === null) return entry.value;
+    const value = (originalAttributeMap.get(attribute.id) || 0) + (editAttributeMap.get(attribute.id) || 0);
+    const band = bands.find((candidate) => value >= candidate.min_value && value <= candidate.max_value);
+    return band ? band.base_chance * (entry.trained ? 2 : 1) : entry.value;
+}
+
 function render() {
     // Everything that spends points stays hidden until the rules are known and
     // there are points to spend. Keyed on the saved pool, not the remaining
@@ -291,6 +310,16 @@ function render() {
     if (movementElement && movementModifiers !== null) {
         const movement = totalPending() === 0 ? originalCharacter.movement : deriveMovement(movementModifiers);
         movementElement.textContent = String(movement);
+    }
+
+    // Draft attribute points preview the resulting skill level in the existing
+    // value cell; the configuration's base-chance concept stays out of the UI.
+    for (const entry of originalCharacter.skills) {
+        const value = document.querySelector(`[data-skill-id="${entry.skill.id}"] [data-field="value"]`);
+        if (!value) continue;
+        value.textContent = String(totalPending() === 0 || skillBaseChances === null
+            ? entry.value
+            : deriveSkillValue(entry, skillBaseChances));
     }
 
     // Rebuild from the adopted character so a submit can also change which

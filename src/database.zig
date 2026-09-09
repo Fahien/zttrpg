@@ -299,6 +299,7 @@ pub const Database = struct {
         return switch (@typeInfo(T)) {
             .int => try std.fmt.parseInt(T, present, 10),
             .float => try std.fmt.parseFloat(T, present),
+            .bool => if (std.mem.eql(u8, present, "t")) true else if (std.mem.eql(u8, present, "f")) false else error.InvalidCharacter,
             .pointer => if (T == []const u8 or T == []u8)
                 try gpa.dupe(u8, present)
             else
@@ -485,7 +486,7 @@ test "readSubResourceQuery orders the rows it returns" {
         comptime Database.readSubResourceQuery(Character, CharacterAttribute),
     );
     try std.testing.expectEqualStrings(
-        "SELECT character, skill, value FROM character_skills WHERE character = $1 ORDER BY skill",
+        "SELECT character, skill, value, trained FROM character_skills WHERE character = $1 ORDER BY skill",
         comptime Database.readSubResourceQuery(Character, CharacterSkill),
     );
 }

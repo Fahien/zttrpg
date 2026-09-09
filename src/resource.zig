@@ -85,6 +85,7 @@ pub const Resource = enum {
     configs,
     movement_modifiers,
     damage_bonuses,
+    skill_base_chances,
     characters,
     kins,
     skill_kinds,
@@ -108,6 +109,14 @@ pub const Resource = enum {
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },
             .damage_bonuses => .{
                 .Model = zttrpg.DamageBonus,
+                .item = false,
+                .create = false,
+                .update = false,
+                .delete = false,
+                .html = false,
+            },
+            .skill_base_chances => .{
+                .Model = zttrpg.SkillBaseChance,
                 .item = false,
                 .create = false,
                 .update = false,

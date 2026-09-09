@@ -1,4 +1,5 @@
--- Inclusive attribute bands shared by every skill.
+-- Inclusive attribute bands shared by every skill. These remain rows rather
+-- than code because a campaign can configure its starting skill chances.
 CREATE TABLE skill_base_chances (
     min_value INTEGER PRIMARY KEY CHECK (min_value >= 1),
     max_value INTEGER NOT NULL CHECK (max_value <= 18),

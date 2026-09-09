@@ -112,6 +112,7 @@ pub const RowCharacterSkill = struct {
     character: Character.Id,
     skill: Skill.Id,
     value: u32,
+    trained: bool,
 };
 
 pub const CharacterSkill = struct {
@@ -121,21 +122,15 @@ pub const CharacterSkill = struct {
 
     skill: Skill,
     value: u32,
-    /// Derived from the character's saved attributes; null for an ability.
-    base_chance: ?u32,
+    trained: bool,
 
     pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSkill {
         const skill = (try db.readItem(gpa, Skill, row.skill)) orelse return error.SkillNotFound;
-        const base_chance = if (skill.attribute != null) chance: {
-            const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.character);
-            const bands = try db.readAllAlloc(gpa, SkillBaseChance);
-            break :chance try deriveSkillBaseChance(skill, attributes, bands);
-        } else null;
 
         return .{
             .skill = skill,
             .value = row.value,
-            .base_chance = base_chance,
+            .trained = row.trained,
         };
     }
 };
@@ -797,55 +792,21 @@ test "creation completion is derived from the two exhausted point pools" {
     try std.testing.expect(!deriveCreationComplete(1, 0, specialization));
     try std.testing.expect(!deriveCreationComplete(0, 1, specialization));
     try std.testing.expect(!deriveCreationComplete(0, 0, null));
-
 }
 
-test "CharacterSkill reads the owning character's base chance alongside its saved level" {
+test "CharacterSkill reads its saved value and explicit training state" {
     const TestDatabase = struct {
         skill: Skill = test_acrobatics,
-        sheet: [1]CharacterAttribute = sheetWithAgility(13),
-        attribute_reads: usize = 0,
-        band_reads: usize = 0,
 
         pub fn readItem(self: *@This(), _: Allocator, comptime T: type, id: u32) !?T {
             return if (id == self.skill.id) self.skill else null;
         }
-
-        pub fn readSubResource(self: *@This(), _: Allocator, comptime Parent: type, comptime Child: type, id: u32) ![]const Child {
-            try std.testing.expectEqual(Character, Parent);
-            try std.testing.expectEqual(@as(u32, 47), id);
-            self.attribute_reads += 1;
-            return &self.sheet;
-        }
-
-        pub fn readAllAlloc(self: *@This(), _: Allocator, comptime T: type) ![]const T {
-            self.band_reads += 1;
-            return &.{
-                .{ .min_value = 13, .max_value = 15, .base_chance = 6 },
-                .{ .min_value = 16, .max_value = 18, .base_chance = 7 },
-            };
-        }
     };
     var db = TestDatabase{};
-    const row = RowCharacterSkill{ .character = 47, .skill = test_acrobatics.id, .value = 12 };
+    const row = RowCharacterSkill{ .character = 47, .skill = test_acrobatics.id, .value = 12, .trained = true };
     const entry = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
-    try std.testing.expectEqual(@as(?u32, 6), entry.base_chance);
     try std.testing.expectEqual(@as(u32, 12), entry.value);
-
-    // A new read uses the newly saved attribute, not the previous base chance.
-    db.sheet = sheetWithAgility(16);
-    const changed = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
-    try std.testing.expectEqual(@as(?u32, 7), changed.base_chance);
-    try std.testing.expectEqual(@as(u32, 12), changed.value);
-
-    // Abilities need neither the character's attributes nor the rule bands.
-    db.skill.attribute = null;
-    db.attribute_reads = 0;
-    db.band_reads = 0;
-    const ability = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
-    try std.testing.expect(ability.base_chance == null);
-    try std.testing.expectEqual(@as(usize, 0), db.attribute_reads);
-    try std.testing.expectEqual(@as(usize, 0), db.band_reads);
+    try std.testing.expect(entry.trained);
 }
 
 test "skill base chances match the rule data for every attribute value" {

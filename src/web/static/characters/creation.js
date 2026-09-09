@@ -20,7 +20,6 @@ let submitError = '';
 const status = /** @type {HTMLElement} */ (document.getElementById('creation-status'));
 const creationFieldset = /** @type {HTMLFieldSetElement} */ (document.getElementById('character-creation'));
 const specializationOptions = /** @type {HTMLElement} */ (document.getElementById('specialization-options'));
-const specializationHelp = /** @type {HTMLElement} */ (document.getElementById('specialization-help'));
 const specializationTemplate = /** @type {HTMLTemplateElement} */ (specializationOptions.querySelector('template'));
 const specializationSummary = /** @type {HTMLElement} */ (document.getElementById('selected-specialization'));
 const trainedSkillHelp = /** @type {HTMLElement} */ (document.getElementById('trained-skill-help'));
@@ -66,7 +65,7 @@ function adoptCharacter(nextCharacter) {
     // A training save clears pending before reaching here.
     for (const id of pendingSkillIds) {
         const entry = character.skills.find((item) => item.skill.id === id);
-        if (!entry || entry.base_chance === null || entry.value > 0) pendingSkillIds.delete(id);
+        if (!entry || entry.skill.attribute === null || entry.trained) pendingSkillIds.delete(id);
     }
     if (character.creation_complete) pendingSkillIds.clear();
     render();
@@ -78,13 +77,18 @@ function trainingUnlocked() {
 
 /** @returns {any[]} */
 function eligibleSkills() {
-    return character.skills.filter((entry) => entry.base_chance !== null);
+    return character.skills.filter((entry) => entry.skill.attribute !== null);
 }
 
 /** @returns {any | null} */
 function selectedSpecialization() {
     if (specializationId === null) return null;
     return character.profession.specializations.find((entry) => entry.id === specializationId) ?? null;
+}
+
+/** The data's Default specialization supplies rules without being a player choice. */
+function isDefaultSpecialization(specialization) {
+    return specialization.name === 'Default';
 }
 
 /** @returns {Set<number>} */
@@ -100,7 +104,7 @@ function trainingState() {
     let savedTotal = 0;
     let savedSpecialization = 0;
     for (const entry of eligibleSkills()) {
-        if (entry.value <= 0) continue;
+        if (!entry.trained) continue;
         savedTotal += 1;
         if (specializationSkills.has(entry.skill.id)) savedSpecialization += 1;
     }
@@ -155,7 +159,7 @@ function onTrainingButtonClick(event) {
 function addPendingSkill(id) {
     if (!trainingUnlocked()) return;
     const entry = character.skills.find((item) => item.skill.id === id);
-    if (!entry || entry.base_chance === null || entry.value > 0 || pendingSkillIds.has(id)) return;
+    if (!entry || entry.skill.attribute === null || entry.trained || pendingSkillIds.has(id)) return;
     if (availableTrainingPoints <= 0 || selectedSpecialization() === null) return;
 
     const state = trainingState();
@@ -177,17 +181,14 @@ function render() {
     renderSheetSkills();
     renderTrainingNotice();
     renderSpecializationSummary();
+    renderSpecializations();
     if (character.creation_complete) {
         submitButton.hidden = true;
         hideTrainingControls();
-        const name = character.specialization?.name;
-        status.textContent = name ? `Character creation complete: ${name}.` : 'Character creation complete.';
-        status.hidden = false;
-        status.classList.remove('error');
+        status.hidden = true;
         return;
     }
 
-    renderSpecializations();
     if (trainingUnlocked()) {
         submitButton.hidden = false;
         renderSkills();
@@ -200,13 +201,16 @@ function render() {
 
 function renderSpecializations() {
     const specializations = character.profession.specializations;
-    const locked = trainingState().savedTotal > 0;
-    creationFieldset.hidden = specializations.length === 0 || specializationId !== null;
+    const hasChoices = specializations.some((entry) => !isDefaultSpecialization(entry));
+    // A radio choice is only a draft until creation completes on the server.
+    // Keep it available while the player assigns and confirms training points.
+    creationFieldset.hidden = character.creation_complete || !hasChoices;
+    const needsChoice = !creationFieldset.hidden && specializationId === null;
+    for (const element of document.querySelectorAll('[data-requires-specialization]')) {
+        if (element instanceof HTMLElement) element.hidden = !needsChoice;
+    }
     if (creationFieldset.hidden) return;
 
-    specializationHelp.textContent = locked
-        ? 'Specialization is locked after training points have been saved.'
-        : 'Choose a specialization before training skills.';
     for (const option of specializationOptions.querySelectorAll('[data-specialization-option]')) option.remove();
 
     for (const specialization of specializations) {
@@ -217,7 +221,7 @@ function renderSpecializations() {
         const description = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-description]'));
         input.value = String(specialization.id);
         input.checked = specialization.id === specializationId;
-        input.disabled = locked || submitting;
+        input.disabled = submitting;
         name.textContent = ` ${specialization.name}`;
         if (specialization.description) {
             description.textContent = ` ${specialization.description}`;
@@ -229,8 +233,8 @@ function renderSpecializations() {
 
 function renderSpecializationSummary() {
     const specialization = selectedSpecialization();
-    specializationSummary.hidden = specialization === null;
-    if (specialization !== null) {
+    specializationSummary.hidden = specialization === null || isDefaultSpecialization(specialization);
+    if (!specializationSummary.hidden) {
         const name = specializationSummary.querySelector('span');
         if (name) name.textContent = specialization.name;
     }
@@ -290,7 +294,7 @@ function renderSkills() {
         const trainingLabel = row.querySelector('[data-training-state]');
         const plus = row.querySelector('button[data-action="increase-training"]');
         const minus = row.querySelector('button[data-action="decrease-training"]');
-        if (entry.base_chance === null) {
+        if (entry.skill.attribute === null) {
             if (trainingLabel instanceof HTMLElement) trainingLabel.hidden = true;
             if (plus instanceof HTMLButtonElement) plus.hidden = true;
             if (minus instanceof HTMLButtonElement) minus.hidden = true;
@@ -298,7 +302,7 @@ function renderSkills() {
         }
 
         const pending = pendingSkillIds.has(entry.skill.id);
-        const saved = entry.value > 0;
+        const saved = entry.trained;
         if (trainingLabel instanceof HTMLElement) {
             trainingLabel.hidden = !saved && !pending;
             trainingLabel.textContent = saved ? 'saved' : 'pending';
@@ -332,17 +336,11 @@ function renderStatus() {
     trainedSkillHelp.textContent = !trainingUnlocked()
         ? `Spend all ${character.attribute_points} remaining attribute point${character.attribute_points === 1 ? '' : 's'} before selecting training skills.`
         : specialization === null
-        ? `Choose a specialization, then spend ${state.requiredTotal} training points.`
+        ? ''
         : `${state.selectedSpecialization}/6 specialization skills trained; ${state.selectedTotal}/${state.requiredTotal} training points assigned.`;
-    status.textContent = submitError || (!trainingUnlocked()
-        ? 'Training unlocks after all attribute points are saved.'
-        : availableTrainingPoints === 0
-        ? 'Training is complete. Spend the remaining attribute points to complete character creation.'
-        : pendingSkillIds.size > 0
-            ? `${pendingSkillIds.size} training point${pendingSkillIds.size === 1 ? '' : 's'} pending save.`
-            : 'Training points pending.');
+    status.textContent = submitError;
     status.classList.toggle('error', submitError.length > 0);
-    status.hidden = false;
+    status.hidden = submitError.length === 0;
     submitButton.disabled = pendingSkillIds.size === 0 || specialization === null || submitting;
 }
 
@@ -357,7 +355,7 @@ function renderSheetSkills() {
         const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const value = row.querySelector('[data-field="value"]');
-        if (value) value.textContent = String(entry.value);
+        if (value) value.textContent = String(pendingSkillIds.has(entry.skill.id) ? entry.value * 2 : entry.value);
     }
 }
 

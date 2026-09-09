@@ -1,16 +1,16 @@
--- Every character has one row per skill, starting at zero. A positive value
--- belongs to the character sheet itself; while creation is open it also means
--- the player spent one trained-skill point on that governed skill.
-INSERT INTO character_skills (character, skill, value)
-SELECT c.id, s.id, 0
+-- Every character has one row per skill, starting at zero until its attribute
+-- allocation is committed. Training is explicit because an untrained governed
+-- skill also has a positive value after that point.
+INSERT INTO character_skills (character, skill, value, trained)
+SELECT c.id, s.id, 0, FALSE
 FROM characters c
 CROSS JOIN skills s
 ON CONFLICT (character, skill) DO NOTHING;
 
 CREATE FUNCTION seed_character_skills() RETURNS TRIGGER AS $fn$
 BEGIN
-    INSERT INTO character_skills (character, skill, value)
-    SELECT NEW.id, s.id, 0
+    INSERT INTO character_skills (character, skill, value, trained)
+    SELECT NEW.id, s.id, 0, FALSE
     FROM skills s;
     RETURN NULL;
 END;
@@ -83,13 +83,13 @@ BEFORE INSERT ON characters
 FOR EACH ROW
 EXECUTE FUNCTION seed_trained_skill_points();
 
--- One trained starting level is twice the current base chance. Both the
--- creation save and attribute changes call this single calculation.
-CREATE FUNCTION trained_skill_value(selected_character INTEGER, selected_skill INTEGER) RETURNS INTEGER AS $fn$
+-- The configured chance for a skill at the character's current governing
+-- attribute. An ability has no governing attribute and therefore returns NULL.
+CREATE FUNCTION starting_skill_value(selected_character INTEGER, selected_skill INTEGER) RETURNS INTEGER AS $fn$
 DECLARE
     level INTEGER;
 BEGIN
-    SELECT 2 * chance.base_chance
+    SELECT chance.base_chance
     INTO level
     FROM skills s
     JOIN character_attributes ca
@@ -103,16 +103,24 @@ $fn$ LANGUAGE plpgsql STABLE;
 
 CREATE FUNCTION refresh_character_trained_skills(character_id INTEGER) RETURNS VOID AS $fn$
 BEGIN
-    -- Attribute spending is monotonic, so it occurs only while creation is
-    -- active. At that time every positive governed skill is a paid selection.
+    -- Before the first allocation is complete, zero distinguishes stored state
+    -- from the draft values shown by the browser. Afterwards every governed
+    -- skill has its configured starting value, doubled exactly once if trained.
+    IF NOT EXISTS (
+        SELECT 1 FROM characters
+        WHERE id = character_id AND attribute_points = 0
+    ) THEN
+        RETURN;
+    END IF;
+
     PERFORM set_config('zttrpg.creation_write', 'on', true);
     UPDATE character_skills cs
-    SET value = trained_skill_value(character_id, cs.skill)
+    SET value = starting_skill_value(character_id, cs.skill) *
+        CASE WHEN cs.trained THEN 2 ELSE 1 END
     FROM skills s
     WHERE cs.character = character_id
       AND cs.skill = s.id
-      AND s.attribute IS NOT NULL
-      AND cs.value > 0;
+      AND s.attribute IS NOT NULL;
 END;
 $fn$ LANGUAGE plpgsql;
 
@@ -131,7 +139,7 @@ EXECUTE FUNCTION refresh_trained_skills_after_attribute_change();
 
 -- The generic /skills endpoint is normal advancement only after both pools
 -- are empty. Before then, save_character_creation is the sole path allowed to
--- make a skill positive, so it can debit exactly one trained-skill point.
+-- mark a skill trained, so it can debit exactly one trained-skill point.
 CREATE FUNCTION reject_direct_creation_skill_write() RETURNS TRIGGER AS $fn$
 BEGIN
     IF NOT character_creation_complete(NEW.character)
@@ -167,9 +175,21 @@ BEGIN
     END IF;
 
     IF NEW.profession IS DISTINCT FROM OLD.profession OR NEW.age IS DISTINCT FROM OLD.age THEN
-        UPDATE character_skills
-        SET value = 0
-        WHERE character = NEW.id AND value <> 0;
+        UPDATE character_skills cs
+        SET trained = FALSE,
+            value = CASE
+                WHEN s.attribute IS NULL THEN 0
+                WHEN NEW.attribute_points = 0 THEN starting_skill_value(NEW.id, cs.skill)
+                ELSE 0
+            END
+        FROM skills s
+        WHERE cs.character = NEW.id
+          AND cs.skill = s.id
+          AND (cs.trained OR cs.value <> CASE
+                WHEN s.attribute IS NULL THEN 0
+                WHEN NEW.attribute_points = 0 THEN starting_skill_value(NEW.id, cs.skill)
+                ELSE 0
+              END);
 
         UPDATE characters c
         SET trained_skill_points = a.trained_skill_count
@@ -187,7 +207,7 @@ WHEN (OLD.profession IS DISTINCT FROM NEW.profession OR OLD.age IS DISTINCT FROM
 EXECUTE FUNCTION reset_character_creation();
 
 -- Adds one or more selections to an unfinished character. The array is a
--- delta, not a replacement: retrying an already-positive skill is a no-op and
+-- delta, not a replacement: retrying an already-trained skill is a no-op and
 -- never charges twice. A saved choice cannot be refunded, like spent
 -- attribute points, so specialization also locks once this pool changes.
 CREATE FUNCTION save_character_creation(
@@ -226,7 +246,7 @@ BEGIN
         SELECT 1
         FROM character_skills cs
         JOIN skills s ON s.id = cs.skill
-        WHERE cs.character = selected_character AND s.attribute IS NOT NULL AND cs.value > 0
+        WHERE cs.character = selected_character AND s.attribute IS NOT NULL AND cs.trained
     ) THEN
         RAISE EXCEPTION 'specialization cannot change after creation begins'
             USING ERRCODE = 'check_violation';
@@ -264,7 +284,7 @@ BEGIN
             SELECT 1
             FROM unnest(selected_skills) AS selected(skill)
             JOIN character_skills cs ON cs.character = selected_character AND cs.skill = selected.skill
-            WHERE cs.value = 0
+            WHERE NOT cs.trained
         ) THEN
             RAISE EXCEPTION 'a completed character cannot spend trained skill points'
                 USING ERRCODE = 'check_violation';
@@ -278,20 +298,20 @@ BEGIN
     JOIN skills s ON s.id = cs.skill
     WHERE cs.character = selected_character
       AND s.attribute IS NOT NULL
-      AND cs.value > 0;
+      AND cs.trained;
 
     SELECT COUNT(*)
     INTO existing_specialization_count
     FROM character_skills cs
     JOIN profession_specialization_skills pss
       ON pss.specialization = selected_specialization AND pss.skill = cs.skill
-    WHERE cs.character = selected_character AND cs.value > 0;
+    WHERE cs.character = selected_character AND cs.trained;
 
     SELECT COUNT(*)
     INTO new_skill_count
     FROM unnest(selected_skills) AS selected(skill)
     JOIN character_skills cs ON cs.character = selected_character AND cs.skill = selected.skill
-    WHERE cs.value = 0;
+    WHERE NOT cs.trained;
 
     SELECT COUNT(*)
     INTO new_specialization_count
@@ -299,7 +319,7 @@ BEGIN
     JOIN character_skills cs ON cs.character = selected_character AND cs.skill = selected.skill
     JOIN profession_specialization_skills pss
       ON pss.specialization = selected_specialization AND pss.skill = selected.skill
-    WHERE cs.value = 0;
+    WHERE NOT cs.trained;
 
     IF new_skill_count > remaining_points THEN
         RAISE EXCEPTION 'not enough trained skill points'
@@ -327,10 +347,11 @@ BEGIN
     WHERE id = selected_character;
 
     UPDATE character_skills cs
-    SET value = trained_skill_value(selected_character, cs.skill)
+    SET value = cs.value * 2,
+        trained = TRUE
     FROM unnest(selected_skills) AS selected(skill)
     WHERE cs.character = selected_character
       AND cs.skill = selected.skill
-      AND cs.value = 0;
+      AND NOT cs.trained;
 END;
 $fn$ LANGUAGE plpgsql;
