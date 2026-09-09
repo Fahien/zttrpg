@@ -3,9 +3,19 @@
 
 // @ts-check
 
+/** @typedef {{ id: number, short: string }} Attribute */
+/** @typedef {{ attribute: Attribute, spent: number, value: number }} CharacterAttribute */
+/** @typedef {{ attribute: Attribute | null, id: number, kind: { name: string } }} Skill */
+/** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
+/** @typedef {{ attribute: Attribute, die_sides: number | null }} DamageBonus */
+/** @typedef {{ id: number, kin: { movement: number }, attribute_points: number, movement: number, attributes: CharacterAttribute[], skills: CharacterSkill[], damage_bonuses: DamageBonus[] }} Character */
+/** @typedef {{ attribute: Attribute, min_value: number, max_value: number, modifier: number }} MovementModifier */
+/** @typedef {{ attribute: number, min_value: number, die_sides: number }} DamageBonusRule */
+/** @typedef {{ min_value: number, max_value: number, base_chance: number }} SkillBaseChance */
+
 // Saved state of the character: the last answer the server gave, on load and
 // after every submit. Nothing in it is ever computed from clicks.
-let originalCharacter = /** @type {*} */ (null);
+let originalCharacter = /** @type {Character} */ (/** @type {unknown} */ (null));
 
 let availableAttributePoints = 0;
 
@@ -27,13 +37,13 @@ let originalSpentMap = new Map();
 /** @type {number | null} */
 let attributeMax = null;
 
-/** @type {{ attribute: { id: number }, min_value: number, max_value: number, modifier: number }[] | null} */
+/** @type {MovementModifier[] | null} */
 let movementModifiers = null;
 
-/** @type {{ attribute: number, min_value: number, die_sides: number }[] | null} */
+/** @type {DamageBonusRule[] | null} */
 let damageBonusRules = null;
 
-/** @type {{ min_value: number, max_value: number, base_chance: number }[] | null} */
+/** @type {SkillBaseChance[] | null} */
 let skillBaseChances = null;
 
 document.addEventListener('instanceLoaded', onInstanceLoaded);
@@ -83,7 +93,7 @@ function onAttributeButtonClick(event) {
  */
 function onInstanceLoaded(event) {
     const customEvent = /** @type {CustomEvent} */ (event);
-    const character = /** @type {*} */ (customEvent.detail);
+    const character = /** @type {Character} */ (customEvent.detail);
     if (!character) {
         console.error('No instance data found in event detail.');
         return;
@@ -92,16 +102,16 @@ function onInstanceLoaded(event) {
     initAttributesUpdate(character);
 }
 
-/** Keeps the attribute step in sync after another creation step saves. */
+/** @param {Event} event Keeps the attribute step in sync after another creation step saves. */
 function onCharacterUpdated(event) {
-    const character = /** @type {CustomEvent} */ (event).detail;
+    const character = /** @type {Character} */ ((/** @type {CustomEvent} */ (event)).detail);
     if (!character) return;
     adoptCharacter(character);
     render();
 }
 
 /**
- * @param {*} character
+ * @param {Character} character
  */
 async function initAttributesUpdate(character) {
     adoptCharacter(character);
@@ -117,9 +127,9 @@ async function initAttributesUpdate(character) {
             fetchJson('/skill_base_chances'),
         ]);
         attributeMax = max;
-        movementModifiers = bands;
-        damageBonusRules = damageRules;
-        skillBaseChances = skillBands;
+        movementModifiers = /** @type {MovementModifier[]} */ (bands);
+        damageBonusRules = /** @type {DamageBonusRule[]} */ (damageRules);
+        skillBaseChances = /** @type {SkillBaseChance[]} */ (skillBands);
     } catch (error) {
         showStatus(`Rules not loaded: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -130,7 +140,7 @@ async function initAttributesUpdate(character) {
 /**
  * Takes a character as the server answered it: on load, and after every
  * submit. Saved values replace the old ones and pending starts over.
- * @param {*} character
+ * @param {Character} character
  */
 function adoptCharacter(character) {
     originalCharacter = character;
@@ -157,7 +167,7 @@ function adoptCharacter(character) {
 
 /**
  * @param {string} path
- * @returns {Promise<any>}
+ * @returns {Promise<unknown>}
  */
 async function fetchJson(path) {
     const response = await fetch(path, { headers: { 'Accept': 'application/json' } });
@@ -175,7 +185,7 @@ async function fetchJson(path) {
  */
 async function fetchConfigValue(name) {
     /** @type {{ name: string, value: string }[]} */
-    const configs = await fetchJson('/configs');
+    const configs = /** @type {{ name: string, value: string }[]} */ (await fetchJson('/configs'));
     const config = configs.find((entry) => entry.name === name);
     if (!config) {
         throw new Error(`no config named ${name}`);
@@ -235,7 +245,7 @@ function deriveDamageBonus(attributeId, rules) {
 /**
  * Maps a draft governing attribute to the one skill value shown on the sheet.
  * The multiplier preserves already-saved training during later recalculation.
- * @param {*} entry
+ * @param {CharacterSkill} entry
  * @param {NonNullable<typeof skillBaseChances>} bands
  */
 function deriveSkillValue(entry, bands) {
@@ -343,8 +353,7 @@ function render() {
 
 /**
  * 
- * @param {Number} attributeId
- * @returns 
+ * @param {number} attributeId
  */
 function onIncreaseAttribute(attributeId) {
     if (availableAttributePoints <= 0) {
@@ -368,8 +377,7 @@ function onIncreaseAttribute(attributeId) {
 
 /**
  * 
- * @param {Number} attributeId 
- * @returns 
+ * @param {number} attributeId
  */
 function onDecreaseAttribute(attributeId) {
     const currentPoints = editAttributeMap.get(attributeId) || 0;
@@ -426,7 +434,7 @@ async function onSubmitAttributes() {
         });
 
         if (response.ok) {
-            adoptCharacter(await response.json());
+            adoptCharacter(/** @type {Character} */ (await response.json()));
             document.dispatchEvent(new CustomEvent('characterUpdated', { detail: originalCharacter }));
             hideStatus();
         } else {

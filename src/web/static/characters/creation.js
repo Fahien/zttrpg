@@ -8,10 +8,18 @@
 // Training mirrors the attribute step: a click reserves a point locally and a
 // submit saves only those new choices. Saved training cannot be refunded.
 
-/** @type {*} */
-let character = null;
+/** @typedef {{ id: number, attribute: { id: number } | null, kind: { name: string } }} Skill */
+/** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
+/** @typedef {{ id: number, name: string, description: string, skills: Skill[] }} Specialization */
+/** @typedef {{ id: number, trained_skill_count: number }} Age */
+/** @typedef {{ specializations: Specialization[] }} Profession */
+/** @typedef {{ id: number, attribute_points: number, trained_skill_points: number, creation_complete: boolean, profession: Profession, specialization: Specialization | null, age: Age, skills: CharacterSkill[] }} Character */
+
+/** @type {Character} */
+let character = /** @type {Character} */ (/** @type {unknown} */ (null));
 /** @type {number | null} */
 let specializationId = null;
+/** @type {Set<number>} */
 const pendingSkillIds = new Set();
 let availableTrainingPoints = 0;
 /** @type {number | null} */
@@ -51,13 +59,13 @@ async function onInstanceLoaded(event) {
     render();
 }
 
-/** Attribute saves replace base chances, so pending training previews update too. */
+/** @param {Event} event Attribute saves replace base chances, so pending training previews update too. */
 function onCharacterUpdated(event) {
-    const updated = /** @type {CustomEvent} */ (event).detail;
+    const updated = /** @type {Character} */ ((/** @type {CustomEvent} */ (event)).detail);
     if (updated) adoptCharacter(updated);
 }
 
-/** @param {*} nextCharacter */
+/** @param {Character} nextCharacter */
 function adoptCharacter(nextCharacter) {
     character = nextCharacter;
     availableTrainingPoints = character.trained_skill_points;
@@ -85,18 +93,19 @@ function trainingUnlocked() {
     return character.attribute_points === 0;
 }
 
-/** @returns {any[]} */
+/** @returns {CharacterSkill[]} */
 function eligibleSkills() {
     return character.skills.filter((entry) => entry.skill.attribute !== null);
 }
 
-/** @returns {any | null} */
+/** @returns {Specialization | null} */
 function selectedSpecialization() {
     if (specializationId === null) return null;
     return character.profession.specializations.find((entry) => entry.id === specializationId) ?? null;
 }
 
 /** The data's Default specialization supplies rules without being a player choice. */
+/** @param {Specialization} specialization */
 function isDefaultSpecialization(specialization) {
     return specialization.name === 'Default';
 }
@@ -142,7 +151,7 @@ function trainingState() {
 async function fetchConfigValue(name) {
     const response = await fetch('/configs', { headers: { 'Accept': 'application/json' } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    const configs = await response.json();
+    const configs = /** @type {{ name: string, value: string }[]} */ (await response.json());
     const config = configs.find((entry) => entry.name === name);
     const value = Number(config?.value);
     if (!config || !Number.isSafeInteger(value) || value < 0) throw new Error(`invalid config: ${name}`);
@@ -236,7 +245,7 @@ function renderSpecializations() {
     for (const option of specializationOptions.querySelectorAll('[data-specialization-option]')) option.remove();
 
     for (const specialization of specializations) {
-        const option = specializationTemplate.content.cloneNode(true);
+        const option = /** @type {DocumentFragment} */ (specializationTemplate.content.cloneNode(true));
         const li = /** @type {HTMLElement} */ (option.querySelector('[data-specialization-option]'));
         const input = /** @type {HTMLInputElement} */ (li.querySelector('input[name="specialization"]'));
         const name = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-name]'));
@@ -256,7 +265,7 @@ function renderSpecializations() {
 function renderSpecializationSummary() {
     const specialization = selectedSpecialization();
     specializationSummary.hidden = specialization === null || isDefaultSpecialization(specialization);
-    if (!specializationSummary.hidden) {
+    if (specialization !== null) {
         const name = specializationSummary.querySelector('span');
         if (name) name.textContent = specialization.name;
     }
@@ -283,7 +292,7 @@ function groupSkills() {
         const kind = entry.skill.kind.name;
         let list = listsByKind.get(kind);
         if (!list) {
-            const group = skillKindTemplate.content.cloneNode(true);
+            const group = /** @type {DocumentFragment} */ (skillKindTemplate.content.cloneNode(true));
             const section = /** @type {HTMLElement} */ (group.querySelector('.skill-kind'));
             const heading = /** @type {HTMLElement} */ (section.querySelector('[data-skill-kind]'));
             list = /** @type {HTMLUListElement} */ (section.querySelector('ul'));
@@ -326,8 +335,8 @@ function renderSkills() {
         const pending = pendingSkillIds.has(entry.skill.id);
         const saved = entry.trained;
         if (trainingLabel instanceof HTMLElement) {
-            trainingLabel.hidden = !saved && !pending;
-            trainingLabel.textContent = saved ? 'saved' : 'pending';
+            trainingLabel.hidden = !saved;
+            trainingLabel.textContent = saved ? 'saved' : '';
         }
         if (minus instanceof HTMLButtonElement) {
             minus.hidden = !pending;
@@ -400,7 +409,7 @@ async function onSubmit() {
         });
         if (!response.ok) throw new Error(await response.text());
         pendingSkillIds.clear();
-        const saved = await response.json();
+        const saved = /** @type {Character} */ (await response.json());
         adoptCharacter(saved);
         document.dispatchEvent(new CustomEvent('characterUpdated', { detail: saved }));
     } catch (error) {
