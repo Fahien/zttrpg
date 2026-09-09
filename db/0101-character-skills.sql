@@ -83,8 +83,9 @@ BEFORE INSERT ON characters
 FOR EACH ROW
 EXECUTE FUNCTION seed_trained_skill_points();
 
--- The configured chance for a skill at the character's current governing
--- attribute. An ability has no governing attribute and therefore returns NULL.
+-- The configured chance for a base-chance skill at the character's current
+-- governing attribute. Skills without a base chance, and abilities without a
+-- governing attribute, return NULL.
 CREATE FUNCTION starting_skill_value(selected_character INTEGER, selected_skill INTEGER) RETURNS INTEGER AS $fn$
 DECLARE
     level INTEGER;
@@ -92,6 +93,7 @@ BEGIN
     SELECT chance.base_chance
     INTO level
     FROM skills s
+    JOIN skill_kinds kind ON kind.id = s.kind AND kind.base_chance
     JOIN character_attributes ca
       ON ca.character = selected_character AND ca.attribute = s.attribute
     JOIN skill_base_chances chance
@@ -104,7 +106,7 @@ $fn$ LANGUAGE plpgsql STABLE;
 CREATE FUNCTION refresh_character_trained_skills(character_id INTEGER) RETURNS VOID AS $fn$
 BEGIN
     -- Before the first allocation is complete, zero distinguishes stored state
-    -- from the draft values shown by the browser. Afterwards every governed
+    -- from the draft values shown by the browser. Afterwards every base-chance
     -- skill has its configured starting value, doubled exactly once if trained.
     IF NOT EXISTS (
         SELECT 1 FROM characters
@@ -118,9 +120,10 @@ BEGIN
     SET value = starting_skill_value(character_id, cs.skill) *
         CASE WHEN cs.trained THEN 2 ELSE 1 END
     FROM skills s
+    JOIN skill_kinds kind ON kind.id = s.kind
     WHERE cs.character = character_id
       AND cs.skill = s.id
-      AND s.attribute IS NOT NULL;
+      AND kind.base_chance;
 END;
 $fn$ LANGUAGE plpgsql;
 
@@ -157,6 +160,33 @@ FOR EACH ROW
 WHEN (NEW.value IS DISTINCT FROM OLD.value)
 EXECUTE FUNCTION reject_direct_creation_skill_write();
 
+-- A non-base-chance skill with a governing attribute is a binary learned
+-- capability. Abilities keep their existing representation: they have no
+-- governing attribute and do not enter this rule.
+CREATE FUNCTION check_binary_secondary_skill() RETURNS TRIGGER AS $fn$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM skills s
+        JOIN skill_kinds kind ON kind.id = s.kind
+        WHERE s.id = NEW.skill
+          AND s.attribute IS NOT NULL
+          AND NOT kind.base_chance
+    ) AND ((NEW.value = 0 AND NEW.trained) OR
+           (NEW.value = 1 AND NOT NEW.trained) OR
+           NEW.value NOT IN (0, 1)) THEN
+        RAISE EXCEPTION 'a binary skill must be 0 when unlearned or 1 when learned'
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END;
+$fn$ LANGUAGE plpgsql;
+
+CREATE TRIGGER character_skills_check_binary_secondary
+BEFORE INSERT OR UPDATE OF value, trained ON character_skills
+FOR EACH ROW
+EXECUTE FUNCTION check_binary_secondary_skill();
+
 -- Age and profession changes invalidate all partially chosen starting levels.
 -- The reset is one transaction with the item update: the new age's pool and
 -- attribute modifiers are visible together, and no old selection survives.
@@ -178,18 +208,33 @@ BEGIN
         UPDATE character_skills cs
         SET trained = FALSE,
             value = CASE
-                WHEN s.attribute IS NULL THEN 0
-                WHEN NEW.attribute_points = 0 THEN starting_skill_value(NEW.id, cs.skill)
+                WHEN kind.base_chance AND s.attribute IS NOT NULL AND NEW.attribute_points = 0
+                    THEN starting_skill_value(NEW.id, cs.skill)
                 ELSE 0
             END
         FROM skills s
+        JOIN skill_kinds kind ON kind.id = s.kind
         WHERE cs.character = NEW.id
           AND cs.skill = s.id
           AND (cs.trained OR cs.value <> CASE
-                WHEN s.attribute IS NULL THEN 0
-                WHEN NEW.attribute_points = 0 THEN starting_skill_value(NEW.id, cs.skill)
+                WHEN kind.base_chance AND s.attribute IS NOT NULL AND NEW.attribute_points = 0
+                    THEN starting_skill_value(NEW.id, cs.skill)
                 ELSE 0
               END);
+
+        -- A binary skill attached to the retained specialization is a grant,
+        -- rather than a chance derived from an attribute or a spent point.
+        UPDATE character_skills cs
+        SET value = 1,
+            trained = TRUE
+        FROM profession_specialization_skills pss
+        JOIN skills s ON s.id = pss.skill
+        JOIN skill_kinds kind ON kind.id = s.kind
+        WHERE cs.character = NEW.id
+          AND cs.skill = pss.skill
+          AND pss.specialization = NEW.specialization
+          AND s.attribute IS NOT NULL
+          AND NOT kind.base_chance;
 
         UPDATE characters c
         SET trained_skill_points = a.trained_skill_count
@@ -267,7 +312,8 @@ BEGIN
         SELECT 1
         FROM character_skills cs
         JOIN skills s ON s.id = cs.skill
-        WHERE cs.character = selected_character AND s.attribute IS NOT NULL AND cs.trained
+        JOIN skill_kinds kind ON kind.id = s.kind
+        WHERE cs.character = selected_character AND kind.base_chance AND cs.trained
     ) THEN
         RAISE EXCEPTION 'specialization cannot change after creation begins'
             USING ERRCODE = 'check_violation';
@@ -282,7 +328,9 @@ BEGIN
     END IF;
 
     -- A specialization may still be chosen before attributes are finished,
-    -- but selecting any skill must wait until every attribute point is saved.
+    -- but selecting any base-chance skill must wait until every attribute point
+    -- is saved. Its binary specialization skill is granted below and costs no
+    -- point.
     IF cardinality(selected_skills) > 0 AND remaining_attribute_points > 0 THEN
         RAISE EXCEPTION 'all attribute points must be spent before training skills'
             USING ERRCODE = 'check_violation';
@@ -292,9 +340,10 @@ BEGIN
         SELECT 1
         FROM unnest(selected_skills) AS selected(skill)
         LEFT JOIN skills s ON s.id = selected.skill
-        WHERE s.attribute IS NULL
+        LEFT JOIN skill_kinds kind ON kind.id = s.kind
+        WHERE s.attribute IS NULL OR NOT kind.base_chance
     ) THEN
-        RAISE EXCEPTION 'trained skills must have a governing attribute'
+        RAISE EXCEPTION 'selected skills must use a governing attribute and base chance'
             USING ERRCODE = 'check_violation';
     END IF;
 
@@ -318,7 +367,9 @@ BEGIN
     FROM character_skills cs
     JOIN profession_specialization_skills pss
       ON pss.specialization = selected_specialization AND pss.skill = cs.skill
-    WHERE cs.character = selected_character AND cs.trained;
+    JOIN skills s ON s.id = cs.skill
+    JOIN skill_kinds kind ON kind.id = s.kind
+    WHERE cs.character = selected_character AND cs.trained AND kind.base_chance;
 
     SELECT COUNT(*)
     INTO new_skill_count
@@ -332,7 +383,9 @@ BEGIN
     JOIN character_skills cs ON cs.character = selected_character AND cs.skill = selected.skill
     JOIN profession_specialization_skills pss
       ON pss.specialization = selected_specialization AND pss.skill = selected.skill
-    WHERE NOT cs.trained;
+    JOIN skills s ON s.id = cs.skill
+    JOIN skill_kinds kind ON kind.id = s.kind
+    WHERE NOT cs.trained AND kind.base_chance;
 
     IF new_skill_count > remaining_points THEN
         RAISE EXCEPTION 'not enough trained skill points'
@@ -358,10 +411,45 @@ BEGIN
 
     PERFORM set_config('zttrpg.creation_write', 'on', true);
 
+    -- Replacing a specialization before a base-chance skill is chosen also
+    -- replaces its binary grant. The relationship supplies the matching skill,
+    -- so this does not depend on profession, specialization, or kind names.
+    UPDATE character_skills cs
+    SET value = 0,
+        trained = FALSE
+    FROM profession_specialization_skills old_pss
+    JOIN skills s ON s.id = old_pss.skill
+    JOIN skill_kinds kind ON kind.id = s.kind
+    WHERE cs.character = selected_character
+      AND cs.skill = old_pss.skill
+      AND old_pss.specialization = selected_specialization_id
+      AND s.attribute IS NOT NULL
+      AND NOT kind.base_chance
+      AND NOT EXISTS (
+          SELECT 1
+          FROM profession_specialization_skills new_pss
+          WHERE new_pss.specialization = selected_specialization
+            AND new_pss.skill = cs.skill
+      );
+
     UPDATE characters
     SET specialization = selected_specialization,
         trained_skill_points = trained_skill_points - new_skill_count
     WHERE id = selected_character;
+
+    -- Binary skills linked to the selected specialization are learned at level
+    -- one. They neither use a base chance nor consume trained-skill points.
+    UPDATE character_skills cs
+    SET value = 1,
+        trained = TRUE
+    FROM profession_specialization_skills pss
+    JOIN skills s ON s.id = pss.skill
+    JOIN skill_kinds kind ON kind.id = s.kind
+    WHERE cs.character = selected_character
+      AND cs.skill = pss.skill
+      AND pss.specialization = selected_specialization
+      AND s.attribute IS NOT NULL
+      AND NOT kind.base_chance;
 
     UPDATE character_skills cs
     SET value = cs.value * 2,

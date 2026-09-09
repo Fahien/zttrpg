@@ -139,10 +139,15 @@ const Items = struct {
 
 const SkillKinds = struct {
     const table_name = "skill_kinds";
-    const json_paths = &[_][]const u8{"src/data/skill/skill-kinds.schema.json"};
+    const json_paths = &[_][]const u8{"src/data/skill/skill-kinds.json"};
     const out_path = "db/0051-skill-kinds.sql";
 
-    @"enum": []const []const u8,
+    const Row = struct {
+        name: []const u8,
+        base_chance: bool,
+    };
+
+    skill_kinds: []const Row,
 };
 
 const Kins = struct {
@@ -567,6 +572,10 @@ fn appendValue(
         },
         .float => {
             const val_str = try std.fmt.allocPrint(gpa, "{}", .{value});
+            try sql.appendSlice(gpa, val_str);
+        },
+        .bool => {
+            const val_str = if (value) "TRUE" else "FALSE";
             try sql.appendSlice(gpa, val_str);
         },
         else => {

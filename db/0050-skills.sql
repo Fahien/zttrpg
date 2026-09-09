@@ -1,6 +1,7 @@
 CREATE TABLE skill_kinds (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    base_chance BOOLEAN NOT NULL,
     CHECK (name <> '')
 );
 

@@ -1,13 +1,16 @@
 {
     "$schema": "https://json-schema.org/draft-07/schema#",
     "$id": "skill-kinds.schema.json",
-    "title": "Skill Kinds",
-    "type": "string",
-    "description": "The kind of the skill.",
-    "enum": [
-        "Core",
-        "Secondary",
-        "Innate",
-        "Heroic"
-    ]
+    "title": "Skill kinds",
+    "type": "object",
+    "required": ["version", "skill_kinds"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "version": { "type": "string" },
+        "skill_kinds": {
+            "type": "array",
+            "items": { "$ref": "skill-kind.schema.json" },
+            "description": "A list of skill kinds."
+        }
+    }
 }

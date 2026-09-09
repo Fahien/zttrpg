@@ -1,0 +1,10 @@
+{
+    "$schema": "skill-kinds.schema.json",
+    "version": "1.0",
+    "skill_kinds": [
+        { "name": "Core", "base_chance": true },
+        { "name": "Secondary", "base_chance": false },
+        { "name": "Innate", "base_chance": false },
+        { "name": "Heroic", "base_chance": false }
+    ]
+}
