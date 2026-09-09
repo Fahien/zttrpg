@@ -216,6 +216,7 @@ function render() {
     renderTrainingNotice();
     renderSpecializationSummary();
     renderSpecializations();
+    renderSpecializationMarkers();
     if (character.creation_complete) {
         submitButton.hidden = true;
         hideTrainingControls();
@@ -329,10 +330,6 @@ function renderSkills() {
         const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const inSpecialization = specializationSkillIds.has(entry.skill.id);
-        const specializationLabel = row.querySelector('[data-specialization-skill]');
-        if (specializationLabel instanceof HTMLElement) {
-            specializationLabel.hidden = !inSpecialization;
-        }
         const trainingLabel = row.querySelector('[data-training-state]');
         const plus = row.querySelector('button[data-action="increase-training"]');
         const minus = row.querySelector('button[data-action="decrease-training"]');
@@ -358,6 +355,18 @@ function renderSkills() {
             plus.hidden = saved || pending || !hasSpecialization || availableTrainingPoints <= 0;
             plus.disabled = !canAddSkill(inSpecialization, state);
             plus.dataset.skillId = String(entry.skill.id);
+        }
+    }
+}
+
+function renderSpecializationMarkers() {
+    const specializationSkillIds = selectedSpecializationSkillIds();
+    for (const entry of character.skills) {
+        const row = findSkillRow(entry.skill.id);
+        if (!row) continue;
+        const specializationLabel = row.querySelector('[data-specialization-skill]');
+        if (specializationLabel instanceof HTMLElement) {
+            specializationLabel.hidden = character.creation_complete || !specializationSkillIds.has(entry.skill.id);
         }
     }
 }
@@ -392,7 +401,7 @@ function renderStatus() {
 }
 
 function hideTrainingControls() {
-    for (const element of skillGroups.querySelectorAll('[data-specialization-skill], [data-training-state], button[data-action="increase-training"], button[data-action="decrease-training"]')) {
+    for (const element of skillGroups.querySelectorAll('[data-training-state], button[data-action="increase-training"], button[data-action="decrease-training"]')) {
         if (element instanceof HTMLElement) element.hidden = true;
     }
 }
