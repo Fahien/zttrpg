@@ -35,6 +35,7 @@ const specializationSummary = /** @type {HTMLElement} */ (document.getElementByI
 const trainedSkillHelp = /** @type {HTMLElement} */ (document.getElementById('trained-skill-help'));
 const pointsElement = /** @type {HTMLElement} */ (document.getElementById('trained-skill-points'));
 const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-creation'));
+const skillLegend = /** @type {HTMLElement} */ (document.querySelector('.skill-legend'));
 const skillSourceList = /** @type {HTMLElement} */ (document.querySelector('[data-list="skills"]'));
 const skillGroups = /** @type {HTMLElement} */ (document.getElementById('skill-groups'));
 const skillKindTemplate = /** @type {HTMLTemplateElement} */ (document.getElementById('skill-kind-template'));
@@ -208,6 +209,7 @@ function addPendingSkill(id) {
 
 function render() {
     if (!character) return;
+    skillLegend.hidden = character.creation_complete;
     groupSkills();
     renderSheetSkills();
     renderTrainingNotice();
