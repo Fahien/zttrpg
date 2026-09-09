@@ -442,6 +442,42 @@ textarea {
     line-height: 1.2;
 }
 
+/* Keep native specialization radios, with a small touch of the sheet palette. */
+.specialization-option + .specialization-option {
+    margin-top: .35em;
+}
+
+.specialization-option input[type="radio"] {
+    appearance: none;
+    display: inline-block;
+    box-sizing: content-box;
+    width: 1em;
+    height: 1em;
+    margin: 0 .2em 0 0;
+    padding: 0;
+    vertical-align: -.1em;
+    border: 1px solid var(--gold-dim);
+    border-radius: 50%;
+    box-shadow: none;
+    background-color: var(--plate-deep);
+}
+
+.specialization-option input[type="radio"]:checked {
+    border-color: var(--gold);
+    background: radial-gradient(circle, var(--gold) 0 35%, var(--plate-deep) 42%);
+}
+
+.specialization-option input[type="radio"]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.specialization-option small {
+    display: block;
+    margin-left: 1.7em;
+    color: var(--text-muted);
+}
+
 /* Character skills retain the attribute row treatment while each kind gets a
    compact, independently scannable group. */
 .skill-kind {

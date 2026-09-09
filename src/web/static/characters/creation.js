@@ -232,6 +232,9 @@ function render() {
 
 function renderSpecializations() {
     const specializations = character.profession.specializations;
+    const focusedInput = document.activeElement;
+    const focusedSpecialization = focusedInput instanceof HTMLInputElement &&
+        focusedInput.name === 'specialization' ? focusedInput.value : null;
     const hasChoices = specializations.some((entry) => !isDefaultSpecialization(entry));
     // A radio choice is only a draft until creation completes on the server.
     // Keep it available while the player assigns and confirms training points.
@@ -259,6 +262,11 @@ function renderSpecializations() {
             description.hidden = false;
         }
         specializationOptions.append(option);
+    }
+
+    if (focusedSpecialization !== null) {
+        const replacement = specializationOptions.querySelector(`input[name="specialization"][value="${focusedSpecialization}"]`);
+        if (replacement instanceof HTMLInputElement) replacement.focus();
     }
 }
 
