@@ -34,6 +34,13 @@
         "description": {
             "type": "string",
             "description": "A description of the kin. Not stored: the table has no column for it."
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "$ref": "../skill/skill-names.schema.json"
+            },
+            "description": "The innate skills of the kin."
         }
     }
 }

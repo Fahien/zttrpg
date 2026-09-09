@@ -27,7 +27,7 @@
             "description": "The icon of the skill."
         },
         "kind": {
-            "$ref": "skill-kinds.schema.json"
+            "$ref": "skill-kinds.json"
         },
         "attribute": {
             "anyOf": [

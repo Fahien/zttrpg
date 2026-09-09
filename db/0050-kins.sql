@@ -8,3 +8,11 @@ CREATE TABLE kins (
     CHECK (movement > 0),
     FOREIGN KEY (icon) REFERENCES icons(id)
 );
+
+CREATE TABLE kins_skills (
+    kin INTEGER NOT NULL,
+    skill INTEGER NOT NULL,
+    PRIMARY KEY (kin, skill),
+    FOREIGN KEY (kin) REFERENCES kins(id),
+    FOREIGN KEY (skill) REFERENCES skills(id)
+);

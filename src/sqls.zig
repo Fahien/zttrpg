@@ -45,6 +45,7 @@ pub fn main(init: std.process.Init) !void {
         try generate(init.io, gpa, Table);
     }
     try generateProfessionRelations(init.io, gpa);
+    try generateKinRelations(init.io, gpa);
 }
 
 // The tables. Each names its JSON source, its output file, and the single
@@ -140,7 +141,7 @@ const Items = struct {
 const SkillKinds = struct {
     const table_name = "skill_kinds";
     const json_paths = &[_][]const u8{"src/data/skill/skill-kinds.json"};
-    const out_path = "db/0051-skill-kinds.sql";
+    const out_path = "db/0041-skill-kinds.sql";
 
     const Row = struct {
         name: []const u8,
@@ -153,7 +154,7 @@ const SkillKinds = struct {
 const Kins = struct {
     const table_name = "kins";
     const json_paths = &[_][]const u8{"src/data/kin/kins.json"};
-    const out_path = "db/0031-kins.sql";
+    const out_path = "db/0051-kins.sql";
 
     /// The JSON also carries a description, which the table has no column for.
     /// Unknown properties are ignored, so leaving it out here is enough.
@@ -173,7 +174,7 @@ const Kins = struct {
 const Attributes = struct {
     const table_name = "attributes";
     const json_paths = &[_][]const u8{"src/data/attribute/attributes.json"};
-    const out_path = "db/0041-attributes.sql";
+    const out_path = "db/0031-attributes.sql";
 
     const Row = struct {
         const lookups = .{ .icon = "icons" };
@@ -190,7 +191,7 @@ const Attributes = struct {
 const Skills = struct {
     const table_name = "skills";
     const json_paths = &[_][]const u8{"src/data/skill/skills.json"};
-    const out_path = "db/0052-skills.sql";
+    const out_path = "db/0042-skills.sql";
 
     const Row = struct {
         const lookups = .{ .icon = "icons", .kind = "skill_kinds", .attribute = "attributes" };
@@ -208,7 +209,7 @@ const Skills = struct {
 const SkillBaseChances = struct {
     const table_name = "skill_base_chances";
     const json_paths = &[_][]const u8{"src/data/skill/skill-base-chances.json"};
-    const out_path = "db/0054-skill-base-chances.sql";
+    const out_path = "db/0044-skill-base-chances.sql";
 
     const Row = struct {
         min_value: []const u8,
@@ -222,7 +223,7 @@ const SkillBaseChances = struct {
 const MovementModifiers = struct {
     const table_name = "movement_modifiers";
     const json_paths = &[_][]const u8{"src/data/movement-modifier/movement-modifiers.json"};
-    const out_path = "db/0043-movement-modifiers.sql";
+    const out_path = "db/0033-movement-modifiers.sql";
 
     const Row = struct {
         const lookups = .{ .attribute = "attributes" };
@@ -239,7 +240,7 @@ const MovementModifiers = struct {
 const DamageBonuses = struct {
     const table_name = "damage_bonuses";
     const json_paths = &[_][]const u8{"src/data/damage-bonus/damage-bonuses.json"};
-    const out_path = "db/0045-damage-bonuses.sql";
+    const out_path = "db/0035-damage-bonuses.sql";
 
     const Row = struct {
         const lookups = .{ .attribute = "attributes" };
@@ -323,6 +324,19 @@ const ProfessionDataFile = struct {
     professions: []const ProfessionData,
 };
 
+/// The innate skills nested inside each kin, flattened into rows by
+/// generateKinRelations below. A kin may list none.
+const KinData = struct {
+    name: []const u8,
+    skills: []const []const u8 = &.{},
+};
+
+const KinDataFile = struct {
+    const json_paths = Kins.json_paths;
+
+    kins: []const KinData,
+};
+
 const TwoConfigFiles = struct {
     const json_paths = &[_][]const u8{
         "src/data/config/configs.json",
@@ -379,6 +393,12 @@ fn generateProfessionRelations(io: Io, gpa: Allocator) !void {
     try generateProfessionSpecializations(io, gpa, source.professions);
     try generateProfessionSkills(io, gpa, source.professions);
     try generateProfessionItems(io, gpa, source.professions);
+}
+
+fn generateKinRelations(io: Io, gpa: Allocator) !void {
+    const source = try readJsonFile(io, gpa, KinDataFile, KinDataFile.json_paths[0]);
+
+    try generateKinSkills(io, gpa, source.kins);
 }
 
 fn beginSql(gpa: Allocator, table: []const u8, columns: []const u8) !std.ArrayList(u8) {
@@ -481,6 +501,23 @@ fn generateProfessionItems(io: Io, gpa: Allocator, professions: []const Professi
     };
 
     try writeSql(io, gpa, &sql, "db/0074-profession-specialization-items.sql", row_count);
+}
+
+fn generateKinSkills(io: Io, gpa: Allocator, kins: []const KinData) !void {
+    var sql = try beginSql(gpa, "kins_skills", "kin, skill");
+    defer sql.deinit(gpa);
+
+    var row_count: usize = 0;
+    for (kins) |kin| for (kin.skills) |skill| {
+        try appendRowPrefix(gpa, &sql, row_count);
+        try appendSlice(gpa, &sql, "kins", kin.name);
+        try sql.appendSlice(gpa, ", ");
+        try appendSlice(gpa, &sql, "skills", skill);
+        try sql.appendSlice(gpa, ")");
+        row_count += 1;
+    };
+
+    try writeSql(io, gpa, &sql, "db/0052-kins-skills.sql", row_count);
 }
 
 /// The one property of a table's JSON that holds its list. Declaring a second
@@ -629,7 +666,10 @@ fn readJson(io: Io, gpa: Allocator, comptime Table: type) !Table {
 }
 
 fn readJsonFile(io: Io, gpa: Allocator, comptime Table: type, json_path: []const u8) !Table {
-    const file = try Io.Dir.cwd().openFile(io, json_path, .{ .mode = .read_only });
+    const file = Io.Dir.cwd().openFile(io, json_path, .{ .mode = .read_only }) catch |err| {
+        std.log.warn("Failed to open JSON file {s}: {}", .{ json_path, err });
+        return err;
+    };
     defer file.close(io);
 
     var staging_buffer: [1024]u8 = undefined;

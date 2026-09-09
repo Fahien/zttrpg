@@ -5,7 +5,7 @@
 
 /** @typedef {{ id: number, short: string }} Attribute */
 /** @typedef {{ attribute: Attribute, spent: number, value: number }} CharacterAttribute */
-/** @typedef {{ attribute: Attribute | null, id: number, kind: { name: string } }} Skill */
+/** @typedef {{ attribute: Attribute | null, id: number, kind: { name: string, base_chance: boolean } }} Skill */
 /** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
 /** @typedef {{ attribute: Attribute, die_sides: number | null }} DamageBonus */
 /** @typedef {{ id: number, kin: { movement: number }, attribute_points: number, movement: number, attributes: CharacterAttribute[], skills: CharacterSkill[], damage_bonuses: DamageBonus[] }} Character */
