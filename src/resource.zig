@@ -4,6 +4,7 @@
 //! Resource registration connects URL names to models and HTTP capabilities.
 //! The route parser and handlers use this table for every resource.
 
+const std = @import("std");
 const zttrpg = @import("zttrpg");
 
 /// A resource nested under an item URL. Its definition supplies both the
@@ -64,6 +65,18 @@ pub const Definition = struct {
     /// their common URL shape; this registration says which parent owns them.
     subresources: []const SubResource = &.{},
 
+    /// A collection whose rule data is served as JSON only and never edited.
+    pub fn readOnly(comptime Model: type) Definition {
+        return .{
+            .Model = Model,
+            .item = false,
+            .create = false,
+            .update = false,
+            .delete = false,
+            .html = false,
+        };
+    }
+
     pub fn hasSubresource(comptime definition: Definition, comptime subresource: SubResource) bool {
         inline for (definition.subresources) |registered| {
             if (registered == subresource) return true;
@@ -107,22 +120,8 @@ pub const Resource = enum {
             .ages => .{ .Model = zttrpg.Age },
             .configs => .{ .Model = zttrpg.Config },
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },
-            .damage_bonuses => .{
-                .Model = zttrpg.DamageBonus,
-                .item = false,
-                .create = false,
-                .update = false,
-                .delete = false,
-                .html = false,
-            },
-            .skill_base_chances => .{
-                .Model = zttrpg.SkillBaseChance,
-                .item = false,
-                .create = false,
-                .update = false,
-                .delete = false,
-                .html = false,
-            },
+            .damage_bonuses => Definition.readOnly(zttrpg.DamageBonus),
+            .skill_base_chances => Definition.readOnly(zttrpg.SkillBaseChance),
             .characters => .{ .Model = zttrpg.Character, .subresources = &.{ .attributes, .skills, .creation } },
             .kins => .{ .Model = zttrpg.Kin },
             .skill_kinds => .{ .Model = zttrpg.SkillKind },
@@ -138,3 +137,17 @@ pub const Resource = enum {
         };
     }
 };
+
+fn expectReadOnlyDefinition(comptime Model: type, comptime definition: Definition) !void {
+    try std.testing.expect(definition.Model == Model);
+    try std.testing.expect(!definition.item);
+    try std.testing.expect(!definition.create);
+    try std.testing.expect(!definition.update);
+    try std.testing.expect(!definition.delete);
+    try std.testing.expect(!definition.html);
+}
+
+test "read-only resources retain their model and capabilities" {
+    try expectReadOnlyDefinition(zttrpg.DamageBonus, Resource.damage_bonuses.definition());
+    try expectReadOnlyDefinition(zttrpg.SkillBaseChance, Resource.skill_base_chances.definition());
+}

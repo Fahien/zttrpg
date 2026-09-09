@@ -320,12 +320,27 @@ fn formatSkillArray(gpa: Allocator, skills: []const Skill.Id) ![*:0]const u8 {
     try text.append(gpa, '{');
     for (skills, 0..) |skill, i| {
         if (i != 0) try text.append(gpa, ',');
-        const id = try std.fmt.allocPrint(gpa, "{d}", .{skill});
-        defer gpa.free(id);
-        try text.appendSlice(gpa, id);
+        try text.print(gpa, "{d}", .{skill});
     }
     try text.append(gpa, '}');
     return (try gpa.dupeZ(u8, text.items)).ptr;
+}
+
+test "formatSkillArray writes PostgreSQL array literals with a sentinel" {
+    const cases = .{
+        .{ .skills = &[_]Skill.Id{}, .expected = "{}" },
+        .{ .skills = &[_]Skill.Id{42}, .expected = "{42}" },
+        .{ .skills = &[_]Skill.Id{ 3, 7, 9 }, .expected = "{3,7,9}" },
+        .{ .skills = &[_]Skill.Id{std.math.maxInt(Skill.Id)}, .expected = "{4294967295}" },
+    };
+
+    inline for (cases) |case| {
+        const actual = try formatSkillArray(std.testing.allocator, case.skills);
+        defer std.testing.allocator.free(std.mem.span(actual));
+
+        try std.testing.expectEqualStrings(case.expected, std.mem.span(actual));
+        try std.testing.expectEqual(@as(u8, 0), actual[case.expected.len]);
+    }
 }
 
 pub const RowCharacter = struct {
