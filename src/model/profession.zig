@@ -162,7 +162,7 @@ test "Profession serializes the full specialization wire shape" {
     defer out.deinit();
 
     const icon = Icon{ .id = 1, .name = "anvil" };
-    const skill_kind = @import("skill.zig").SkillKind{ .id = 1, .name = "Core" };
+    const skill_kind = @import("skill.zig").SkillKind{ .id = 1, .name = "Core", .base_chance = true };
     const skill = Skill{ .id = 2, .name = "Crafting", .icon = icon, .kind = skill_kind, .description = "Make things." };
     const item_kind = @import("item_kind.zig").ItemKind{ .id = 1, .name = "Tool", .icon = icon };
     const supply = @import("item_supply.zig").ItemSupply{ .id = 1, .name = "common", .color = "green" };

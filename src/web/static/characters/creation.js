@@ -8,7 +8,7 @@
 // Training mirrors the attribute step: a click reserves a point locally and a
 // submit saves only those new choices. Saved training cannot be refunded.
 
-/** @typedef {{ id: number, attribute: { id: number } | null, kind: { name: string } }} Skill */
+/** @typedef {{ id: number, attribute: { id: number } | null, kind: { name: string, base_chance: boolean } }} Skill */
 /** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
 /** @typedef {{ id: number, name: string, description: string, skills: Skill[] }} Specialization */
 /** @typedef {{ id: number, trained_skill_count: number }} Age */
@@ -96,7 +96,7 @@ function trainingUnlocked() {
 
 /** @returns {CharacterSkill[]} */
 function eligibleSkills() {
-    return character.skills.filter((entry) => entry.skill.attribute !== null);
+    return character.skills.filter((entry) => entry.skill.attribute !== null && entry.skill.kind.base_chance);
 }
 
 /** @returns {Specialization | null} */
@@ -196,7 +196,7 @@ function onTrainingButtonClick(event) {
 function addPendingSkill(id) {
     if (!trainingUnlocked()) return;
     const entry = character.skills.find((item) => item.skill.id === id);
-    if (!entry || entry.skill.attribute === null || entry.trained || pendingSkillIds.has(id)) return;
+    if (!entry || entry.skill.attribute === null || !entry.skill.kind.base_chance || entry.trained || pendingSkillIds.has(id)) return;
     if (availableTrainingPoints <= 0 || selectedSpecialization() === null) return;
 
     const state = trainingState();
@@ -335,7 +335,7 @@ function renderSkills() {
         const trainingLabel = row.querySelector('[data-training-state]');
         const plus = row.querySelector('button[data-action="increase-training"]');
         const minus = row.querySelector('button[data-action="decrease-training"]');
-        if (entry.skill.attribute === null) {
+        if (entry.skill.attribute === null || !entry.skill.kind.base_chance) {
             if (trainingLabel instanceof HTMLElement) trainingLabel.hidden = true;
             if (plus instanceof HTMLButtonElement) plus.hidden = true;
             if (minus instanceof HTMLButtonElement) minus.hidden = true;

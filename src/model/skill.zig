@@ -26,6 +26,7 @@ pub const SkillKind = struct {
 
     id: Id = 0,
     name: []const u8,
+    base_chance: bool,
 };
 
 const Icon = @import("icon.zig").Icon;
@@ -105,13 +106,13 @@ test "Skill serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const skill_kind = SkillKind{ .id = 1, .name = "Core" };
+    const skill_kind = SkillKind{ .id = 1, .name = "Core", .base_chance = true };
 
     const skill = Skill{ .id = 1, .name = "Stealth", .icon = Icon{ .id = 1, .name = "abacus" }, .kind = skill_kind, .description = "Expertise in moving unseen." };
     try std.json.Stringify.value(skill, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"kind":{"id":1,"name":"Core"},"attribute":null,"description":"Expertise in moving unseen."}
+        \\{"id":1,"name":"Stealth","icon":{"id":1,"name":"abacus"},"kind":{"id":1,"name":"Core","base_chance":true},"attribute":null,"description":"Expertise in moving unseen."}
     , out.written());
 }
 

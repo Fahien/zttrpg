@@ -789,7 +789,7 @@ const test_acrobatics = Skill{
     .id = 1,
     .name = "Acrobatics",
     .icon = .{ .id = 1, .name = "abacus" },
-    .kind = .{ .id = 1, .name = "Core" },
+    .kind = .{ .id = 1, .name = "Core", .base_chance = true },
     .attribute = test_agility,
     .description = "Body control.",
 };
