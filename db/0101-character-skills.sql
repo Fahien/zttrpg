@@ -206,6 +206,27 @@ FOR EACH ROW
 WHEN (OLD.profession IS DISTINCT FROM NEW.profession OR OLD.age IS DISTINCT FROM NEW.age)
 EXECUTE FUNCTION reset_character_creation();
 
+-- The profession quota is campaign configuration. It is a minimum within the
+-- age's total training budget, so any remaining choices may also come from the
+-- selected profession.
+CREATE FUNCTION configured_profession_skill_minimum() RETURNS INTEGER AS $fn$
+DECLARE
+    configured INTEGER;
+BEGIN
+    SELECT value::INTEGER
+    INTO STRICT configured
+    FROM configs
+    WHERE name = 'profession_skill_minimum';
+    IF configured < 0 THEN
+        RAISE EXCEPTION 'invalid config: profession_skill_minimum';
+    END IF;
+    RETURN configured;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE EXCEPTION 'missing config: profession_skill_minimum';
+END;
+$fn$ LANGUAGE plpgsql STABLE;
+
 -- Adds one or more selections to an unfinished character. The array is a
 -- delta, not a replacement: retrying an already-trained skill is a no-op and
 -- never charges twice. A saved choice cannot be refunded, like spent
@@ -219,10 +240,10 @@ DECLARE
     remaining_points INTEGER;
     remaining_attribute_points INTEGER;
     selected_specialization_id INTEGER;
-    existing_skill_count INTEGER;
     existing_specialization_count INTEGER;
     new_skill_count INTEGER;
     new_specialization_count INTEGER;
+    minimum_profession_skills INTEGER;
 BEGIN
     -- Lock the character while checking both creation pools. An attribute
     -- save cannot race a training save past this persisted-state rule.
@@ -293,14 +314,6 @@ BEGIN
     END IF;
 
     SELECT COUNT(*)
-    INTO existing_skill_count
-    FROM character_skills cs
-    JOIN skills s ON s.id = cs.skill
-    WHERE cs.character = selected_character
-      AND s.attribute IS NOT NULL
-      AND cs.trained;
-
-    SELECT COUNT(*)
     INTO existing_specialization_count
     FROM character_skills cs
     JOIN profession_specialization_skills pss
@@ -326,16 +339,20 @@ BEGIN
             USING ERRCODE = 'check_violation';
     END IF;
 
-    IF existing_specialization_count + new_specialization_count > 6 OR
-       (existing_skill_count + new_skill_count) - (existing_specialization_count + new_specialization_count) >
-           (existing_skill_count + remaining_points) - 6 THEN
-        RAISE EXCEPTION 'creation must reserve six specialization skills'
+    minimum_profession_skills := configured_profession_skill_minimum();
+
+    IF remaining_points - new_skill_count = 0 AND
+       existing_specialization_count + new_specialization_count < minimum_profession_skills THEN
+        RAISE EXCEPTION 'the final trained skill point requires the minimum profession skills'
             USING ERRCODE = 'check_violation';
     END IF;
 
-    IF remaining_points - new_skill_count = 0 AND
-       existing_specialization_count + new_specialization_count <> 6 THEN
-        RAISE EXCEPTION 'the final trained skill point requires exactly six specialization skills'
+    -- Outside-profession choices are free while enough unspent slots remain
+    -- to reach the configured minimum. Profession choices have no upper bound
+    -- other than the character's total training budget.
+    IF existing_specialization_count + new_specialization_count +
+       (remaining_points - new_skill_count) < minimum_profession_skills THEN
+        RAISE EXCEPTION 'creation must reserve the minimum profession skills'
             USING ERRCODE = 'check_violation';
     END IF;
 

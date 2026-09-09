@@ -14,6 +14,8 @@ let character = null;
 let specializationId = null;
 const pendingSkillIds = new Set();
 let availableTrainingPoints = 0;
+/** @type {number | null} */
+let minimumProfessionSkills = null;
 let submitting = false;
 let submitError = '';
 
@@ -36,9 +38,17 @@ skillGroups.addEventListener('click', onTrainingButtonClick);
 submitButton.addEventListener('click', onSubmit);
 
 /** @param {Event} event */
-function onInstanceLoaded(event) {
+async function onInstanceLoaded(event) {
     const loaded = /** @type {CustomEvent} */ (event).detail;
-    if (loaded) adoptCharacter(loaded);
+    if (!loaded) return;
+    adoptCharacter(loaded);
+    try {
+        minimumProfessionSkills = await fetchConfigValue('profession_skill_minimum');
+        submitError = '';
+    } catch (error) {
+        submitError = `Training rules not loaded: ${error instanceof Error ? error.message : String(error)}`;
+    }
+    render();
 }
 
 /** Attribute saves replace base chances, so pending training previews update too. */
@@ -112,14 +122,31 @@ function trainingState() {
     for (const id of pendingSkillIds) {
         if (specializationSkills.has(id)) pendingSpecialization += 1;
     }
+    const selectedTotal = savedTotal + pendingSkillIds.size;
+    const selectedProfession = savedSpecialization + pendingSpecialization;
     return {
         requiredTotal: character.age.trained_skill_count,
         savedTotal,
         savedSpecialization,
-        selectedTotal: savedTotal + pendingSkillIds.size,
-        selectedSpecialization: savedSpecialization + pendingSpecialization,
-        selectedOther: savedTotal + pendingSkillIds.size - savedSpecialization - pendingSpecialization,
+        selectedTotal,
+        selectedProfession,
+        remainingTotal: Math.max(0, character.age.trained_skill_count - selectedTotal),
+        remainingProfession: Math.max(0, (minimumProfessionSkills ?? 0) - selectedProfession),
     };
+}
+
+/**
+ * Reads a numeric rule from the generic configuration resource.
+ * @param {string} name
+ */
+async function fetchConfigValue(name) {
+    const response = await fetch('/configs', { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const configs = await response.json();
+    const config = configs.find((entry) => entry.name === name);
+    const value = Number(config?.value);
+    if (!config || !Number.isSafeInteger(value) || value < 0) throw new Error(`invalid config: ${name}`);
+    return value;
 }
 
 /** @param {Event} event */
@@ -164,12 +191,7 @@ function addPendingSkill(id) {
 
     const state = trainingState();
     const specializationSkills = selectedSpecializationSkillIds();
-    const nextSpecialization = state.selectedSpecialization + (specializationSkills.has(id) ? 1 : 0);
-    const nextTotal = state.selectedTotal + 1;
-    const nextOther = state.selectedOther + (specializationSkills.has(id) ? 0 : 1);
-    if (nextSpecialization > 6 || nextOther > state.requiredTotal - 6 || nextTotal > state.requiredTotal) return;
-    // The final point must leave the exact-six requirement true.
-    if (nextTotal === state.requiredTotal && nextSpecialization !== 6) return;
+    if (!canAddSkill(specializationSkills.has(id), state)) return;
 
     pendingSkillIds.add(id);
     availableTrainingPoints -= 1;
@@ -189,7 +211,7 @@ function render() {
         return;
     }
 
-    if (trainingUnlocked()) {
+    if (trainingUnlocked() && minimumProfessionSkills !== null) {
         submitButton.hidden = false;
         renderSkills();
     } else {
@@ -243,7 +265,7 @@ function renderSpecializationSummary() {
 function renderTrainingNotice() {
     pointsElement.textContent = String(availableTrainingPoints);
     for (const element of document.querySelectorAll('[data-requires-training-points]')) {
-        if (element instanceof HTMLElement) element.hidden = availableTrainingPoints <= 0;
+        if (element instanceof HTMLElement) element.hidden = availableTrainingPoints <= 0 || minimumProfessionSkills === null;
     }
 }
 
@@ -320,14 +342,19 @@ function renderSkills() {
     }
 }
 
+/** @param {boolean} inProfession @param {ReturnType<typeof trainingState>} state @param {number} minimum */
+function hasRoomForProfessionMinimum(inProfession, state, minimum) {
+    const nextProfession = state.selectedProfession + (inProfession ? 1 : 0);
+    const nextTotal = state.selectedTotal + 1;
+    const remainingSlots = state.requiredTotal - nextTotal;
+    const remainingProfession = Math.max(0, minimum - nextProfession);
+    return nextTotal <= state.requiredTotal && remainingSlots >= remainingProfession;
+}
+
 /** @param {boolean} inSpecialization @param {ReturnType<typeof trainingState>} state */
 function canAddSkill(inSpecialization, state) {
-    if (!trainingUnlocked() || submitting || availableTrainingPoints <= 0 || selectedSpecialization() === null) return false;
-    const nextSpecialization = state.selectedSpecialization + (inSpecialization ? 1 : 0);
-    const nextTotal = state.selectedTotal + 1;
-    const nextOther = state.selectedOther + (inSpecialization ? 0 : 1);
-    if (nextSpecialization > 6 || nextOther > state.requiredTotal - 6 || nextTotal > state.requiredTotal) return false;
-    return nextTotal !== state.requiredTotal || nextSpecialization === 6;
+    if (!trainingUnlocked() || minimumProfessionSkills === null || submitting || availableTrainingPoints <= 0 || selectedSpecialization() === null) return false;
+    return hasRoomForProfessionMinimum(inSpecialization, state, minimumProfessionSkills);
 }
 
 function renderStatus() {
@@ -337,7 +364,7 @@ function renderStatus() {
         ? `Spend all ${character.attribute_points} remaining attribute point${character.attribute_points === 1 ? '' : 's'} before selecting training skills.`
         : specialization === null
         ? ''
-        : `${state.selectedSpecialization}/6 specialization skills trained; ${state.selectedTotal}/${state.requiredTotal} training points assigned.`;
+        : `${state.remainingProfession} more profession skill${state.remainingProfession === 1 ? '' : 's'} required; ${state.remainingTotal} training point${state.remainingTotal === 1 ? '' : 's'} remaining.`;
     status.textContent = submitError;
     status.classList.toggle('error', submitError.length > 0);
     status.hidden = submitError.length === 0;

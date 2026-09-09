@@ -17,6 +17,10 @@
         {
             "name": "attribute_points_default",
             "value": "54"
+        },
+        {
+            "name": "profession_skill_minimum",
+            "value": "6"
         }
     ]
 }

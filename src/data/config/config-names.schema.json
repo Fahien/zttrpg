@@ -8,6 +8,7 @@
         "attribute_default",
         "attribute_min",
         "attribute_max",
-        "attribute_points_default"
+        "attribute_points_default",
+        "profession_skill_minimum"
     ]
 }

@@ -670,7 +670,7 @@ test "readJson preserves each path's rows in declared order" {
     const one_file = try readJson(testing.io, gpa, Configs);
     const two_files = try readJson(testing.io, gpa, TwoConfigFiles);
 
-    try testing.expectEqual(@as(usize, 4), one_file.configs.len);
+    try testing.expectEqual(@as(usize, 5), one_file.configs.len);
     try testing.expectEqual(one_file.configs.len * 2, two_files.configs.len);
     for (one_file.configs, 0..) |row, i| {
         try testing.expectEqualStrings(row.name, two_files.configs[i].name);
