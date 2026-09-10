@@ -54,12 +54,14 @@ pub const Database = struct {
         }
     }
 
-    pub fn readItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !?T {
+    /// Reads the columns of `Projection` from one row of T's table, without
+    /// hydrating anything. A model that needs part of a record on a write path
+    /// names the columns it reads, rather than paying readItem's nested
+    /// queries for a record nobody serves.
+    pub fn readProjection(self: *const Database, gpa: Allocator, comptime T: type, comptime Projection: type, id: u32) !?Projection {
         comptime requireIdColumn(T);
 
-        const QueryType = RowOfT(T);
-
-        const cols = comptime Database.getCols(QueryType);
+        const cols = comptime Database.getCols(Projection);
         const query = "SELECT " ++ cols ++ " FROM " ++ T.table_name ++ " WHERE id = $1";
         const id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{id}, 0);
         defer gpa.free(id_cstr);
@@ -73,7 +75,11 @@ pub const Database = struct {
             return error.UnexpectedResult;
         }
 
-        const row = try Database.rowToT(QueryType, gpa, &result, 0);
+        return try Database.rowToT(Projection, gpa, &result, 0);
+    }
+
+    pub fn readItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !?T {
+        const row = (try self.readProjection(gpa, T, RowOfT(T), id)) orelse return null;
         return try self.hydrate(T, gpa, row);
     }
 
@@ -174,6 +180,11 @@ pub const Database = struct {
         errdefer self.conn.rollbackTransaction() catch {
             std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
         };
+
+        // Whether this collection accepts a direct write can depend on the
+        // parent's state. A child that says so is asked here, inside the
+        // transaction, so it reads the same rows the writes below change.
+        if (@hasDecl(Child, "checkWritable")) try Child.checkWritable(self, gpa, parent_id);
 
         for (bodies) |body| {
             const params = try Database.getParams(gpa, Child.Body, body);

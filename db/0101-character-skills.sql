@@ -109,7 +109,6 @@ BEGIN
         RETURN;
     END IF;
 
-    PERFORM set_config('zttrpg.creation_write', 'on', true);
     UPDATE character_skills cs
     SET value = starting_skill_value(character_id, cs.skill) *
         CASE WHEN cs.trained THEN 2 ELSE 1 END
@@ -133,26 +132,6 @@ AFTER UPDATE OF base, spent, modifier ON character_attributes
 FOR EACH ROW
 WHEN (OLD.base IS DISTINCT FROM NEW.base OR OLD.spent IS DISTINCT FROM NEW.spent OR OLD.modifier IS DISTINCT FROM NEW.modifier)
 EXECUTE FUNCTION refresh_trained_skills_after_attribute_change();
-
--- The generic /skills endpoint is normal advancement only after both pools
--- are empty. Before then, save_character_creation is the sole path allowed to
--- mark a skill trained, so it can debit exactly one trained-skill point.
-CREATE FUNCTION reject_direct_creation_skill_write() RETURNS TRIGGER AS $fn$
-BEGIN
-    IF NOT character_creation_complete(NEW.character)
-       AND current_setting('zttrpg.creation_write', true) IS DISTINCT FROM 'on' THEN
-        RAISE EXCEPTION 'an incomplete character must train skills through creation'
-            USING ERRCODE = 'check_violation';
-    END IF;
-    RETURN NEW;
-END;
-$fn$ LANGUAGE plpgsql;
-
-CREATE TRIGGER character_skills_reject_direct_creation_write
-BEFORE UPDATE OF value ON character_skills
-FOR EACH ROW
-WHEN (NEW.value IS DISTINCT FROM OLD.value)
-EXECUTE FUNCTION reject_direct_creation_skill_write();
 
 -- A non-base-chance skill with a governing attribute is a binary learned
 -- capability. Abilities keep their existing representation: they have no
@@ -186,8 +165,6 @@ EXECUTE FUNCTION check_binary_secondary_skill();
 -- attribute modifiers are visible together, and no old selection survives.
 CREATE FUNCTION reset_character_creation() RETURNS TRIGGER AS $fn$
 BEGIN
-    PERFORM set_config('zttrpg.creation_write', 'on', true);
-
     IF NEW.age IS DISTINCT FROM OLD.age THEN
         UPDATE character_attributes ca
         SET modifier = COALESCE((
@@ -402,8 +379,6 @@ BEGIN
         RAISE EXCEPTION 'creation must reserve the minimum profession skills'
             USING ERRCODE = 'check_violation';
     END IF;
-
-    PERFORM set_config('zttrpg.creation_write', 'on', true);
 
     -- Replacing a specialization before a base-chance skill is chosen also
     -- replaces its binary grant. The relationship supplies the matching skill,

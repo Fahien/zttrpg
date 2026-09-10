@@ -137,6 +137,18 @@ pub const CharacterSkill = struct {
             .trained = row.trained,
         };
     }
+
+    /// Writing this collection directly is advancement, and advancement starts
+    /// when creation ends. Until then the creation action owns every write, so
+    /// that marking a skill trained also debits the point it costs.
+    pub fn checkWritable(db: *const Database, gpa: Allocator, character_id: Character.Id) !void {
+        const pools = (try db.readProjection(gpa, Character, CreationPools, character_id)) orelse
+            return error.ItemNotFound;
+
+        if (!deriveCreationComplete(pools.attribute_points, pools.trained_skill_points, pools.specialization)) {
+            return error.CreationIncomplete;
+        }
+    }
 };
 
 /// Use the governing attribute's final value, including spent points and age.
@@ -446,7 +458,7 @@ pub const Character = struct {
             .age = summary.age,
             .attribute_points = row.attribute_points,
             .trained_skill_points = row.trained_skill_points,
-            .creation_complete = deriveCreationComplete(row.attribute_points, row.trained_skill_points, specialization),
+            .creation_complete = deriveCreationComplete(row.attribute_points, row.trained_skill_points, row.specialization),
             .movement = deriveMovement(summary.kin.movement, attributes, bands),
             .damage_bonuses = try deriveDamageBonuses(gpa, attributes, rules),
             .attributes = attributes,
@@ -455,13 +467,22 @@ pub const Character = struct {
     }
 };
 
-/// Creation status is a view of persisted choices. The database validates the
-/// same conditions when choices are saved; calculating it here keeps the JSON
-/// truthful after a profession, age, or attribute-point update.
+/// The columns creation status is read from, for a caller that wants the
+/// status alone. Reading the whole character costs a query per nested record.
+const CreationPools = struct {
+    attribute_points: u32,
+    trained_skill_points: u32,
+    specialization: ?Specialization.Id,
+};
+
+/// Creation status is a view of persisted choices. The served JSON and the
+/// guard on direct skill writes both read it here, so the two cannot disagree
+/// after a profession, age, or attribute-point update. Whether a
+/// specialization was chosen is what counts, not which one.
 pub fn deriveCreationComplete(
     attribute_points: u32,
     trained_skill_points: u32,
-    specialization: ?Specialization,
+    specialization: ?Specialization.Id,
 ) bool {
     return attribute_points == 0 and trained_skill_points == 0 and specialization != null;
 }
@@ -799,14 +820,8 @@ const test_acrobatics = Skill{
 };
 
 test "creation completion is derived from the two exhausted point pools" {
-    const specialization = Specialization{
-        .id = 1,
-        .name = "Default",
-        .description = "Test specialization.",
-        .skills = &.{},
-        .heroic_skill = null,
-        .items = &.{},
-    };
+    const specialization: Specialization.Id = 1;
+
     try std.testing.expect(deriveCreationComplete(0, 0, specialization));
     try std.testing.expect(!deriveCreationComplete(1, 0, specialization));
     try std.testing.expect(!deriveCreationComplete(0, 1, specialization));

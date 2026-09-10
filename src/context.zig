@@ -178,6 +178,14 @@ pub fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
             .message = "The request violates a constraint on this resource.",
         },
 
+        // The body is well formed and the record's own state refuses it. The
+        // database used to answer this one as a constraint violation, so the
+        // status stays what clients already see.
+        error.CreationIncomplete => .{
+            .status = .bad_request,
+            .message = "An incomplete character trains skills through creation.",
+        },
+
         // Domain errors raised by the model layer's validate(). The model says
         // what is wrong; choosing the status is this layer's job.
         error.EmptyName,
@@ -207,6 +215,13 @@ test "a foreign key violation is the client's fault either way, but not the same
     try std.testing.expectEqual(
         std.http.Status.conflict,
         responseForError(error.ForeignKeyViolation, .DELETE).status,
+    );
+}
+
+test "a write refused by the record's state is still the client's fault" {
+    try std.testing.expectEqual(
+        std.http.Status.bad_request,
+        responseForError(error.CreationIncomplete, .PUT).status,
     );
 }
 
