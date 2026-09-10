@@ -1,12 +1,6 @@
 -- Every character has one row per skill, starting at zero until its attribute
 -- allocation is committed. Training is explicit because an untrained governed
 -- skill also has a positive value after that point.
-INSERT INTO character_skills (character, skill, value, trained)
-SELECT c.id, s.id, 0, FALSE
-FROM characters c
-CROSS JOIN skills s
-ON CONFLICT (character, skill) DO NOTHING;
-
 CREATE FUNCTION seed_character_skills() RETURNS TRIGGER AS $fn$
 BEGIN
     INSERT INTO character_skills (character, skill, value, trained)
