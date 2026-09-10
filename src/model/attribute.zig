@@ -7,6 +7,7 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
+const Database = @import("../database.zig").Database;
 
 pub const AttributeBody = struct {
     name: []const u8,
@@ -45,7 +46,7 @@ pub const Attribute = struct {
     short: []const u8,
     description: []const u8,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Attribute {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Attribute {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
 
         return .{
@@ -93,4 +94,3 @@ test "AttributeCreate parses from a JSON body" {
 
     try std.testing.expectEqualStrings("Stealth", parsed.value.name);
 }
-

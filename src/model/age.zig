@@ -7,6 +7,7 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
+const Database = @import("../database.zig").Database;
 
 pub const AgeBody = struct {
     name: []const u8,
@@ -45,11 +46,9 @@ pub const Age = struct {
 
     /// Builds a Age from its stored row, resolving the icon the row names by id.
     ///
-    /// `db` is anything that can `readItem`; taking it as `anytype` is what lets
-    /// the model own this step without importing the query layer that calls it.
     /// The strings come straight from `row`, which the caller already copied
     /// into `gpa` -- see Database.rowToT.
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Age {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Age {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
 
         return .{

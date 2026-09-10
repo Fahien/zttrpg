@@ -31,6 +31,7 @@ pub const SkillKind = struct {
 
 const Icon = @import("icon.zig").Icon;
 const Attribute = @import("attribute.zig").Attribute;
+const Database = @import("../database.zig").Database;
 
 pub const SkillBody = struct {
     name: []const u8,
@@ -73,7 +74,7 @@ pub const Skill = struct {
     attribute: ?Attribute = null,
     description: []const u8,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Skill {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Skill {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
         const kind = (try db.readItem(gpa, SkillKind, row.kind)) orelse return error.SkillKindNotFound;
         const attribute = if (row.attribute) |id|

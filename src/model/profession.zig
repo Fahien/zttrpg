@@ -12,6 +12,7 @@ const Allocator = std.mem.Allocator;
 const Icon = @import("icon.zig").Icon;
 const Item = @import("item.zig").Item;
 const Skill = @import("skill.zig").Skill;
+const Database = @import("../database.zig").Database;
 
 pub const ProfessionRow = struct {
     id: Profession.Id,
@@ -32,7 +33,7 @@ pub const Profession = struct {
     description: []const u8,
     specializations: []Specialization,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Profession {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Profession {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
         const specializations = try db.readSubResource(gpa, Profession, Specialization, row.id);
 
@@ -68,7 +69,7 @@ pub const Specialization = struct {
     heroic_skill: ?Skill,
     items: [][]Item,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Specialization {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Specialization {
         const skill_rows = try db.readSubResource(gpa, Specialization, SpecializationSkill, row.id);
         const skills = try gpa.alloc(Skill, skill_rows.len);
         for (skill_rows, 0..) |skill_row, i| skills[i] = skill_row.skill;
@@ -106,7 +107,7 @@ pub const SpecializationSkill = struct {
 
     skill: Skill,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !SpecializationSkill {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !SpecializationSkill {
         const skill = (try db.readItem(gpa, Skill, row.skill)) orelse return error.SkillNotFound;
         return .{ .skill = skill };
     }
@@ -129,7 +130,7 @@ pub const SpecializationItem = struct {
     package_index: u32,
     item: Item,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !SpecializationItem {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !SpecializationItem {
         const item = (try db.readItem(gpa, Item, row.item)) orelse return error.ItemNotFound;
         return .{ .package_index = row.package_index, .item = item };
     }

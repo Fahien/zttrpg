@@ -15,6 +15,7 @@ const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
 const SkillBaseChance = @import("skill_base_chance.zig").SkillBaseChance;
 const DamageBonus = @import("damage_bonus.zig").DamageBonus;
+const Database = @import("../database.zig").Database;
 
 pub const BodyError = error{ ValueOutOfRange, DuplicateEntry };
 
@@ -77,7 +78,7 @@ pub const CharacterAttribute = struct {
 
     /// The row carries `character` as well, but the value is served as part of
     /// that character, so the id is dropped here rather than repeated.
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterAttribute {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !CharacterAttribute {
         const attribute = (try db.readItem(gpa, Attribute, row.attribute)) orelse
             return error.AttributeNotFound;
 
@@ -124,9 +125,12 @@ pub const CharacterSkill = struct {
     value: u32,
     trained: bool,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSkill {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !CharacterSkill {
         const skill = (try db.readItem(gpa, Skill, row.skill)) orelse return error.SkillNotFound;
+        return fromResolvedSkill(skill, row);
+    }
 
+    fn fromResolvedSkill(skill: Skill, row: Row) CharacterSkill {
         return .{
             .skill = skill,
             .value = row.value,
@@ -189,7 +193,7 @@ pub const MovementModifier = struct {
     max_value: u32,
     modifier: i32,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !MovementModifier {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !MovementModifier {
         const attribute = (try db.readItem(gpa, Attribute, row.attribute)) orelse
             return error.AttributeNotFound;
 
@@ -373,7 +377,7 @@ pub const CharacterSummary = struct {
     profession: Profession,
     age: Age,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !CharacterSummary {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !CharacterSummary {
         const kin = (try db.readItem(gpa, Kin, row.kin)) orelse return error.KinNotFound;
         const profession = (try db.readItem(gpa, Profession, row.profession)) orelse return error.ProfessionNotFound;
         const age = (try db.readItem(gpa, Age, row.age)) orelse return error.AgeNotFound;
@@ -421,7 +425,7 @@ pub const Character = struct {
     /// Unlike the other models, a character is not one row: its attribute and
     /// skill values live in their own tables and are fetched here, keyed by
     /// this character's id.
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Character {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Character {
         const summary = try CharacterSummary.fromRow(db, gpa, row);
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
         const bands = try db.readAllAlloc(gpa, MovementModifier);
@@ -810,16 +814,8 @@ test "creation completion is derived from the two exhausted point pools" {
 }
 
 test "CharacterSkill reads its saved value and explicit training state" {
-    const TestDatabase = struct {
-        skill: Skill = test_acrobatics,
-
-        pub fn readItem(self: *@This(), _: Allocator, comptime T: type, id: u32) !?T {
-            return if (id == self.skill.id) self.skill else null;
-        }
-    };
-    var db = TestDatabase{};
     const row = RowCharacterSkill{ .character = 47, .skill = test_acrobatics.id, .value = 12, .trained = true };
-    const entry = try CharacterSkill.fromRow(&db, std.testing.allocator, row);
+    const entry = CharacterSkill.fromResolvedSkill(test_acrobatics, row);
     try std.testing.expectEqual(@as(u32, 12), entry.value);
     try std.testing.expect(entry.trained);
 }

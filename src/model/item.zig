@@ -9,6 +9,7 @@ const Allocator = std.mem.Allocator;
 const Icon = @import("icon.zig").Icon;
 const ItemKind = @import("item_kind.zig").ItemKind;
 const ItemSupply = @import("item_supply.zig").ItemSupply;
+const Database = @import("../database.zig").Database;
 
 pub const ItemBody = struct {
     name: []const u8,
@@ -62,7 +63,7 @@ pub const Item = struct {
     effect: ?[]const u8,
     description: []const u8,
 
-    pub fn fromRow(db: anytype, gpa: Allocator, row: Row) !Item {
+    pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Item {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
         const kind = (try db.readItem(gpa, ItemKind, row.kind)) orelse return error.ItemKindNotFound;
         const supply = (try db.readItem(gpa, ItemSupply, row.supply)) orelse return error.ItemSupplyNotFound;
