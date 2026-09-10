@@ -393,15 +393,29 @@ pub const Database = struct {
 
         const params = try Database.getParams(gpa, T.Create, item);
 
-        const result = try self.conn.execParams(query, &params);
-        defer result.deinit();
+        // A model whose creation takes more than one row says so with
+        // afterInsert. Both statements share this transaction, so a hook that
+        // fails leaves no half-built record behind.
+        try self.conn.beginTransaction();
+        errdefer self.conn.rollbackTransaction() catch {
+            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
+        };
 
-        if (result.len() != 1) {
-            return error.UnexpectedResult;
-        }
-        const id_cstr = result.getValue(0, 0);
-        const id_str = std.mem.span(id_cstr);
-        const id = try std.fmt.parseInt(u32, id_str, 10);
+        const id = id: {
+            const result = try self.conn.execParams(query, &params);
+            defer result.deinit();
+
+            if (result.len() != 1) {
+                return error.UnexpectedResult;
+            }
+            const id_cstr = result.getValue(0, 0);
+            const id_str = std.mem.span(id_cstr);
+            break :id try std.fmt.parseInt(u32, id_str, 10);
+        };
+
+        if (@hasDecl(T, "afterInsert")) try T.afterInsert(self, gpa, id, item);
+
+        try self.conn.commitTransaction();
         return id;
     }
 
@@ -422,13 +436,29 @@ pub const Database = struct {
         return set_clauses;
     }
 
-    pub fn updateItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32, item: T.Update) !void {
-        comptime requireIdColumn(T);
+    /// An anonymous literal leaves an untyped field comptime, and a
+    /// comptime_int has no width to send as a parameter. The call site fixes
+    /// it by naming the type of the value.
+    fn requireRuntimeFields(comptime T: type) void {
+        inline for (@typeInfo(T).@"struct".fields) |field| {
+            if (field.is_comptime) {
+                @compileError(@typeName(T) ++ "." ++ field.name ++ " is comptime, so it cannot be sent" ++
+                    " as a query parameter. Give the value a runtime type, such as @as(u32, 1).");
+            }
+        }
+    }
 
-        const set_clauses = comptime Database.getSetClauses(T.Update);
+    /// Writes the fields of `values` to one row addressed by id. The write side
+    /// of readProjection: a model that changes part of a record names the
+    /// columns it sets and leaves the statement to the query layer.
+    pub fn updateColumns(self: *const Database, gpa: Allocator, comptime T: type, id: u32, values: anytype) !void {
+        comptime requireIdColumn(T);
+        comptime requireRuntimeFields(@TypeOf(values));
+
+        const set_clauses = comptime Database.getSetClauses(@TypeOf(values));
         const query = "UPDATE " ++ T.table_name ++ " SET " ++ set_clauses;
 
-        const params = try Database.getParamsWithId(gpa, T.Update, item, id);
+        const params = try Database.getParamsWithId(gpa, @TypeOf(values), values, id);
 
         const result = try self.conn.execParams(query, &params);
         defer result.deinit();
@@ -436,6 +466,11 @@ pub const Database = struct {
         if (try result.affectedRows() != 1) {
             return error.ItemNotFound;
         }
+    }
+
+    /// A whole-row update is every column the model's Update body carries.
+    pub fn updateItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32, item: T.Update) !void {
+        return self.updateColumns(gpa, T, id, item);
     }
 
     pub fn deleteItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !void {

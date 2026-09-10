@@ -59,24 +59,6 @@ FOR EACH ROW
 WHEN (OLD.profession IS DISTINCT FROM NEW.profession)
 EXECUTE FUNCTION select_sole_specialization();
 
--- Age owns the size of this pool, just as it owns the visible trained-skill
--- count. This is a row-local insert trigger because a DEFAULT cannot inspect
--- NEW.age.
-CREATE FUNCTION seed_trained_skill_points() RETURNS TRIGGER AS $fn$
-BEGIN
-    SELECT trained_skill_count
-    INTO STRICT NEW.trained_skill_points
-    FROM ages
-    WHERE id = NEW.age;
-    RETURN NEW;
-END;
-$fn$ LANGUAGE plpgsql;
-
-CREATE TRIGGER characters_seed_trained_skill_points
-BEFORE INSERT ON characters
-FOR EACH ROW
-EXECUTE FUNCTION seed_trained_skill_points();
-
 -- The configured chance for a base-chance skill at the character's current
 -- governing attribute. Skills without a base chance, and abilities without a
 -- governing attribute, return NULL.

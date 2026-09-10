@@ -405,6 +405,11 @@ pub const CharacterSummary = struct {
     }
 };
 
+/// The one column a new character needs from its age.
+const AgeTrainedSkillCount = struct {
+    trained_skill_count: u32,
+};
+
 pub const Character = struct {
     pub const Id = u32;
     pub const Create = CreateCharacter;
@@ -464,6 +469,16 @@ pub const Character = struct {
             .attributes = attributes,
             .skills = skills,
         };
+    }
+
+    /// The pool a character trains skills from is the one its age allows. The
+    /// player never sends it, so it is written here, in the transaction that
+    /// inserts the row.
+    pub fn afterInsert(db: *const Database, gpa: Allocator, id: Id, create: Create) !void {
+        const age = (try db.readProjection(gpa, Age, AgeTrainedSkillCount, create.age)) orelse
+            return error.AgeNotFound;
+
+        try db.updateColumns(gpa, Character, id, .{ .trained_skill_points = age.trained_skill_count });
     }
 };
 
