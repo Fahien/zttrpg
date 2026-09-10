@@ -15,6 +15,7 @@ pub const Item = item.Item;
 
 const age = @import("age.zig");
 pub const Age = age.Age;
+pub const AgeAttribute = age.AgeAttribute;
 
 const character = @import("character.zig");
 pub const Character = character.Character;

@@ -8,6 +8,7 @@ const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 const Age = @import("age.zig").Age;
+const AgeAttribute = @import("age.zig").AgeAttribute;
 const Profession = @import("profession.zig").Profession;
 const Specialization = @import("profession.zig").Specialization;
 const Kin = @import("kin.zig").Kin;
@@ -501,6 +502,86 @@ pub fn planCreation(
     };
 }
 
+/// One attribute row an age change writes. Only the rules' column moves; what
+/// the player spent is theirs and never changes here.
+const AgeModifierWrite = struct {
+    pub const key_name: []const u8 = Attribute.resource_name;
+
+    attribute: Attribute.Id,
+    modifier: i32,
+};
+
+/// The stored state an age or profession change invalidates.
+const StoredCreation = struct {
+    profession: Profession.Id,
+    age: Age.Id,
+    specialization: ?Specialization.Id,
+    attribute_points: u32,
+};
+
+/// What a new age does to a sheet's attributes. An age adjusts a few and says
+/// nothing about the rest, and silence means zero rather than no change.
+pub fn planAgeModifiers(
+    gpa: Allocator,
+    attributes: []const CharacterAttribute,
+    age_modifiers: []const AgeAttribute,
+) ![]const AgeModifierWrite {
+    var writes = std.ArrayList(AgeModifierWrite).empty;
+    errdefer writes.deinit(gpa);
+
+    for (attributes) |entry| {
+        var modifier: i32 = 0;
+        for (age_modifiers) |adjustment| {
+            if (adjustment.attribute == entry.attribute.id) modifier = adjustment.modifier;
+        }
+        if (modifier == entry.modifier) continue;
+
+        try writes.append(gpa, .{ .attribute = entry.attribute.id, .modifier = modifier });
+    }
+
+    return writes.toOwnedSlice(gpa);
+}
+
+/// What an age or profession change does to a sheet's skills. Every choice made
+/// under the old one goes: training is cleared, and each skill falls back to
+/// what its attribute alone gives, or to zero while the attributes are still
+/// unfinished. A specialization the character keeps grants its skill again.
+pub fn planCreationReset(
+    gpa: Allocator,
+    entries: []const CharacterSkill,
+    attributes: []const CharacterAttribute,
+    bands: []const SkillBaseChance,
+    specialization: ?Specialization,
+    attributes_finished: bool,
+) ![]const TrainedSkillWrite {
+    var writes = std.ArrayList(TrainedSkillWrite).empty;
+    errdefer writes.deinit(gpa);
+
+    for (entries) |entry| {
+        var cleared = entry;
+        cleared.trained = false;
+
+        const value = if (attributes_finished)
+            (try deriveStartingSkillValue(cleared, attributes, bands)) orelse 0
+        else
+            0;
+
+        if (!entry.trained and entry.value == value) continue;
+
+        try writes.append(gpa, .{ .skill = entry.skill.id, .value = value, .trained = false });
+    }
+
+    if (specialization) |kept| {
+        for (kept.skills) |skill| {
+            if (!isGrantedSkill(skill)) continue;
+
+            try writes.append(gpa, .{ .skill = skill.id, .value = 1, .trained = true });
+        }
+    }
+
+    return writes.toOwnedSlice(gpa);
+}
+
 /// The non-row operation exposed at /characters/:id/creation. The rules live in
 /// planCreation; this reads what they need and writes what they decide.
 pub const CharacterCreation = struct {
@@ -569,12 +650,6 @@ pub const CharacterSummary = struct {
 /// The one column a new character needs from its age.
 const AgeTrainedSkillCount = struct {
     trained_skill_count: u32,
-};
-
-/// The one column the specialization rule reads back before a character
-/// changes.
-const StoredSpecialization = struct {
-    specialization: ?Specialization.Id,
 };
 
 /// A character's specialization is one its profession offers. A profession
@@ -666,19 +741,53 @@ pub const Character = struct {
         });
     }
 
-    /// Correcting the specialization first means the profession update, and the
-    /// creation reset that follows it, both read the choice that belongs to the
-    /// new profession rather than the one being replaced.
+    /// A new age or profession invalidates every choice made under the old one.
+    /// The whole reset happens before the row changes, so it and the update
+    /// commit together and no half-reset sheet is ever readable.
     pub fn beforeUpdate(db: *const Database, gpa: Allocator, id: Id, update: Update) !void {
-        const stored = (try db.readProjection(gpa, Character, StoredSpecialization, id)) orelse
+        const stored = (try db.readProjection(gpa, Character, StoredCreation, id)) orelse
             return error.ItemNotFound;
         const profession = (try db.readItem(gpa, Profession, update.profession)) orelse
             return error.ProfessionNotFound;
 
         const specialization = deriveSpecialization(profession.specializations, stored.specialization);
-        if (specialization == stored.specialization) return;
 
-        try db.updateColumns(gpa, Character, id, .{ .specialization = specialization });
+        // An unchanged age and profession leave every earlier choice standing,
+        // along with the points already spent on them.
+        if (update.age == stored.age and update.profession == stored.profession) {
+            if (specialization != stored.specialization) {
+                try db.updateColumns(gpa, Character, id, .{ .specialization = specialization });
+            }
+            return;
+        }
+
+        const age = (try db.readItem(gpa, Age, update.age)) orelse return error.AgeNotFound;
+
+        try db.updateColumns(gpa, Character, id, .{
+            .specialization = specialization,
+            .trained_skill_points = age.trained_skill_count,
+        });
+
+        if (update.age != stored.age) {
+            const current = try db.readSubResource(gpa, Character, CharacterAttribute, id);
+            const age_modifiers = try db.readSubResource(gpa, Age, AgeAttribute, update.age);
+            const modifiers = try planAgeModifiers(gpa, current, age_modifiers);
+
+            try db.updateSubRows(gpa, Character, CharacterAttribute, AgeModifierWrite, id, modifiers);
+        }
+
+        // Read the sheet after the modifiers land: a skill's chance follows the
+        // attribute the new age has just adjusted.
+        const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, id);
+        const bands = try db.readAllAlloc(gpa, SkillBaseChance);
+        const entries = try db.readSubResource(gpa, Character, CharacterSkill, id);
+        const kept = if (specialization) |chosen|
+            findSpecialization(profession.specializations, chosen)
+        else
+            null;
+
+        const writes = try planCreationReset(gpa, entries, attributes, bands, kept, stored.attribute_points == 0);
+        try db.updateSubRows(gpa, Character, CharacterSkill, TrainedSkillWrite, id, writes);
     }
 };
 
@@ -1397,4 +1506,69 @@ test "each creation rule refuses its own request" {
     // leaves no way to reach a minimum of two.
     const two_left = testCharacter(null, 0, 2, &sheet);
     try std.testing.expectError(error.ProfessionSkillsReserved, planCreation(gpa, two_left, .{ .specialization = 1, .skills = &.{5} }, 2));
+}
+
+test "a new age sets every modifier it names and clears the ones it does not" {
+    const sheet = [_]CharacterAttribute{
+        .{ .attribute = test_agility, .base = 3, .spent = 0, .modifier = 2, .value = 5 },
+        .{ .attribute = test_strength, .base = 3, .spent = 0, .modifier = 0, .value = 3 },
+    };
+    // The new age says nothing about agility and adds one to strength.
+    const age_modifiers = [_]AgeAttribute{.{ .age = 2, .attribute = test_strength.id, .modifier = 1 }};
+
+    const writes = try planAgeModifiers(std.testing.allocator, &sheet, &age_modifiers);
+    defer std.testing.allocator.free(writes);
+
+    try std.testing.expectEqual(@as(usize, 2), writes.len);
+    try std.testing.expectEqual(AgeModifierWrite{ .attribute = test_agility.id, .modifier = 0 }, writes[0]);
+    try std.testing.expectEqual(AgeModifierWrite{ .attribute = test_strength.id, .modifier = 1 }, writes[1]);
+
+    // An age that changes nothing writes nothing.
+    const settled = [_]CharacterAttribute{
+        .{ .attribute = test_strength, .base = 3, .spent = 0, .modifier = 1, .value = 4 },
+    };
+    const none = try planAgeModifiers(std.testing.allocator, &settled, &age_modifiers);
+    defer std.testing.allocator.free(none);
+    try std.testing.expectEqual(@as(usize, 0), none.len);
+}
+
+test "an age or profession change clears training and keeps the grant" {
+    const gpa = std.testing.allocator;
+    const attributes = sheetWithAgility(13);
+    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
+
+    var sheet = testSheet();
+    sheet[0] = .{ .skill = testCoreSkill(1), .value = 12, .trained = true };
+    sheet[5] = .{ .skill = testGrantedSkill(9), .value = 1, .trained = true };
+
+    const writes = try planCreationReset(gpa, &sheet, &attributes, &bands, test_professsion_specializations[0], true);
+    defer gpa.free(writes);
+
+    // A trained core skill falls back to the single chance, and the grant is
+    // cleared before the specialization hands it out again.
+    const plan = CreationPlan{ .specialization = 1, .trained_skill_points = 0, .skills = writes };
+    try expectWrite(plan, 1, 6, false);
+    try expectWrite(plan, 5, 6, false);
+    try std.testing.expectEqual(TrainedSkillWrite{ .skill = 9, .value = 1, .trained = true }, writes[writes.len - 1]);
+
+    // Skill 10 is another specialization's grant, already at zero, so nothing
+    // about it changes.
+    for (writes) |write| try std.testing.expect(write.skill != 10);
+}
+
+test "an unfinished sheet resets to zero rather than to a chance" {
+    const gpa = std.testing.allocator;
+    const attributes = sheetWithAgility(13);
+    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
+
+    const sheet = testSheet();
+    const writes = try planCreationReset(gpa, &sheet, &attributes, &bands, null, false);
+    defer gpa.free(writes);
+
+    // Every core skill in the fixture holds 5, and none of them keeps it.
+    for (writes) |write| {
+        try std.testing.expectEqual(@as(u32, 0), write.value);
+        try std.testing.expect(!write.trained);
+    }
+    try std.testing.expectEqual(@as(usize, 5), writes.len);
 }

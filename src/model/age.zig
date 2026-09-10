@@ -6,6 +6,7 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
+const Attribute = @import("attribute.zig").Attribute;
 const Icon = @import("icon.zig").Icon;
 const Database = @import("../database.zig").Database;
 
@@ -32,12 +33,27 @@ pub const AgeRow = struct {
     trained_skill_count: u32,
 };
 
+/// What one age does to one attribute. Rows rather than code, like the
+/// movement bands: which ages adjust which attributes is game data.
+///
+/// Stored exactly as read, so there is no Row and nothing to hydrate. An age
+/// says nothing about most attributes, and those simply have no row.
+pub const AgeAttribute = struct {
+    pub const table_name: []const u8 = "age_attributes";
+    pub const order_by: []const u8 = "attribute";
+
+    age: Age.Id,
+    attribute: Attribute.Id,
+    modifier: i32,
+};
+
 pub const Age = struct {
     pub const Id = u32;
     pub const Create = AgeCreate;
     pub const Update = AgeUpdate;
     pub const Row = AgeRow;
     pub const table_name: []const u8 = "ages";
+    pub const resource_name: []const u8 = "age";
 
     id: Id = 0,
     name: []const u8,
