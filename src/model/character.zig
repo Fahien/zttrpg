@@ -76,6 +76,30 @@ pub const CharacterAttribute = struct {
     modifier: i32,
     value: u32,
 
+    /// Every base-chance skill is a reading of its governing attribute, so the
+    /// stored values follow the attributes that moved. Before the pool is
+    /// empty the sheet is a draft the browser is still previewing, and the
+    /// zeroes left in the table are what say so.
+    pub fn afterUpdate(db: *const Database, gpa: Allocator, character_id: Character.Id) !void {
+        const pools = (try db.readProjection(gpa, Character, CreationPools, character_id)) orelse
+            return error.ItemNotFound;
+        if (pools.attribute_points != 0) return;
+
+        const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, character_id);
+        const bands = try db.readAllAlloc(gpa, SkillBaseChance);
+        const entries = try db.readSubResource(gpa, Character, CharacterSkill, character_id);
+
+        var changed = std.ArrayList(BodyCharacterSkill).empty;
+        for (entries) |entry| {
+            const value = (try deriveStartingSkillValue(entry, attributes, bands)) orelse continue;
+            if (value == entry.value) continue;
+
+            try changed.append(gpa, .{ .skill = entry.skill.id, .value = value });
+        }
+
+        try db.updateSubRows(gpa, Character, CharacterSkill, character_id, changed.items);
+    }
+
     /// The row carries `character` as well, but the value is served as part of
     /// that character, so the id is dropped here rather than repeated.
     pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !CharacterAttribute {
@@ -166,6 +190,20 @@ pub fn deriveSkillBaseChance(skill: Skill, attributes: []const CharacterAttribut
         return error.SkillBaseChanceNotFound;
     }
     return error.CharacterAttributeNotFound;
+}
+
+/// What a skill is worth on a finished sheet. A base chance comes from the
+/// governing attribute, doubled once the skill is trained. Null means no
+/// attribute decides this skill, so nothing here sets its value.
+pub fn deriveStartingSkillValue(
+    entry: CharacterSkill,
+    attributes: []const CharacterAttribute,
+    bands: []const SkillBaseChance,
+) error{ CharacterAttributeNotFound, SkillBaseChanceNotFound }!?u32 {
+    if (!entry.skill.kind.base_chance) return null;
+
+    const chance = (try deriveSkillBaseChance(entry.skill, attributes, bands)) orelse return null;
+    return if (entry.trained) chance * 2 else chance;
 }
 
 /// A band of one attribute's values and what it adds to a character's
@@ -952,6 +990,26 @@ test "skill base chance uses the linked attribute's final value and configured b
         .{ .min_value = 13, .max_value = 15, .base_chance = 9 },
     };
     try std.testing.expectEqual(@as(?u32, 9), try deriveSkillBaseChance(test_acrobatics, &sheet, &bands));
+}
+
+test "training doubles a starting value, and only a base-chance skill has one" {
+    const sheet = [_]CharacterAttribute{
+        .{ .attribute = test_agility, .base = 3, .spent = 10, .modifier = 0, .value = 13 },
+    };
+    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
+
+    const untrained = CharacterSkill{ .skill = test_acrobatics, .value = 0, .trained = false };
+    var trained = untrained;
+    trained.trained = true;
+
+    try std.testing.expectEqual(@as(?u32, 6), try deriveStartingSkillValue(untrained, &sheet, &bands));
+    try std.testing.expectEqual(@as(?u32, 12), try deriveStartingSkillValue(trained, &sheet, &bands));
+
+    // A kind without a base chance takes no value from an attribute, trained
+    // or not, so the refresh leaves whatever the rules put there.
+    var secondary = trained;
+    secondary.skill.kind = .{ .id = 2, .name = "Secondary", .base_chance = false };
+    try std.testing.expectEqual(@as(?u32, null), try deriveStartingSkillValue(secondary, &sheet, &bands));
 }
 
 test "an ability without an attribute has no base chance" {

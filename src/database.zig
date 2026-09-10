@@ -170,21 +170,14 @@ pub const Database = struct {
         return "UPDATE " ++ Child.table_name ++ " SET " ++ column ++ " = $3 WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Child.Body.key_name ++ " = $2";
     }
 
-    pub fn updateSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
+    /// Writes rows of a sub-collection and nothing more. A model settling the
+    /// consequences of a write is already inside a transaction, so it uses this
+    /// rather than updateSubResource, which opens one.
+    pub fn updateSubRows(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
         const query = comptime Database.updateSubResourceQuery(Parent, Child);
 
         const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
         defer gpa.free(parent_id_cstr);
-
-        try self.conn.beginTransaction();
-        errdefer self.conn.rollbackTransaction() catch {
-            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
-        };
-
-        // Whether this collection accepts a direct write can depend on the
-        // parent's state. A child that says so is asked here, inside the
-        // transaction, so it reads the same rows the writes below change.
-        if (@hasDecl(Child, "checkWritable")) try Child.checkWritable(self, gpa, parent_id);
 
         for (bodies) |body| {
             const params = try Database.getParams(gpa, Child.Body, body);
@@ -208,6 +201,25 @@ pub const Database = struct {
                 return error.ItemNotFound;
             }
         }
+    }
+
+    pub fn updateSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
+        try self.conn.beginTransaction();
+        errdefer self.conn.rollbackTransaction() catch {
+            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
+        };
+
+        // Whether this collection accepts a direct write can depend on the
+        // parent's state. A child that says so is asked here, inside the
+        // transaction, so it reads the same rows the writes below change.
+        if (@hasDecl(Child, "checkWritable")) try Child.checkWritable(self, gpa, parent_id);
+
+        try self.updateSubRows(gpa, Parent, Child, parent_id, bodies);
+
+        // Other values on the sheet can follow from these rows. A child with
+        // such consequences settles them here, in the same transaction, so the
+        // whole sheet moves at once.
+        if (@hasDecl(Child, "afterUpdate")) try Child.afterUpdate(self, gpa, parent_id);
 
         try self.conn.commitTransaction();
     }
