@@ -201,6 +201,37 @@ pub fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
         error.DuplicateEntry,
         => .{ .status = .bad_request, .message = "The request body is not valid." },
 
+        // Creation rules. The body parses and the character refuses it, so the
+        // message names the rule rather than blaming the shape of the request.
+        error.SpecializationNotOffered => .{
+            .status = .bad_request,
+            .message = "That specialization does not belong to the character's profession.",
+        },
+        error.SpecializationLocked => .{
+            .status = .bad_request,
+            .message = "The specialization cannot change once a skill has been trained.",
+        },
+        error.AttributePointsRemaining => .{
+            .status = .bad_request,
+            .message = "Every attribute point must be spent before training skills.",
+        },
+        error.SkillNotTrainable => .{
+            .status = .bad_request,
+            .message = "A trained skill must have a governing attribute and a base chance.",
+        },
+        error.CreationComplete => .{
+            .status = .bad_request,
+            .message = "This character has finished creation.",
+        },
+        error.NotEnoughTrainedSkillPoints => .{
+            .status = .bad_request,
+            .message = "Not enough trained skill points.",
+        },
+        error.ProfessionSkillsReserved => .{
+            .status = .bad_request,
+            .message = "Creation must keep enough choices for the profession minimum.",
+        },
+
         else => .{ .status = .internal_server_error, .message = "Internal server error." },
     };
 }

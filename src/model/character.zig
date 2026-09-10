@@ -15,6 +15,7 @@ const Attribute = @import("attribute.zig").Attribute;
 const Skill = @import("skill.zig").Skill;
 const SkillBaseChance = @import("skill_base_chance.zig").SkillBaseChance;
 const DamageBonus = @import("damage_bonus.zig").DamageBonus;
+const Config = @import("config.zig").Config;
 const Database = @import("../database.zig").Database;
 
 pub const BodyError = error{ ValueOutOfRange, DuplicateEntry };
@@ -97,7 +98,7 @@ pub const CharacterAttribute = struct {
             try changed.append(gpa, .{ .skill = entry.skill.id, .value = value });
         }
 
-        try db.updateSubRows(gpa, Character, CharacterSkill, character_id, changed.items);
+        try db.updateSubRows(gpa, Character, CharacterSkill, CharacterSkill.Body, character_id, changed.items);
     }
 
     /// The row carries `character` as well, but the value is served as part of
@@ -342,60 +343,182 @@ pub const BodyCharacterCreation = struct {
     }
 };
 
-/// The non-row operation exposed at /characters/:id/creation. Its database
-/// function owns the cross-table rules; this model only gives the generic
-/// action handler its request shape and invokes that atomic operation.
+/// One skill row a creation save writes. The generic skills endpoint only ever
+/// moves a value, so its body names one column; creation also marks the skill
+/// trained, so this one names both.
+const TrainedSkillWrite = struct {
+    pub const key_name: []const u8 = Skill.resource_name;
+
+    skill: Skill.Id,
+    value: u32,
+    trained: bool,
+};
+
+/// Everything a valid creation request changes.
+pub const CreationPlan = struct {
+    specialization: Specialization.Id,
+    trained_skill_points: u32,
+    skills: []const TrainedSkillWrite,
+};
+
+fn findSpecialization(available: []const Specialization, id: Specialization.Id) ?Specialization {
+    for (available) |option| {
+        if (option.id == id) return option;
+    }
+    return null;
+}
+
+fn findSkillEntry(entries: []const CharacterSkill, id: Skill.Id) ?CharacterSkill {
+    for (entries) |entry| {
+        if (entry.skill.id == id) return entry;
+    }
+    return null;
+}
+
+fn offersSkill(specialization: Specialization, id: Skill.Id) bool {
+    for (specialization.skills) |skill| {
+        if (skill.id == id) return true;
+    }
+    return false;
+}
+
+/// A specialization grants the skills it names that take no chance from an
+/// attribute. A player learns those outright and spends no point on them.
+fn isGrantedSkill(skill: Skill) bool {
+    return skill.attribute != null and !skill.kind.base_chance;
+}
+
+pub const CreationError = error{
+    SpecializationNotOffered,
+    SpecializationLocked,
+    AttributePointsRemaining,
+    SkillNotTrainable,
+    CreationComplete,
+    NotEnoughTrainedSkillPoints,
+    ProfessionSkillsReserved,
+};
+
+/// Decides a creation request against what the character has already saved,
+/// and says what to write. Every rule lives here rather than among the writes,
+/// which is what lets them be tested without a database.
+///
+/// The request is a delta. Retrying a skill that is already trained charges
+/// nothing, and a completed character replaying its last request gets null
+/// rather than an error. Repeated skills are the body's own rule, checked
+/// before this runs.
+pub fn planCreation(
+    gpa: Allocator,
+    character: Character,
+    body: BodyCharacterCreation,
+    profession_skill_minimum: u32,
+) !?CreationPlan {
+    const selected = body.specialization orelse return error.SpecializationNotOffered;
+    const specialization = findSpecialization(character.profession.specializations, selected) orelse
+        return error.SpecializationNotOffered;
+
+    const stored = if (character.specialization) |current| current.id else null;
+    const changing = stored != null and stored.? != selected;
+
+    // A saved choice cannot be refunded, so the specialization locks as soon as
+    // a point has been spent under it.
+    if (changing) {
+        for (character.skills) |entry| {
+            if (entry.trained and entry.skill.kind.base_chance) return error.SpecializationLocked;
+        }
+    }
+
+    // A specialization may be chosen while attributes are unfinished. A skill
+    // may not, because its starting value comes from an attribute.
+    if (body.skills.len > 0 and character.attribute_points > 0) return error.AttributePointsRemaining;
+
+    for (body.skills) |id| {
+        const entry = findSkillEntry(character.skills, id) orelse return error.SkillNotTrainable;
+        if (entry.skill.attribute == null or !entry.skill.kind.base_chance) return error.SkillNotTrainable;
+    }
+
+    if (deriveCreationComplete(character.attribute_points, character.trained_skill_points, stored)) {
+        if (changing) return error.CreationComplete;
+        for (body.skills) |id| {
+            if (!findSkillEntry(character.skills, id).?.trained) return error.CreationComplete;
+        }
+        return null;
+    }
+
+    var new_skills: u32 = 0;
+    var new_profession_skills: u32 = 0;
+    for (body.skills) |id| {
+        if (findSkillEntry(character.skills, id).?.trained) continue;
+
+        new_skills += 1;
+        if (offersSkill(specialization, id)) new_profession_skills += 1;
+    }
+
+    if (new_skills > character.trained_skill_points) return error.NotEnoughTrainedSkillPoints;
+    const remaining = character.trained_skill_points - new_skills;
+
+    var saved_profession_skills: u32 = 0;
+    for (character.skills) |entry| {
+        if (!entry.trained or !entry.skill.kind.base_chance) continue;
+        if (offersSkill(specialization, entry.skill.id)) saved_profession_skills += 1;
+    }
+
+    // Choices from outside the profession are free while enough unspent points
+    // remain to still reach the minimum. Once none remain the minimum has to be
+    // met already, which is the same sum with nothing left in it.
+    if (saved_profession_skills + new_profession_skills + remaining < profession_skill_minimum) {
+        return error.ProfessionSkillsReserved;
+    }
+
+    var writes = std.ArrayList(TrainedSkillWrite).empty;
+
+    // A replaced specialization takes its grant with it, unless the new one
+    // names the same skill.
+    if (changing) {
+        for (character.specialization.?.skills) |skill| {
+            if (!isGrantedSkill(skill) or offersSkill(specialization, skill.id)) continue;
+            try writes.append(gpa, .{ .skill = skill.id, .value = 0, .trained = false });
+        }
+    }
+
+    for (specialization.skills) |skill| {
+        if (!isGrantedSkill(skill)) continue;
+        try writes.append(gpa, .{ .skill = skill.id, .value = 1, .trained = true });
+    }
+
+    // A trained skill is worth twice its starting chance, which is the value
+    // the sheet already holds once every attribute point is spent.
+    for (body.skills) |id| {
+        const entry = findSkillEntry(character.skills, id).?;
+        if (entry.trained) continue;
+
+        try writes.append(gpa, .{ .skill = id, .value = entry.value * 2, .trained = true });
+    }
+
+    return .{
+        .specialization = selected,
+        .trained_skill_points = remaining,
+        .skills = try writes.toOwnedSlice(gpa),
+    };
+}
+
+/// The non-row operation exposed at /characters/:id/creation. The rules live in
+/// planCreation; this reads what they need and writes what they decide.
 pub const CharacterCreation = struct {
     pub const Body = BodyCharacterCreation;
 
-    pub fn apply(db: anytype, gpa: Allocator, character_id: Character.Id, body: Body) !void {
-        _ = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
+    pub fn apply(db: *const Database, gpa: Allocator, character_id: Character.Id, body: Body) !void {
+        const character = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
+        const minimum = try Config.readCount(db, gpa, Config.profession_skill_minimum);
 
-        const character_id_param: [*:0]const u8 = (try std.fmt.allocPrintSentinel(gpa, "{d}", .{character_id}, 0)).ptr;
-        const specialization_param: ?[*:0]const u8 = if (body.specialization) |specialization|
-            (try std.fmt.allocPrintSentinel(gpa, "{d}", .{specialization}, 0)).ptr
-        else
-            null;
-        const skills_param = try formatSkillArray(gpa, body.skills);
+        const plan = (try planCreation(gpa, character, body, minimum)) orelse return;
 
-        const result = try db.conn.execParams(
-            "SELECT save_character_creation($1, $2, $3::INTEGER[])",
-            &.{ character_id_param, specialization_param, skills_param },
-        );
-        defer result.deinit();
-        if (result.len() != 1) return error.UnexpectedResult;
+        try db.updateColumns(gpa, Character, character_id, .{
+            .specialization = plan.specialization,
+            .trained_skill_points = plan.trained_skill_points,
+        });
+        try db.updateSubRows(gpa, Character, CharacterSkill, TrainedSkillWrite, character_id, plan.skills);
     }
 };
-
-fn formatSkillArray(gpa: Allocator, skills: []const Skill.Id) ![*:0]const u8 {
-    var text = std.ArrayList(u8).empty;
-    defer text.deinit(gpa);
-
-    try text.append(gpa, '{');
-    for (skills, 0..) |skill, i| {
-        if (i != 0) try text.append(gpa, ',');
-        try text.print(gpa, "{d}", .{skill});
-    }
-    try text.append(gpa, '}');
-    return (try gpa.dupeZ(u8, text.items)).ptr;
-}
-
-test "formatSkillArray writes PostgreSQL array literals with a sentinel" {
-    const cases = .{
-        .{ .skills = &[_]Skill.Id{}, .expected = "{}" },
-        .{ .skills = &[_]Skill.Id{42}, .expected = "{42}" },
-        .{ .skills = &[_]Skill.Id{ 3, 7, 9 }, .expected = "{3,7,9}" },
-        .{ .skills = &[_]Skill.Id{std.math.maxInt(Skill.Id)}, .expected = "{4294967295}" },
-    };
-
-    inline for (cases) |case| {
-        const actual = try formatSkillArray(std.testing.allocator, case.skills);
-        defer std.testing.allocator.free(std.mem.span(actual));
-
-        try std.testing.expectEqualStrings(case.expected, std.mem.span(actual));
-        try std.testing.expectEqual(@as(u8, 0), actual[case.expected.len]);
-    }
-}
 
 pub const RowCharacter = struct {
     id: Character.Id,
@@ -1103,4 +1226,175 @@ test "damage bonuses omit attributes without rules and rules without attributes"
     const no_attributes = try deriveDamageBonuses(std.testing.allocator, &.{}, &damage_rules);
     defer std.testing.allocator.free(no_attributes);
     try std.testing.expectEqual(0, no_attributes.len);
+}
+
+const test_icon = Icon{ .id = 1, .name = "abacus" };
+
+fn testCoreSkill(id: Skill.Id) Skill {
+    var skill = test_acrobatics;
+    skill.id = id;
+    return skill;
+}
+
+/// A skill a specialization hands out: governed by an attribute, but with no
+/// base chance, so it is learned rather than rolled for.
+fn testGrantedSkill(id: Skill.Id) Skill {
+    var skill = testCoreSkill(id);
+    skill.kind = .{ .id = 2, .name = "Secondary", .base_chance = false };
+    return skill;
+}
+
+// One profession offering two specializations. Skills 1 and 2 are on both, 3
+// and 4 only on the first, and each specialization grants one skill of its own.
+var test_first_skills = [_]Skill{ testCoreSkill(1), testCoreSkill(2), testCoreSkill(3), testCoreSkill(4), testGrantedSkill(9) };
+var test_second_skills = [_]Skill{ testCoreSkill(1), testCoreSkill(2), testGrantedSkill(10) };
+var test_professsion_specializations = [_]Specialization{
+    .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = null, .items = &.{} },
+    .{ .id = 2, .name = "Second", .description = "d", .skills = &test_second_skills, .heroic_skill = null, .items = &.{} },
+};
+
+fn testCharacter(specialization: ?Specialization, attribute_points: u32, pool: u32, skills: []const CharacterSkill) Character {
+    return .{
+        .id = 1,
+        .name = "Test",
+        .level = 1,
+        .kin = .{ .id = 1, .name = "Elf", .icon = test_icon, .movement = 10, .skills = &.{} },
+        .profession = .{ .id = 1, .name = "Artisan", .icon = test_icon, .description = "d", .specializations = &test_professsion_specializations },
+        .specialization = specialization,
+        .age = .{ .id = 1, .name = "Young", .icon = test_icon, .trained_skill_count = 8 },
+        .attribute_points = attribute_points,
+        .trained_skill_points = pool,
+        .creation_complete = deriveCreationComplete(attribute_points, pool, if (specialization) |chosen| chosen.id else null),
+        .movement = 10,
+        .damage_bonuses = &.{},
+        .attributes = &.{},
+        .skills = skills,
+    };
+}
+
+/// A finished sheet: every core skill at its starting chance, nothing trained,
+/// and both grants unlearned.
+fn testSheet() [7]CharacterSkill {
+    return .{
+        .{ .skill = testCoreSkill(1), .value = 5, .trained = false },
+        .{ .skill = testCoreSkill(2), .value = 5, .trained = false },
+        .{ .skill = testCoreSkill(3), .value = 5, .trained = false },
+        .{ .skill = testCoreSkill(4), .value = 5, .trained = false },
+        .{ .skill = testCoreSkill(5), .value = 5, .trained = false },
+        .{ .skill = testGrantedSkill(9), .value = 0, .trained = false },
+        .{ .skill = testGrantedSkill(10), .value = 0, .trained = false },
+    };
+}
+
+fn expectWrite(plan: CreationPlan, skill: Skill.Id, value: u32, trained: bool) !void {
+    for (plan.skills) |write| {
+        if (write.skill != skill) continue;
+
+        try std.testing.expectEqual(value, write.value);
+        try std.testing.expectEqual(trained, write.trained);
+        return;
+    }
+    std.debug.print("no write for skill {d}\n", .{skill});
+    return error.TestExpectedWrite;
+}
+
+test "a creation save trains the chosen skills and grants the specialization's own" {
+    const sheet = testSheet();
+    const character = testCharacter(null, 0, 8, &sheet);
+    const body = BodyCharacterCreation{ .specialization = 1, .skills = &.{ 1, 2 } };
+
+    const plan = (try planCreation(std.testing.allocator, character, body, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try std.testing.expectEqual(@as(Specialization.Id, 1), plan.specialization);
+    try std.testing.expectEqual(@as(u32, 6), plan.trained_skill_points);
+
+    // A trained skill doubles what the sheet already holds; a granted one is
+    // learned outright at one and costs no point.
+    try expectWrite(plan, 1, 10, true);
+    try expectWrite(plan, 2, 10, true);
+    try expectWrite(plan, 9, 1, true);
+    try std.testing.expectEqual(@as(usize, 3), plan.skills.len);
+}
+
+test "retrying a trained skill charges nothing" {
+    var sheet = testSheet();
+    sheet[0] = .{ .skill = testCoreSkill(1), .value = 10, .trained = true };
+    const character = testCharacter(test_professsion_specializations[0], 0, 7, &sheet);
+    const body = BodyCharacterCreation{ .specialization = 1, .skills = &.{ 1, 2 } };
+
+    const plan = (try planCreation(std.testing.allocator, character, body, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    // Only skill 2 is new, so only one point leaves the pool and skill 1 keeps
+    // the value it was already given.
+    try std.testing.expectEqual(@as(u32, 6), plan.trained_skill_points);
+    try expectWrite(plan, 2, 10, true);
+    for (plan.skills) |write| try std.testing.expect(write.skill != 1);
+}
+
+test "replacing a specialization takes back the skill it granted" {
+    var sheet = testSheet();
+    sheet[5] = .{ .skill = testGrantedSkill(9), .value = 1, .trained = true };
+    const character = testCharacter(test_professsion_specializations[0], 0, 8, &sheet);
+    const body = BodyCharacterCreation{ .specialization = 2, .skills = &.{} };
+
+    const plan = (try planCreation(std.testing.allocator, character, body, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try expectWrite(plan, 9, 0, false);
+    try expectWrite(plan, 10, 1, true);
+    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
+}
+
+test "a completed character may replay its last request but not extend it" {
+    var sheet = testSheet();
+    sheet[0] = .{ .skill = testCoreSkill(1), .value = 10, .trained = true };
+    const character = testCharacter(test_professsion_specializations[0], 0, 0, &sheet);
+
+    const replay = BodyCharacterCreation{ .specialization = 1, .skills = &.{1} };
+    try std.testing.expectEqual(@as(?CreationPlan, null), try planCreation(std.testing.allocator, character, replay, 2));
+
+    const extend = BodyCharacterCreation{ .specialization = 1, .skills = &.{2} };
+    try std.testing.expectError(error.CreationComplete, planCreation(std.testing.allocator, character, extend, 2));
+
+    // Moving specialization is refused by the lock rather than by completion:
+    // a finished character has spent points, and the lock is checked first.
+    const move = BodyCharacterCreation{ .specialization = 2, .skills = &.{} };
+    try std.testing.expectError(error.SpecializationLocked, planCreation(std.testing.allocator, character, move, 2));
+}
+
+test "each creation rule refuses its own request" {
+    const gpa = std.testing.allocator;
+    const sheet = testSheet();
+    const fresh = testCharacter(null, 0, 8, &sheet);
+
+    // A specialization the profession does not offer, or none at all.
+    try std.testing.expectError(error.SpecializationNotOffered, planCreation(gpa, fresh, .{ .specialization = null, .skills = &.{} }, 2));
+    try std.testing.expectError(error.SpecializationNotOffered, planCreation(gpa, fresh, .{ .specialization = 99, .skills = &.{} }, 2));
+
+    // A point already spent under the stored specialization locks it.
+    var spent = testSheet();
+    spent[0] = .{ .skill = testCoreSkill(1), .value = 10, .trained = true };
+    const started = testCharacter(test_professsion_specializations[0], 0, 7, &spent);
+    try std.testing.expectError(error.SpecializationLocked, planCreation(gpa, started, .{ .specialization = 2, .skills = &.{} }, 2));
+
+    // Skills wait for the attribute pool, but a specialization does not.
+    const drafting = testCharacter(null, 4, 8, &sheet);
+    try std.testing.expectError(error.AttributePointsRemaining, planCreation(gpa, drafting, .{ .specialization = 1, .skills = &.{1} }, 2));
+    const draft = (try planCreation(gpa, drafting, .{ .specialization = 1, .skills = &.{} }, 2)).?;
+    gpa.free(draft.skills);
+
+    // A granted skill is not a choice, and neither is a skill nobody has.
+    try std.testing.expectError(error.SkillNotTrainable, planCreation(gpa, fresh, .{ .specialization = 1, .skills = &.{9} }, 2));
+    try std.testing.expectError(error.SkillNotTrainable, planCreation(gpa, fresh, .{ .specialization = 1, .skills = &.{77} }, 2));
+
+    // More choices than the pool can pay for.
+    const nearly_done = testCharacter(null, 0, 1, &sheet);
+    try std.testing.expectError(error.NotEnoughTrainedSkillPoints, planCreation(gpa, nearly_done, .{ .specialization = 1, .skills = &.{ 1, 2 } }, 2));
+
+    // Skill 5 is outside the profession, and spending the last two points on it
+    // leaves no way to reach a minimum of two.
+    const two_left = testCharacter(null, 0, 2, &sheet);
+    try std.testing.expectError(error.ProfessionSkillsReserved, planCreation(gpa, two_left, .{ .specialization = 1, .skills = &.{5} }, 2));
 }

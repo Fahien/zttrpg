@@ -147,40 +147,45 @@ pub const Database = struct {
         return items;
     }
 
-    /// The update below binds Body's fields to $2 and $3, and getParams renders
-    /// them in declaration order. Both are integers, so a reordered struct would
-    /// swap the key with the column without any type error: pin the layout here.
-    /// The second field names the column the update writes, so a body says
-    /// what it changes: `value` on a skill, `spent` on an attribute.
-    fn requireBodyLayout(comptime Child: type) void {
-        const fields = @typeInfo(Child.Body).@"struct".fields;
-        const ordered = fields.len == 2 and
-            std.mem.eql(u8, fields[0].name, Child.Body.key_name);
+    /// The update binds Body's fields from $2 upwards, and getParams renders
+    /// them in declaration order. They are often all integers, so a reordered
+    /// struct would swap the key with a column without any type error: pin the
+    /// layout here. The key comes first, and every field after it names a
+    /// column the update writes.
+    fn requireBodyLayout(comptime Body: type) void {
+        const fields = @typeInfo(Body).@"struct".fields;
+        const ordered = fields.len >= 2 and std.mem.eql(u8, fields[0].name, Body.key_name);
 
         if (!ordered) {
-            @compileError(@typeName(Child.Body) ++ " must declare `" ++ Child.Body.key_name ++
-                "` then the one column it writes: updateSubResourceQuery binds them to $2 and $3 in that order.");
+            @compileError(@typeName(Body) ++ " must declare `" ++ Body.key_name ++
+                "` then the columns it writes: updateSubResourceQuery binds them from $2 in that order.");
         }
     }
 
-    fn updateSubResourceQuery(comptime Parent: type, comptime Child: type) [:0]const u8 {
-        requireBodyLayout(Child);
+    fn updateSubResourceQuery(comptime Parent: type, comptime Child: type, comptime Body: type) [:0]const u8 {
+        requireBodyLayout(Body);
 
-        const column = @typeInfo(Child.Body).@"struct".fields[1].name;
-        return "UPDATE " ++ Child.table_name ++ " SET " ++ column ++ " = $3 WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Child.Body.key_name ++ " = $2";
+        comptime var assignments: []const u8 = "";
+        inline for (@typeInfo(Body).@"struct".fields[1..], 0..) |field, i| {
+            if (i != 0) assignments = assignments ++ ", ";
+            assignments = assignments ++ field.name ++ " = $" ++ std.fmt.comptimePrint("{d}", .{i + 3});
+        }
+
+        return "UPDATE " ++ Child.table_name ++ " SET " ++ assignments ++
+            " WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Body.key_name ++ " = $2";
     }
 
     /// Writes rows of a sub-collection and nothing more. A model settling the
     /// consequences of a write is already inside a transaction, so it uses this
     /// rather than updateSubResource, which opens one.
-    pub fn updateSubRows(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
-        const query = comptime Database.updateSubResourceQuery(Parent, Child);
+    pub fn updateSubRows(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, comptime Body: type, parent_id: u32, bodies: []const Body) !void {
+        const query = comptime Database.updateSubResourceQuery(Parent, Child, Body);
 
         const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
         defer gpa.free(parent_id_cstr);
 
         for (bodies) |body| {
-            const params = try Database.getParams(gpa, Child.Body, body);
+            const params = try Database.getParams(gpa, Body, body);
             defer {
                 for (params) |param| {
                     if (param) |present| gpa.free(std.mem.span(present));
@@ -214,7 +219,7 @@ pub const Database = struct {
         // transaction, so it reads the same rows the writes below change.
         if (@hasDecl(Child, "checkWritable")) try Child.checkWritable(self, gpa, parent_id);
 
-        try self.updateSubRows(gpa, Parent, Child, parent_id, bodies);
+        try self.updateSubRows(gpa, Parent, Child, Child.Body, parent_id, bodies);
 
         // Other values on the sheet can follow from these rows. A child with
         // such consequences settles them here, in the same transaction, so the
@@ -234,7 +239,17 @@ pub const Database = struct {
                 @compileError(@typeName(Action) ++ " must define apply for a nested action.");
             }
         }
+
+        // An action decides against state it reads and then writes several
+        // rows. The transaction is here rather than in the action so that every
+        // action is atomic without each one remembering to be.
+        try self.conn.beginTransaction();
+        errdefer self.conn.rollbackTransaction() catch {
+            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
+        };
+
         try Action.apply(self, gpa, parent_id, body);
+        try self.conn.commitTransaction();
     }
 
     fn getCols(comptime T: type) []const u8 {
@@ -365,6 +380,7 @@ pub const Database = struct {
         const T = @TypeOf(value);
         return switch (@typeInfo(T)) {
             .optional => if (value) |present| try formatParam(gpa, present) else null,
+            .bool => try gpa.dupeZ(u8, if (value) "true" else "false"),
             .int => try std.fmt.allocPrintSentinel(gpa, "{d}", .{value}, 0),
             .float => try std.fmt.allocPrintSentinel(gpa, "{}", .{value}, 0),
             .pointer => if (T == []const u8 or T == []u8)
@@ -629,11 +645,24 @@ test "updateSubResourceQuery keys the update on both halves of the composite key
     // first even though it appears last in the text.
     try std.testing.expectEqualStrings(
         "UPDATE character_attributes SET spent = $3 WHERE character = $1 AND attribute = $2",
-        comptime Database.updateSubResourceQuery(Character, CharacterAttribute),
+        comptime Database.updateSubResourceQuery(Character, CharacterAttribute, CharacterAttribute.Body),
     );
     try std.testing.expectEqualStrings(
         "UPDATE character_skills SET value = $3 WHERE character = $1 AND skill = $2",
-        comptime Database.updateSubResourceQuery(Character, CharacterSkill),
+        comptime Database.updateSubResourceQuery(Character, CharacterSkill, CharacterSkill.Body),
+    );
+
+    // A body may name more than one column, which creation needs to mark a
+    // skill trained at the same time as it writes the value.
+    const TwoColumns = struct {
+        pub const key_name: []const u8 = "skill";
+        skill: u32,
+        value: u32,
+        trained: bool,
+    };
+    try std.testing.expectEqualStrings(
+        "UPDATE character_skills SET value = $3, trained = $4 WHERE character = $1 AND skill = $2",
+        comptime Database.updateSubResourceQuery(Character, CharacterSkill, TwoColumns),
     );
 }
 

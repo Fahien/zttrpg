@@ -4,6 +4,9 @@
 const std = @import("std");
 
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
+
+const Database = @import("../database.zig").Database;
 
 pub const ConfigBody = struct {
     name: []const u8,
@@ -36,10 +39,23 @@ pub const Config = struct {
 
     pub const attribute_default: []const u8 = "attribute_default";
     pub const attribute_max: []const u8 = "attribute_max";
+    pub const profession_skill_minimum: []const u8 = "profession_skill_minimum";
 
     id: Id = 0,
     name: []const u8,
     value: []const u8,
+
+    /// Reads one setting as a count. Values are text so one table holds every
+    /// kind of setting, and a count cannot be negative, so the type refuses a
+    /// negative the way the database used to refuse it by hand. A row the
+    /// server needs and cannot find is a broken deployment, not a bad request.
+    pub fn readCount(db: *const Database, gpa: Allocator, name: []const u8) !u32 {
+        for (try db.readAllAlloc(gpa, Config)) |config| {
+            if (!std.mem.eql(u8, config.name, name)) continue;
+            return std.fmt.parseInt(u32, config.value, 10) catch return error.InvalidConfig;
+        }
+        return error.MissingConfig;
+    }
 };
 
 test "ConfigCreate.validate accepts a well-formed config" {
