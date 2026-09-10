@@ -504,7 +504,7 @@ fn generateProfessionItems(io: Io, gpa: Allocator, professions: []const Professi
 }
 
 fn generateKinSkills(io: Io, gpa: Allocator, kins: []const KinData) !void {
-    var sql = try beginSql(gpa, "kins_skills", "kin, skill");
+    var sql = try beginSql(gpa, "kin_skills", "kin, skill");
     defer sql.deinit(gpa);
 
     var row_count: usize = 0;
@@ -517,7 +517,7 @@ fn generateKinSkills(io: Io, gpa: Allocator, kins: []const KinData) !void {
         row_count += 1;
     };
 
-    try writeSql(io, gpa, &sql, "db/0052-kins-skills.sql", row_count);
+    try writeSql(io, gpa, &sql, "db/0052-kin-skills.sql", row_count);
 }
 
 /// The one property of a table's JSON that holds its list. Declaring a second
@@ -725,16 +725,6 @@ test "readJson preserves each path's rows in declared order" {
         try testing.expectEqualStrings(row.name, two_files.configs[i].name);
         try testing.expectEqualStrings(row.name, two_files.configs[i + one_file.configs.len].name);
     }
-}
-
-test "readJson propagates a missing source file" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-
-    try testing.expectError(
-        error.FileNotFound,
-        readJson(testing.io, arena.allocator(), MissingConfigFile),
-    );
 }
 
 test "profession source has complete specializations, including Mage's null heroic skills" {

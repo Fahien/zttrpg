@@ -522,7 +522,7 @@ test "Character serializes to the JSON wire shape" {
     defer out.deinit();
 
     const icon = Icon{ .id = 1, .name = "abacus" };
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10 };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10, .skills = &.{} };
     const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
     const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
     const character = Character{
@@ -544,7 +544,7 @@ test "Character serializes to the JSON wire shape" {
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -553,7 +553,7 @@ test "a summary is a character without its sheet" {
     defer out.deinit();
 
     const icon = Icon{ .id = 1, .name = "abacus" };
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10 };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10, .skills = &.{} };
     const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
     const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
     const summary = CharacterSummary{ .id = 1, .name = "Alice", .level = 2, .kin = kin, .profession = profession, .age = age };
@@ -561,7 +561,7 @@ test "a summary is a character without its sheet" {
 
     // The roster renders these four fields, so this is all a list has to carry.
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8}}
+        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8}}
     , out.written());
 }
 

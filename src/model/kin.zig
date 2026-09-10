@@ -8,6 +8,7 @@ const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 const Database = @import("../database.zig").Database;
+const Skill = @import("skill.zig").Skill;
 
 pub const KinBody = struct {
     name: []const u8,
@@ -16,7 +17,7 @@ pub const KinBody = struct {
 
     // Mirrors the kins table's CHECK constraints: the database enforces
     // integrity, this gives clients a 400 instead of a 500.
-    pub fn validate(self: *const KinBody) error{ EmptyName, MovementOutOfRange }!void {
+    pub fn validate(self: *const KinBody) !void {
         if (self.name.len == 0) return error.EmptyName;
         if (self.movement == 0) return error.MovementOutOfRange;
     }
@@ -32,12 +33,17 @@ pub const KinRow = struct {
     movement: u32,
 };
 
+pub const KinSkill = struct {
+    pub const table_name: []const u8 = "kin_skills";
+};
+
 pub const Kin = struct {
     pub const Id = u32;
     pub const Create = KinCreate;
     pub const Update = KinUpdate;
     pub const Row = KinRow;
     pub const table_name: []const u8 = "kins";
+    pub const resource_name: []const u8 = "kin";
 
     id: Id = 0,
     name: []const u8,
@@ -46,18 +52,22 @@ pub const Kin = struct {
     /// one number a character gets from its kin rather than from its sheet.
     movement: u32,
 
+    skills: []Skill,
+
     /// Builds a Kin from its stored row, resolving the icon the row names by id.
     ///
     /// The strings come straight from `row`, which the caller already copied
     /// into `gpa` -- see Database.rowToT.
     pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Kin {
         const icon = (try db.readItem(gpa, Icon, row.icon)) orelse return error.IconNotFound;
+        const skills = try db.readRelated(gpa, Kin, Skill, KinSkill, row.id);
 
         return .{
             .id = row.id,
             .name = row.name,
             .icon = icon,
             .movement = row.movement,
+            .skills = skills,
         };
     }
 };
@@ -82,10 +92,10 @@ test "Kin serializes to the JSON wire shape" {
     var out = Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
 
-    const kin = Kin{ .id = 1, .name = "Elf", .icon = Icon{ .id = 1, .name = "abacus" }, .movement = 10 };
+    const kin = Kin{ .id = 1, .name = "Elf", .icon = Icon{ .id = 1, .name = "abacus" }, .movement = 10, .skills = &.{} };
     try std.json.Stringify.value(kin, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10}
+        \\{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]}
     , out.written());
 }

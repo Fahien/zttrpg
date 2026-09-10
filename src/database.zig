@@ -77,6 +77,35 @@ pub const Database = struct {
         return try self.hydrate(T, gpa, row);
     }
 
+    fn readRelatedQuery(comptime Parent: type, comptime Target: type, comptime Link: type) [:0]const u8 {
+        const cols = Database.getCols(RowOfT(Target));
+        return "SELECT " ++ cols ++ " FROM " ++ Target.table_name ++
+            " WHERE id IN (" ++
+            "SELECT " ++ Target.resource_name ++ " FROM " ++ Link.table_name ++ " WHERE " ++ Parent.resource_name ++ " = $1" ++
+            ") ORDER BY id";
+    }
+
+    pub fn readRelated(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Target: type, comptime Link: type, parent_id: u32) ![]Target {
+        const query = comptime Database.readRelatedQuery(Parent, Target, Link);
+
+        const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
+        defer gpa.free(parent_id_cstr);
+
+        const result = try self.conn.execParams(query, &.{parent_id_cstr});
+        defer result.deinit();
+
+        const count = result.len();
+        var items = try gpa.alloc(Target, count);
+
+        const QueryType = RowOfT(Target);
+        for (0..count) |row| {
+            const target_row = try Database.rowToT(QueryType, gpa, &result, row);
+            items[row] = try self.hydrate(Target, gpa, target_row);
+        }
+
+        return items;
+    }
+
     /// A sub-collection is the only place its values can be read, so the order
     /// they come back in is part of what a client sees. Without ORDER BY
     /// Postgres may return the rows in any order it likes, and an UPDATE can
@@ -419,7 +448,7 @@ const all_models = .{ Character, Item, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
     try std.testing.expectEqualStrings("id, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points, creation_complete, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
-    try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin));
+    try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin.Row));
     try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
     try std.testing.expectEqualStrings("id, name, icon, description", comptime Database.getCols(Profession.Row));
     try std.testing.expectEqualStrings("id, name, icon, kind, cost, supply, weight, effect, description", comptime Database.getCols(Item));

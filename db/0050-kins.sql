@@ -9,7 +9,7 @@ CREATE TABLE kins (
     FOREIGN KEY (icon) REFERENCES icons(id)
 );
 
-CREATE TABLE kins_skills (
+CREATE TABLE kin_skills (
     kin INTEGER NOT NULL,
     skill INTEGER NOT NULL,
     PRIMARY KEY (kin, skill),

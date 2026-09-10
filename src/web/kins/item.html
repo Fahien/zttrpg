@@ -3,6 +3,16 @@
         <h1 data-field="name">Kin Name</h1>
     </header>
     <p>Movement: <span data-field="movement"></span></p>
+    <ul class="plain-list" data-list="skills">
+        <template>
+            <li>
+                <span class="icon-frame">
+                    <span data-field="icon.name:icon"></span>
+                </span>
+                <a data-href="/skills/{id}"><span data-field="name"></span></a>
+            </li>
+        </template>
+    </ul>
 </main>
 
 <script src="/static/instance.js" data-resource="kins"></script>

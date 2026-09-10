@@ -64,6 +64,20 @@ function initInstancePage() {
     }
 
     /**
+     * @param {*} root
+     * @param {string} fieldName
+     * @returns {*} The resolved value, or null if not found.
+     */
+    function resolveFieldName(root, fieldName) {
+        const path = fieldName.split('.'); // Handle nested fields like "kin.name"
+        const value = resolvePath(root, path);
+        if (value === null || value === undefined) {
+            console.warn(`Field "${fieldName}" not found in root data:`, root);
+        }
+        return value;
+    }
+
+    /**
      * @param {*} root The root data object.
      * @param {*} scope The scope element to search for data-field elements within.
      */
@@ -81,10 +95,8 @@ function initInstancePage() {
                 continue;
             }
 
-            const path = fieldName.split('.'); // Handle nested fields like "kin.name"
-            const value = resolvePath(root, path);
+            const value = resolveFieldName(root, fieldName);
             if (value === null || value === undefined) {
-                console.warn(`Field "${fieldName}" not found in root data:`, root);
                 continue;
             }
 
@@ -96,6 +108,30 @@ function initInstancePage() {
             } else {
                 field.textContent = value;
             }
+        }
+    }
+
+    /**
+     * @param {*} root The root data object.
+     * @param {*} scope The scope element to search for data-field elements within.
+     */
+    function bindHrefs(root, scope) {
+        const dataHref = /** @type {NodeListOf<HTMLAnchorElement>} */ (scope.querySelectorAll('[data-href]'));
+        for (const href of dataHref) {
+            if (!href.dataset.href) {
+                console.warn('No data-href attribute found for element:', href);
+                continue;
+            }
+
+            href.href = href.dataset.href.replace(
+                /\{([^{}]+)\}/g, // match all substring that start with { and end with }, e.g. {id}
+                (entire_match, capture_text) => {
+                    console.info("Entire match: ", entire_match);
+                    console.info("Captured text:", capture_text);
+                    const value = resolveFieldName(root, capture_text);
+                    return value !== null && value !== undefined ? value : '';
+                }
+            )
         }
     }
 
@@ -136,6 +172,7 @@ function initInstancePage() {
                 // Clone the template content and bind fields for each item.
                 const clone = document.importNode(template.content, true);
                 bindFields(item, clone);
+                bindHrefs(item, clone);
                 expandList(item, clone);
                 list.appendChild(clone);
             }

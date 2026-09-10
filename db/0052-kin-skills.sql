@@ -1,4 +1,4 @@
-INSERT INTO kins_skills (kin, skill) VALUES
+INSERT INTO kin_skills (kin, skill) VALUES
     ((SELECT id FROM kins WHERE name = $val$Human$val$ LIMIT 1), (SELECT id FROM skills WHERE name = $val$Adaptive$val$ LIMIT 1)),
     ((SELECT id FROM kins WHERE name = $val$Orc$val$ LIMIT 1), (SELECT id FROM skills WHERE name = $val$Berserker$val$ LIMIT 1)),
     ((SELECT id FROM kins WHERE name = $val$Undead$val$ LIMIT 1), (SELECT id FROM skills WHERE name = $val$Tough$val$ LIMIT 1)),
