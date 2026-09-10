@@ -410,6 +410,25 @@ const AgeTrainedSkillCount = struct {
     trained_skill_count: u32,
 };
 
+/// The one column the specialization rule reads back before a character
+/// changes.
+const StoredSpecialization = struct {
+    specialization: ?Specialization.Id,
+};
+
+/// A character's specialization is one its profession offers. A profession
+/// that does not offer the stored choice replaces it, with its sole
+/// specialization when it has exactly one and with nothing when the player
+/// still has a choice to make.
+pub fn deriveSpecialization(available: []const Specialization, current: ?Specialization.Id) ?Specialization.Id {
+    if (current) |chosen| {
+        for (available) |option| {
+            if (option.id == chosen) return chosen;
+        }
+    }
+    return if (available.len == 1) available[0].id else null;
+}
+
 pub const Character = struct {
     pub const Id = u32;
     pub const Create = CreateCharacter;
@@ -477,8 +496,28 @@ pub const Character = struct {
     pub fn afterInsert(db: *const Database, gpa: Allocator, id: Id, create: Create) !void {
         const age = (try db.readProjection(gpa, Age, AgeTrainedSkillCount, create.age)) orelse
             return error.AgeNotFound;
+        const profession = (try db.readItem(gpa, Profession, create.profession)) orelse
+            return error.ProfessionNotFound;
 
-        try db.updateColumns(gpa, Character, id, .{ .trained_skill_points = age.trained_skill_count });
+        try db.updateColumns(gpa, Character, id, .{
+            .trained_skill_points = age.trained_skill_count,
+            .specialization = deriveSpecialization(profession.specializations, null),
+        });
+    }
+
+    /// Correcting the specialization first means the profession update, and the
+    /// creation reset that follows it, both read the choice that belongs to the
+    /// new profession rather than the one being replaced.
+    pub fn beforeUpdate(db: *const Database, gpa: Allocator, id: Id, update: Update) !void {
+        const stored = (try db.readProjection(gpa, Character, StoredSpecialization, id)) orelse
+            return error.ItemNotFound;
+        const profession = (try db.readItem(gpa, Profession, update.profession)) orelse
+            return error.ProfessionNotFound;
+
+        const specialization = deriveSpecialization(profession.specializations, stored.specialization);
+        if (specialization == stored.specialization) return;
+
+        try db.updateColumns(gpa, Character, id, .{ .specialization = specialization });
     }
 };
 
@@ -833,6 +872,32 @@ const test_acrobatics = Skill{
     .attribute = test_agility,
     .description = "Body control.",
 };
+
+fn testSpecialization(id: Specialization.Id) Specialization {
+    return .{
+        .id = id,
+        .name = "Test",
+        .description = "Test specialization.",
+        .skills = &.{},
+        .heroic_skill = null,
+        .items = &.{},
+    };
+}
+
+test "a specialization lasts only as long as its profession offers it" {
+    const several = [_]Specialization{ testSpecialization(1), testSpecialization(2) };
+    const sole = [_]Specialization{testSpecialization(1)};
+
+    // One specialization leaves the player nothing to decide, so it is chosen
+    // even over a stored choice that belonged to another profession.
+    try std.testing.expectEqual(@as(?Specialization.Id, 1), deriveSpecialization(&sole, null));
+    try std.testing.expectEqual(@as(?Specialization.Id, 1), deriveSpecialization(&sole, 2));
+
+    // Several keep a valid choice and drop one the profession does not offer.
+    try std.testing.expectEqual(@as(?Specialization.Id, 2), deriveSpecialization(&several, 2));
+    try std.testing.expectEqual(@as(?Specialization.Id, null), deriveSpecialization(&several, null));
+    try std.testing.expectEqual(@as(?Specialization.Id, null), deriveSpecialization(&several, 7));
+}
 
 test "creation completion is derived from the two exhausted point pools" {
     const specialization: Specialization.Id = 1;

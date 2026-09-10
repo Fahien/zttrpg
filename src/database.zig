@@ -469,8 +469,21 @@ pub const Database = struct {
     }
 
     /// A whole-row update is every column the model's Update body carries.
+    ///
+    /// A model that has to prepare the row first declares beforeUpdate. It runs
+    /// inside this transaction and ahead of the statement, so the update and
+    /// anything the database does behind it read the prepared row. The insert
+    /// hook runs the other way round, because a row has no id until it exists.
     pub fn updateItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32, item: T.Update) !void {
-        return self.updateColumns(gpa, T, id, item);
+        try self.conn.beginTransaction();
+        errdefer self.conn.rollbackTransaction() catch {
+            std.log.err("Failed to rollback transaction: {s}", .{self.conn.errorMessage()});
+        };
+
+        if (@hasDecl(T, "beforeUpdate")) try T.beforeUpdate(self, gpa, id, item);
+
+        try self.updateColumns(gpa, T, id, item);
+        try self.conn.commitTransaction();
     }
 
     pub fn deleteItem(self: *const Database, gpa: Allocator, comptime T: type, id: u32) !void {

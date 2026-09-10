@@ -32,33 +32,6 @@ BEGIN
 END;
 $fn$ LANGUAGE plpgsql STABLE;
 
--- A profession with one specialization has no meaningful choice to ask of a
--- player. Store it on insert, and select it again if a profession edit narrows
--- the choice to one.
-CREATE FUNCTION select_sole_specialization() RETURNS TRIGGER AS $fn$
-BEGIN
-    SELECT CASE WHEN COUNT(*) = 1 THEN MIN(id) ELSE NULL END
-    INTO NEW.specialization
-    FROM profession_specializations
-    WHERE profession = NEW.profession;
-    RETURN NEW;
-END;
-$fn$ LANGUAGE plpgsql;
-
-CREATE TRIGGER characters_select_sole_specialization_on_insert
-BEFORE INSERT ON characters
-FOR EACH ROW
-EXECUTE FUNCTION select_sole_specialization();
-
--- Generic character PUT bodies always include `profession`. Only a changed
--- profession should replace an existing multi-profession choice; an unchanged
--- one must preserve the selection and its already-spent training points.
-CREATE TRIGGER characters_select_sole_specialization_on_profession_change
-BEFORE UPDATE OF profession ON characters
-FOR EACH ROW
-WHEN (OLD.profession IS DISTINCT FROM NEW.profession)
-EXECUTE FUNCTION select_sole_specialization();
-
 -- The configured chance for a base-chance skill at the character's current
 -- governing attribute. Skills without a base chance, and abilities without a
 -- governing attribute, return NULL.
