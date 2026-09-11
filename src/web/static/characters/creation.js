@@ -5,8 +5,8 @@
 
 (() => {
 
-// Training mirrors the attribute step: a click reserves a point locally and a
-// submit saves only those new choices. Saved training cannot be refunded.
+// Training mirrors the attribute step: a checkbox reserves a point locally and
+// a submit saves only those new choices. Saved training cannot be refunded.
 
 /** @typedef {{ id: number, attribute: { id: number } | null, kind: { name: string, base_chance: boolean } }} Skill */
 /** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
@@ -43,7 +43,7 @@ const skillKindTemplate = /** @type {HTMLTemplateElement} */ (document.getElemen
 document.addEventListener('instanceLoaded', onInstanceLoaded);
 document.addEventListener('characterUpdated', onCharacterUpdated);
 specializationOptions.addEventListener('change', onSpecializationChange);
-skillGroups.addEventListener('click', onTrainingButtonClick);
+skillGroups.addEventListener('change', onTrainingSelectionChange);
 submitButton.addEventListener('click', onSubmit);
 
 /** @param {Event} event */
@@ -176,18 +176,16 @@ function onSpecializationChange(event) {
 }
 
 /** @param {Event} event */
-function onTrainingButtonClick(event) {
-    if (!(event.target instanceof Element)) return;
-    const button = event.target.closest('button[data-action]');
-    if (!(button instanceof HTMLButtonElement)) return;
-    const id = Number(button.dataset.skillId);
+function onTrainingSelectionChange(event) {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== 'checkbox' || !input.matches('[data-training-selection]')) return;
+    const id = Number(input.dataset.skillId);
     if (!Number.isSafeInteger(id)) return;
 
     if (!trainingUnlocked()) return;
-    if (button.dataset.action === 'increase-training') {
+    if (input.checked) {
         addPendingSkill(id);
-    } else if (button.dataset.action === 'decrease-training') {
-        pendingSkillIds.delete(id);
+    } else if (pendingSkillIds.delete(id)) {
         availableTrainingPoints += 1;
     }
     render();
@@ -331,12 +329,10 @@ function renderSkills() {
         if (!row) continue;
         const inSpecialization = specializationSkillIds.has(entry.skill.id);
         const trainingLabel = row.querySelector('[data-training-state]');
-        const plus = row.querySelector('button[data-action="increase-training"]');
-        const minus = row.querySelector('button[data-action="decrease-training"]');
+        const choice = row.querySelector('input[data-training-selection]');
         if (entry.skill.attribute === null || !entry.skill.kind.base_chance) {
             if (trainingLabel instanceof HTMLElement) trainingLabel.hidden = true;
-            if (plus instanceof HTMLButtonElement) plus.hidden = true;
-            if (minus instanceof HTMLButtonElement) minus.hidden = true;
+            if (choice instanceof HTMLInputElement) choice.hidden = true;
             continue;
         }
 
@@ -346,15 +342,13 @@ function renderSkills() {
             trainingLabel.hidden = !saved;
             trainingLabel.textContent = saved ? 'saved' : '';
         }
-        if (minus instanceof HTMLButtonElement) {
-            minus.hidden = !pending;
-            minus.disabled = submitting;
-            minus.dataset.skillId = String(entry.skill.id);
-        }
-        if (plus instanceof HTMLButtonElement) {
-            plus.hidden = saved || pending || !hasSpecialization || availableTrainingPoints <= 0;
-            plus.disabled = !canAddSkill(inSpecialization, state);
-            plus.dataset.skillId = String(entry.skill.id);
+        if (choice instanceof HTMLInputElement) {
+            choice.hidden = !hasSpecialization;
+            choice.checked = saved || pending;
+            choice.disabled = saved || submitting || (!pending && !canAddSkill(inSpecialization, state));
+            choice.dataset.skillId = String(entry.skill.id);
+            choice.setAttribute('aria-label', `Train ${entry.skill.name}`);
+            choice.title = saved ? 'Training saved' : `Train ${entry.skill.name}`;
         }
     }
 }
@@ -401,7 +395,7 @@ function renderStatus() {
 }
 
 function hideTrainingControls() {
-    for (const element of skillGroups.querySelectorAll('[data-training-state], button[data-action="increase-training"], button[data-action="decrease-training"]')) {
+    for (const element of skillGroups.querySelectorAll('[data-training-state], [data-training-selection]')) {
         if (element instanceof HTMLElement) element.hidden = true;
     }
 }
