@@ -254,8 +254,18 @@ hr::after {
     rotate: 45deg;
 }
 
+a.button {
+    display: inline-block;
+    padding: 10px 30px;
+}
+
+a.button:hover {
+    text-decoration: none;
+}
+
 button,
-input[type="submit"] {
+input[type="submit"],
+.button {
     border: 1px solid var(--border);
     border-radius: 2px;
     box-shadow: inset 0 0 0 1px var(--bevel);
@@ -267,12 +277,14 @@ input[type="submit"] {
     margin: 3px;
 }
 
-button:hover {
+button:hover,
+.button:hover {
     background-image: var(--button-hover);
 }
 
 button:active,
-input[type="submit"]:active {
+input[type="submit"]:active,
+.button:active {
     translate: 0 1px;
 }
 

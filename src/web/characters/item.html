@@ -1,7 +1,15 @@
 <main id="instance-details">
     <header>
         <h1 data-field="name">Name</h1>
-        <a class="button" data-href="/characters/{id}/edit" role="button">Edit</a>
+        
+        <section class="notice" data-show="attribute_points" hidden aria-live="polite">
+            <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
+        </section>
+        
+        <section class="notice" data-show="trained_skill_points" hidden aria-live="polite">
+            <p>Training points to spend: <span data-field="trained_skill_points" data-quality="uncommon">0</span></p>
+        </section>
+        
         <p class="flex-row">
             <span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span>
             <span data-field="kin.name">Kin</span>
@@ -9,6 +17,8 @@
             <span data-field="profession.name">Profession</span>
             <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
             <span data-field="age.name">Age</span>
+            <span class="grow"></span>
+            <a class="button" data-href="/characters/{id}/edit" role="button">Edit</a>
         </p>
         <p id="selected-specialization" hidden>Specialization: <span></span></p>
     </header>
@@ -22,12 +32,7 @@
         <ul id="damage-bonuses" class="plain-list" aria-live="polite"></ul>
 
         <h3>Attributes</h3>
-        <!-- A callout, not an error: the player has points to spend. Hidden
-                 with the rest of the stepper when the pool is empty. -->
-        <section class="notice" data-requires-points hidden>
-            <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
-        </section>
-
+        
         <!-- One row per attribute. -->
         <ul class="plain-list" data-list="attributes">
             <template>
@@ -36,8 +41,6 @@
                             data-field="attribute.icon.name:icon"></span></span>
                     <span class="grow" data-field="attribute.name"></span>
                     <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
-                    <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon"
-                        data-requires-points hidden></span>
                 </li>
             </template>
         </ul>
@@ -45,11 +48,6 @@
 
     <fieldset id="instance-skills">
         <legend>Skills</legend>
-        
-        <section class="notice" data-requires-training-points hidden aria-live="polite">
-            <p>Training points to spend: <span id="trained-skill-points" data-quality="uncommon">0</span></p>
-            <p id="trained-skill-help"></p>
-        </section>
 
         <section id="skill-groups" aria-live="polite">
             <h3>Innate</h3>

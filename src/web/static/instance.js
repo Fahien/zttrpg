@@ -207,6 +207,34 @@ function initInstancePage() {
         }
     }
 
+    /**
+   * @param {*} root The root data object.
+   * @param {*} scope The scope element to search for data-list elements within.
+   */
+    async function checkDataShow(root, scope) {
+        const sections = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-show]'));
+        for (const section of sections) {
+            const field = section.dataset.show;
+            if (field === undefined || field === '') {
+                console.warn('No data-show attribute found for element:', section);
+                continue;
+            }
+            const value = resolveFieldName(root, field);
+            if (value === undefined || value === null) {
+                section.hidden = true;
+            }
+            else if (typeof value === 'number') {
+                // If number, hide if != 0
+                section.hidden = value == 0;
+            }
+            else if ((Array.isArray(value) && value.length === 0)) {
+                section.hidden = true;
+            } else {
+                section.hidden = value ? false : true;
+            }
+        }
+    }
+
     async function fetchInstance() {
         const id = await getIdFromUrl();
         if (id === undefined) {
@@ -224,15 +252,16 @@ function initInstancePage() {
             return;
         }
 
-        const item = await response.json();
+        const instance = await response.json();
         // Dispatch an event announcing that the instance has been loaded, so other scripts can react to it.
-        const event = new CustomEvent('instanceLoaded', { detail: item });
+        const event = new CustomEvent('instanceLoaded', { detail: instance });
         document.dispatchEvent(event);
 
-        bindHrefs(item, document);
-        bindFields(item, document);
-        expandList(item, document);
-        checkDataHide(item, document);
+        bindHrefs(instance, document);
+        bindFields(instance, document);
+        expandList(instance, document);
+        checkDataHide(instance, document);
+        checkDataShow(instance, document);
     }
 
     // Fetch the instance when the page loads
