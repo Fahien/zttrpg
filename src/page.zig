@@ -16,7 +16,7 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 /// Which of a resource's two pages to serve: the roster or one instance.
-pub const Page = enum { index, item };
+pub const Page = enum { index, item, edit };
 
 /// The directory every page and asset is read from, relative to the working
 /// directory, which is why the server has to be run from the repository root.
@@ -152,10 +152,12 @@ test "the shared layout and every routed HTML fragment ship" {
     _ = @embedFile("web/layout.html");
     _ = @embedFile("web/index.html");
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
-        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
-        inline for (@typeInfo(Page).@"enum".fields) |page| {
-            _ = @embedFile("web/" ++ resource.name ++ "/" ++ page.name ++ ".html");
-        }
+        const definition = comptime @as(Resource, @enumFromInt(resource.value)).definition();
+        if (!definition.html) continue;
+
+        _ = @embedFile("web/" ++ resource.name ++ "/index.html");
+        _ = @embedFile("web/" ++ resource.name ++ "/item.html");
+        if (definition.edit) _ = @embedFile("web/" ++ resource.name ++ "/edit.html");
     }
 }
 
@@ -177,7 +179,8 @@ test "every page wires up the ids its shared script looks up" {
     // (#kin-details) still renders, so the break only shows up as a dead error
     // path in the browser: pin the contract at build time instead.
     inline for (@typeInfo(Resource).@"enum".fields) |resource| {
-        if (comptime !@as(Resource, @enumFromInt(resource.value)).definition().html) continue;
+        const definition = comptime @as(Resource, @enumFromInt(resource.value)).definition();
+        if (!definition.html) continue;
         const index_page = @embedFile("web/" ++ resource.name ++ "/index.html");
         for ([_][]const u8{ "resource-name", "roster" }) |id| {
             expectContainsId(index_page, id) catch |err| {
@@ -189,6 +192,11 @@ test "every page wires up the ids its shared script looks up" {
         const item_page = @embedFile("web/" ++ resource.name ++ "/item.html");
         for ([_][]const u8{"instance-details"}) |id| {
             try expectContainsId(item_page, id);
+        }
+
+        if (definition.edit) {
+            const edit_page = @embedFile("web/" ++ resource.name ++ "/edit.html");
+            try expectContainsId(edit_page, "instance-details");
         }
     }
 }

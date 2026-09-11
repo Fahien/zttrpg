@@ -61,6 +61,9 @@ pub const Definition = struct {
     /// The handler serves JSON when this is false or Accept is exactly JSON.
     html: bool = true,
 
+    /// Whether the resource supports an edit page at `/{resource}/{id}/edit`.
+    edit: bool = false,
+
     /// Nested operations this resource permits. The route parser recognizes
     /// their common URL shape; this registration says which parent owns them.
     subresources: []const SubResource = &.{},
@@ -122,7 +125,7 @@ pub const Resource = enum {
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },
             .damage_bonuses => Definition.readOnly(zttrpg.DamageBonus),
             .skill_base_chances => Definition.readOnly(zttrpg.SkillBaseChance),
-            .characters => .{ .Model = zttrpg.Character, .subresources = &.{ .attributes, .skills, .creation } },
+            .characters => .{ .Model = zttrpg.Character, .edit = true, .subresources = &.{ .attributes, .skills, .creation } },
             .kins => .{ .Model = zttrpg.Kin },
             .skill_kinds => .{ .Model = zttrpg.SkillKind },
             .skills => .{ .Model = zttrpg.Skill },

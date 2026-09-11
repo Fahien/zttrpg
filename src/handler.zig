@@ -33,6 +33,7 @@ pub fn dispatch(ctx: *Context, parsed: Route) !void {
         .root => try page.serveIndex(ctx),
         .collection => |resource| try handleCollection(ctx, resource),
         .item => |item| try handleItem(ctx, item),
+        .item_edit => |item| try handleItemEdit(ctx, item),
         .sub_collection => |sub| try handleSubCollection(ctx, sub),
         .static => |path| try page.serveStatic(ctx, path),
         .not_found => try ctx.notFound(),
@@ -78,7 +79,7 @@ fn handleItem(ctx: *Context, item: ResourceItem) !void {
                 .GET => if (!definition.html or ctx.wantsJson())
                     try respondItem(ctx, Model, item.id)
                 else
-                    try page.serveResource(ctx, r, Page.item),
+                    try page.serveResource(ctx, item.resource, Page.item),
 
                 .DELETE => if (definition.delete)
                     try deleteItem(ctx, Model, item.id)
@@ -92,6 +93,19 @@ fn handleItem(ctx: *Context, item: ResourceItem) !void {
 
                 else => try ctx.methodNotAllowed(),
             }
+        },
+    }
+}
+
+fn handleItemEdit(ctx: *Context, item: ResourceItem) !void {
+    switch (item.resource) {
+        inline else => |r| {
+            const definition = comptime r.definition();
+
+            if (!definition.item or !definition.html or !definition.edit) return ctx.notFound();
+            if (ctx.method() != .GET or ctx.wantsJson()) return ctx.methodNotAllowed();
+
+            try page.serveResource(ctx, item.resource, Page.edit);
         },
     }
 }

@@ -29,6 +29,7 @@ pub const Route = union(enum) {
     root,
     collection: Resource,
     item: ResourceItem,
+    item_edit: ResourceItem,
     sub_collection: SubCollection,
     static: []const u8,
     not_found,
@@ -80,8 +81,18 @@ pub const Route = union(enum) {
             return .{ .item = .{ .resource = resource, .id = id } };
         }
 
-        // Sub-collection.
         const next_after_id = sequence.next() orelse unreachable;
+
+        // Edit item.
+        if (std.mem.eql(u8, next_after_id, "edit")) {
+            // There should be no additional segments after "edit".
+            if (sequence.peek() != null) {
+                return Route.not_found;
+            }
+            return .{ .item_edit = .{ .resource = resource, .id = id } };
+        }
+
+        // Sub-collection.
         const subresource = std.meta.stringToEnum(SubResource, next_after_id) orelse return Route.not_found;
 
         // Values are written a whole sub-collection at a time, so a single one

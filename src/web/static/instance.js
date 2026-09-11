@@ -16,7 +16,7 @@ function initInstancePage() {
 
     async function getIdFromUrl() {
         // Get the ID from the URL which is in this format: /<resource>/<id>
-        const url_after_slash = window.location.pathname.split('/').pop();
+        const url_after_slash = window.location.pathname.split('/').at(2);
         if (!url_after_slash) {
             console.error('No ID found in URL.');
             return;
