@@ -229,6 +229,7 @@ function initInstancePage() {
         const event = new CustomEvent('instanceLoaded', { detail: item });
         document.dispatchEvent(event);
 
+        bindHrefs(item, document);
         bindFields(item, document);
         expandList(item, document);
         checkDataHide(item, document);

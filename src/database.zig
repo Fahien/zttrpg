@@ -208,6 +208,53 @@ pub const Database = struct {
         }
     }
 
+    /// Refines one existing relation row through its parent and target ids. The
+    /// caller is already responsible for the transaction and any model hooks;
+    /// this only changes the link payload.
+    fn updateRelationQuery(comptime Parent: type, comptime Target: type, comptime Link: type) [:0]const u8 {
+        const Update = Link.RelationUpdate;
+        const fields = @typeInfo(Update).@"struct".fields;
+        if (fields.len == 0) @compileError(@typeName(Link) ++ ".RelationUpdate must name a payload column");
+
+        comptime var assignments: []const u8 = "";
+        inline for (fields, 0..) |field, i| {
+            if (std.mem.eql(u8, field.name, Parent.resource_name) or std.mem.eql(u8, field.name, Target.resource_name)) {
+                @compileError(@typeName(Link) ++ ".RelationUpdate cannot update relation keys");
+            }
+            if (field.is_comptime) @compileError(@typeName(Link) ++ ".RelationUpdate fields must be runtime values");
+
+            if (i != 0) assignments = assignments ++ ", ";
+            assignments = assignments ++ field.name ++ " = $" ++ std.fmt.comptimePrint("{d}", .{i + 3});
+        }
+
+        return "UPDATE " ++ Link.table_name ++ " SET " ++ assignments ++
+            " WHERE " ++ Parent.resource_name ++ " = $1 AND " ++ Target.resource_name ++ " = $2";
+    }
+
+    /// Updates the payload on one relation row identified by its parent and
+    /// target. The pair must already exist and uniquely identify the row.
+    pub fn updateRelation(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Target: type, comptime Link: type, parent_id: u32, target_id: u32, values: Link.RelationUpdate) !void {
+        const query = comptime Database.updateRelationQuery(Parent, Target, Link);
+        const parent_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{parent_id}, 0);
+        defer gpa.free(parent_id_cstr);
+        const target_id_cstr = try std.fmt.allocPrintSentinel(gpa, "{d}", .{target_id}, 0);
+        defer gpa.free(target_id_cstr);
+
+        const params = try Database.getParams(gpa, Link.RelationUpdate, values);
+        defer for (params) |param| {
+            if (param) |present| gpa.free(std.mem.span(present));
+        };
+
+        var all_params: [2 + params.len]?[*:0]const u8 = undefined;
+        all_params[0] = parent_id_cstr;
+        all_params[1] = target_id_cstr;
+        for (params, 0..) |param, i| all_params[i + 2] = param;
+
+        const result = try self.conn.execParams(query, &all_params);
+        defer result.deinit();
+        if (try result.affectedRows() != 1) return error.ItemNotFound;
+    }
+
     pub fn updateSubResource(self: *const Database, gpa: Allocator, comptime Parent: type, comptime Child: type, parent_id: u32, bodies: []const Child.Body) !void {
         try self.conn.beginTransaction();
         errdefer self.conn.rollbackTransaction() catch {
@@ -663,6 +710,13 @@ test "updateSubResourceQuery keys the update on both halves of the composite key
     try std.testing.expectEqualStrings(
         "UPDATE character_skills SET value = $3, trained = $4 WHERE character = $1 AND skill = $2",
         comptime Database.updateSubResourceQuery(Character, CharacterSkill, TwoColumns),
+    );
+}
+
+test "updateRelationQuery updates only payload columns through both relation keys" {
+    try std.testing.expectEqualStrings(
+        "UPDATE character_skills SET value = $3, trained = $4 WHERE character = $1 AND skill = $2",
+        comptime Database.updateRelationQuery(Character, Skill, CharacterSkill),
     );
 }
 

@@ -146,6 +146,10 @@ pub const CharacterSkill = struct {
     pub const table_name: []const u8 = "character_skills";
     pub const Body = BodyCharacterSkill;
     pub const Row = RowCharacterSkill;
+    pub const RelationUpdate = struct {
+        value: u32,
+        trained: bool,
+    };
 
     skill: Skill,
     value: u32,
@@ -726,6 +730,18 @@ pub const Character = struct {
         };
     }
 
+    /// A kin supplies abilities that a new character knows from the start.
+    /// Every character already has the row from the database seed trigger; this
+    /// only marks that one row learned and does not spend a training point.
+    fn learnInnateSkill(db: *const Database, gpa: Allocator, character_id: Character.Id, skill: Skill) !void {
+        if (!std.mem.eql(u8, skill.kind.name, "Innate")) return error.SkillNotInnate;
+
+        try db.updateRelation(gpa, Character, Skill, CharacterSkill, character_id, skill.id, .{
+            .value = 1,
+            .trained = true,
+        });
+    }
+
     /// The pool a character trains skills from is the one its age allows. The
     /// player never sends it, so it is written here, in the transaction that
     /// inserts the row.
@@ -734,11 +750,16 @@ pub const Character = struct {
             return error.AgeNotFound;
         const profession = (try db.readItem(gpa, Profession, create.profession)) orelse
             return error.ProfessionNotFound;
+        const kin = (try db.readItem(gpa, Kin, create.kin)) orelse
+            return error.KinNotFound;
 
         try db.updateColumns(gpa, Character, id, .{
             .trained_skill_points = age.trained_skill_count,
             .specialization = deriveSpecialization(profession.specializations, null),
         });
+        for (kin.skills) |skill| {
+            try learnInnateSkill(db, gpa, id, skill);
+        }
     }
 
     /// A new age or profession invalidates every choice made under the old one.

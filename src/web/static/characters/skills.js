@@ -53,16 +53,18 @@ function onInstanceLoaded(event) {
     character.heroic_skills = [];
 
     for (const skill of character.skills) {
+        if (skill.value == 0) continue;
+
         if (skill.skill.kind.name === 'Innate') {
             character.innate_skills.push(skill);
         }
         if (skill.skill.kind.name === 'Core') {
             character.core_skills.push(skill);
         }
-        if (skill.skill.kind.name === 'Secondary' && skill.value > 0) {
+        if (skill.skill.kind.name === 'Secondary') {
             character.secondary_skills.push(skill);
         }
-        if (skill.skill.kind.name === 'Heroic' && skill.value > 0) {
+        if (skill.skill.kind.name === 'Heroic') {
             character.heroic_skills.push(skill);
         }
     }
