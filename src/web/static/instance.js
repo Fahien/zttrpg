@@ -168,13 +168,41 @@ function initInstancePage() {
                 continue;
             }
 
+            const filterField = list.dataset.filterField;
+            const filterValue = list.dataset.filterValue;
+            const shouldFilter = filterField !== undefined && filterValue !== undefined;
+
             for (const item of value) {
+                if (shouldFilter && resolveFieldName(item, filterField) !== filterValue) {
+                    continue;
+                }
                 // Clone the template content and bind fields for each item.
                 const clone = document.importNode(template.content, true);
                 bindFields(item, clone);
                 bindHrefs(item, clone);
                 expandList(item, clone);
                 list.appendChild(clone);
+            }
+        }
+    }
+
+    /**
+     * @param {*} root The root data object.
+     * @param {*} scope The scope element to search for data-list elements within.
+     */
+    async function checkDataHide(root, scope) {
+        const sections = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-hide-empty]'));
+        for (const section of sections) {
+            const listName = section.dataset.hideEmpty;
+            if (listName === undefined || listName === '') {
+                console.warn('No data-hide-empty attribute found for element:', section);
+                continue;
+            }
+            const value = resolveFieldName(root, listName);
+            if (!value || (Array.isArray(value) && value.length === 0)) {
+                section.hidden = true;
+            } else {
+                section.hidden = false;
             }
         }
     }
@@ -197,12 +225,13 @@ function initInstancePage() {
         }
 
         const item = await response.json();
-        bindFields(item, document);
-        expandList(item, document);
-
         // Dispatch an event announcing that the instance has been loaded, so other scripts can react to it.
         const event = new CustomEvent('instanceLoaded', { detail: item });
         document.dispatchEvent(event);
+
+        bindFields(item, document);
+        expandList(item, document);
+        checkDataHide(item, document);
     }
 
     // Fetch the instance when the page loads
