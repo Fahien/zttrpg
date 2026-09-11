@@ -408,18 +408,18 @@ function hideTrainingControls() {
 
 function renderSheetSkills() {
     const specializationSkillIds = selectedSpecializationSkillIds();
+
     for (const entry of character.skills) {
         const row = findSkillRow(entry.skill.id);
         if (!row) continue;
         const value = row.querySelector('[data-field="value"]');
         if (value) {
             let displayValue = entry.value;
-            if (specializationSkillIds.has(entry.skill.id)) {
-                if (entry.skill.kind.base_chance) {
-                    displayValue = displayValue * 2;
-                } else {
-                    displayValue = 1;
-                }
+            if (pendingSkillIds.has(entry.skill.id)) {
+                displayValue *= 2;
+            }
+            if (!entry.skill.kind.base_chance && specializationSkillIds.has(entry.skill.id)) {
+                displayValue = 1;
             }
             value.textContent = String(displayValue);
         }
