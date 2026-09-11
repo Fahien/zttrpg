@@ -52,6 +52,19 @@
         </section>
 
         <section id="skill-groups" aria-live="polite">
+            <h3>Innate</h3>
+            <ul class="plain-list skill-kind-list" data-list="innate_skills">
+                <template>
+                    <li class="flex-row skill-row" data-field="skill.id:data-skill-id">
+                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="grow" data-field="skill.name"></span>
+                        <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
+                    </li>
+                </template>
+            </ul>
+        </section>
+
+        <section id="skill-groups" aria-live="polite">
             <h3>Core</h3>
             <ul class="plain-list skill-kind-list" data-list="core_skills">
                 <template>
@@ -67,6 +80,19 @@
         <section id="skill-groups" aria-live="polite" data-hide-empty="secondary_skills">
             <h3>Secondary</h3>
             <ul class="plain-list skill-kind-list" data-list="secondary_skills">
+                <template>
+                    <li class="flex-row skill-row" data-field="skill.id:data-skill-id">
+                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="grow" data-field="skill.name"></span>
+                        <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
+                    </li>
+                </template>
+            </ul>
+        </section>
+
+        <section id="skill-groups" aria-live="polite" data-hide-empty="heroic_skills">
+            <h3>Heroic</h3>
+            <ul class="plain-list skill-kind-list" data-list="heroic_skills">
                 <template>
                     <li class="flex-row skill-row" data-field="skill.id:data-skill-id">
                         <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>

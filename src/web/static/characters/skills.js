@@ -16,8 +16,10 @@
  *  movement: number,
  *  attributes: CharacterAttribute[],
  *  skills: CharacterSkill[],
+ *  innate_skills: CharacterSkill[],
  *  core_skills: CharacterSkill[],
  *  secondary_skills: CharacterSkill[],
+ *  heroic_skills: CharacterSkill[],
  *  damage_bonuses: DamageBonus[],
  * }} Character
  */
@@ -45,15 +47,23 @@ function onInstanceLoaded(event) {
         return;
     }
 
+    character.innate_skills = [];
     character.core_skills = [];
     character.secondary_skills = [];
+    character.heroic_skills = [];
 
     for (const skill of character.skills) {
+        if (skill.skill.kind.name === 'Innate') {
+            character.innate_skills.push(skill);
+        }
         if (skill.skill.kind.name === 'Core') {
             character.core_skills.push(skill);
         }
         if (skill.skill.kind.name === 'Secondary' && skill.value > 0) {
             character.secondary_skills.push(skill);
+        }
+        if (skill.skill.kind.name === 'Heroic' && skill.value > 0) {
+            character.heroic_skills.push(skill);
         }
     }
 }
