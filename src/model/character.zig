@@ -387,10 +387,83 @@ fn offersSkill(specialization: Specialization, id: Skill.Id) bool {
     return false;
 }
 
-/// A specialization grants the skills it names that take no chance from an
-/// attribute. A player learns those outright and spends no point on them.
-fn isGrantedSkill(skill: Skill) bool {
+/// A specialization grants its non-base-chance skills that have an attribute.
+/// A player learns those outright and spends no point on them.
+fn isSpecializationSkillGrant(skill: Skill) bool {
     return skill.attribute != null and !skill.kind.base_chance;
+}
+
+fn isHeroicSkill(skill: Skill) bool {
+    return std.mem.eql(u8, skill.kind.name, "Heroic");
+}
+
+/// Return one grant by position, treating the dedicated heroic slot like the
+/// ordinary grant list. Keeping that distinction here lets every lifecycle
+/// operation use the same grant rules without making a heroic skill trainable.
+fn specializationGrantAt(specialization: Specialization, index: usize) ?Skill {
+    if (index < specialization.skills.len) {
+        const skill = specialization.skills[index];
+        return if (isSpecializationSkillGrant(skill)) skill else null;
+    }
+
+    if (index == specialization.skills.len) {
+        if (specialization.heroic_skill) |skill| {
+            if (isHeroicSkill(skill)) return skill;
+        }
+    }
+
+    return null;
+}
+
+fn specializationGrantsSkill(specialization: Specialization, id: Skill.Id) bool {
+    for (0..specialization.skills.len + 1) |index| {
+        const skill = specializationGrantAt(specialization, index) orelse continue;
+        if (skill.id == id) return true;
+    }
+    return false;
+}
+
+fn setTrainedSkillWrite(
+    gpa: Allocator,
+    writes: *std.ArrayList(TrainedSkillWrite),
+    skill: Skill.Id,
+    value: u32,
+    trained: bool,
+) !void {
+    for (writes.items) |*write| {
+        if (write.skill != skill) continue;
+        write.* = .{ .skill = skill, .value = value, .trained = trained };
+        return;
+    }
+    try writes.append(gpa, .{ .skill = skill, .value = value, .trained = trained });
+}
+
+fn appendSpecializationGrants(
+    gpa: Allocator,
+    writes: *std.ArrayList(TrainedSkillWrite),
+    specialization: Specialization,
+) !void {
+    if (specialization.heroic_skill) |skill| {
+        if (!isHeroicSkill(skill)) return error.SkillNotHeroic;
+    }
+
+    for (0..specialization.skills.len + 1) |index| {
+        const skill = specializationGrantAt(specialization, index) orelse continue;
+        try setTrainedSkillWrite(gpa, writes, skill.id, 1, true);
+    }
+}
+
+fn appendRemovedSpecializationGrants(
+    gpa: Allocator,
+    writes: *std.ArrayList(TrainedSkillWrite),
+    old: Specialization,
+    replacement: Specialization,
+) !void {
+    for (0..old.skills.len + 1) |index| {
+        const skill = specializationGrantAt(old, index) orelse continue;
+        if (specializationGrantsSkill(replacement, skill.id)) continue;
+        try setTrainedSkillWrite(gpa, writes, skill.id, 0, false);
+    }
 }
 
 pub const CreationError = error{
@@ -475,20 +548,15 @@ pub fn planCreation(
     }
 
     var writes = std.ArrayList(TrainedSkillWrite).empty;
+    errdefer writes.deinit(gpa);
 
     // A replaced specialization takes its grant with it, unless the new one
     // names the same skill.
     if (changing) {
-        for (character.specialization.?.skills) |skill| {
-            if (!isGrantedSkill(skill) or offersSkill(specialization, skill.id)) continue;
-            try writes.append(gpa, .{ .skill = skill.id, .value = 0, .trained = false });
-        }
+        try appendRemovedSpecializationGrants(gpa, &writes, character.specialization.?, specialization);
     }
 
-    for (specialization.skills) |skill| {
-        if (!isGrantedSkill(skill)) continue;
-        try writes.append(gpa, .{ .skill = skill.id, .value = 1, .trained = true });
-    }
+    try appendSpecializationGrants(gpa, &writes, specialization);
 
     // A trained skill is worth twice its starting chance, which is the value
     // the sheet already holds once every attribute point is spent.
@@ -496,7 +564,7 @@ pub fn planCreation(
         const entry = findSkillEntry(character.skills, id).?;
         if (entry.trained) continue;
 
-        try writes.append(gpa, .{ .skill = id, .value = entry.value * 2, .trained = true });
+        try setTrainedSkillWrite(gpa, &writes, id, entry.value * 2, true);
     }
 
     return .{
@@ -572,15 +640,11 @@ pub fn planCreationReset(
 
         if (!entry.trained and entry.value == value) continue;
 
-        try writes.append(gpa, .{ .skill = entry.skill.id, .value = value, .trained = false });
+        try setTrainedSkillWrite(gpa, &writes, entry.skill.id, value, false);
     }
 
     if (specialization) |kept| {
-        for (kept.skills) |skill| {
-            if (!isGrantedSkill(skill)) continue;
-
-            try writes.append(gpa, .{ .skill = skill.id, .value = 1, .trained = true });
-        }
+        try appendSpecializationGrants(gpa, &writes, kept);
     }
 
     return writes.toOwnedSlice(gpa);
@@ -742,6 +806,14 @@ pub const Character = struct {
         });
     }
 
+    fn applySpecializationGrants(db: *const Database, gpa: Allocator, character_id: Character.Id, specialization: Specialization) !void {
+        var writes = std.ArrayList(TrainedSkillWrite).empty;
+        defer writes.deinit(gpa);
+
+        try appendSpecializationGrants(gpa, &writes, specialization);
+        try db.updateSubRows(gpa, Character, CharacterSkill, TrainedSkillWrite, character_id, writes.items);
+    }
+
     /// The pool a character trains skills from is the one its age allows. The
     /// player never sends it, so it is written here, in the transaction that
     /// inserts the row.
@@ -753,10 +825,18 @@ pub const Character = struct {
         const kin = (try db.readItem(gpa, Kin, create.kin)) orelse
             return error.KinNotFound;
 
+        const specialization_id = deriveSpecialization(profession.specializations, null);
+
         try db.updateColumns(gpa, Character, id, .{
             .trained_skill_points = age.trained_skill_count,
-            .specialization = deriveSpecialization(profession.specializations, null),
+            .specialization = specialization_id,
         });
+
+        if (specialization_id) |chosen| {
+            const specialization = findSpecialization(profession.specializations, chosen).?;
+            try applySpecializationGrants(db, gpa, id, specialization);
+        }
+
         for (kin.skills) |skill| {
             try learnInnateSkill(db, gpa, id, skill);
         }
@@ -1374,6 +1454,13 @@ fn testGrantedSkill(id: Skill.Id) Skill {
     return skill;
 }
 
+fn testHeroicSkill(id: Skill.Id) Skill {
+    var skill = testCoreSkill(id);
+    skill.attribute = null;
+    skill.kind = .{ .id = 3, .name = "Heroic", .base_chance = false };
+    return skill;
+}
+
 // One profession offering two specializations. Skills 1 and 2 are on both, 3
 // and 4 only on the first, and each specialization grants one skill of its own.
 var test_first_skills = [_]Skill{ testCoreSkill(1), testCoreSkill(2), testCoreSkill(3), testCoreSkill(4), testGrantedSkill(9) };
@@ -1400,6 +1487,18 @@ fn testCharacter(specialization: ?Specialization, attribute_points: u32, pool: u
         .attributes = &.{},
         .skills = skills,
     };
+}
+
+fn testCharacterWithSpecializations(
+    specializations: []Specialization,
+    specialization: ?Specialization,
+    attribute_points: u32,
+    pool: u32,
+    skills: []const CharacterSkill,
+) Character {
+    var character = testCharacter(specialization, attribute_points, pool, skills);
+    character.profession.specializations = specializations;
+    return character;
 }
 
 /// A finished sheet: every core skill at its starting chance, nothing trained,
@@ -1475,6 +1574,60 @@ test "replacing a specialization takes back the skill it granted" {
     try expectWrite(plan, 9, 0, false);
     try expectWrite(plan, 10, 1, true);
     try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
+}
+
+test "specialization grants replace heroic skills without training charges" {
+    const first_heroic = testHeroicSkill(11);
+    const second_heroic = testHeroicSkill(12);
+    var specializations = [_]Specialization{
+        .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = first_heroic, .items = &.{} },
+        .{ .id = 2, .name = "Second", .description = "d", .skills = &test_second_skills, .heroic_skill = second_heroic, .items = &.{} },
+    };
+    const sheet = testSheet();
+    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
+
+    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 2, .skills = &.{} }, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
+    try expectWrite(plan, first_heroic.id, 0, false);
+    try expectWrite(plan, second_heroic.id, 1, true);
+
+    try std.testing.expectError(
+        error.SkillNotTrainable,
+        planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{first_heroic.id} }, 2),
+    );
+}
+
+test "a specialization replacement retains a heroic grant shared by both choices" {
+    const heroic = testHeroicSkill(11);
+    var specializations = [_]Specialization{
+        .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = heroic, .items = &.{} },
+        .{ .id = 2, .name = "Second", .description = "d", .skills = &test_second_skills, .heroic_skill = heroic, .items = &.{} },
+    };
+    const sheet = testSheet();
+    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
+
+    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 2, .skills = &.{} }, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try expectWrite(plan, heroic.id, 1, true);
+    try std.testing.expectEqual(@as(usize, 3), plan.skills.len);
+}
+
+test "replaying a specialization grant leaves the training pool unchanged" {
+    const heroic = testHeroicSkill(11);
+    var specializations = [_]Specialization{
+        .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = heroic, .items = &.{} },
+    };
+    const sheet = testSheet();
+    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
+
+    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{} }, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
+    try expectWrite(plan, heroic.id, 1, true);
 }
 
 test "a completed character may replay its last request but not extend it" {
@@ -1592,4 +1745,34 @@ test "an unfinished sheet resets to zero rather than to a chance" {
         try std.testing.expect(!write.trained);
     }
     try std.testing.expectEqual(@as(usize, 5), writes.len);
+}
+
+test "a reset restores a kept heroic grant and clears it with no specialization" {
+    const gpa = std.testing.allocator;
+    const heroic = testHeroicSkill(11);
+    const specialization = Specialization{
+        .id = 1,
+        .name = "First",
+        .description = "d",
+        .skills = &.{},
+        .heroic_skill = heroic,
+        .items = &.{},
+    };
+    const attributes = sheetWithAgility(13);
+    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
+    const sheet = [_]CharacterSkill{
+        .{ .skill = testCoreSkill(1), .value = 12, .trained = true },
+        .{ .skill = heroic, .value = 1, .trained = true },
+    };
+
+    const kept = try planCreationReset(gpa, &sheet, &attributes, &bands, specialization, true);
+    defer gpa.free(kept);
+    const kept_plan = CreationPlan{ .specialization = specialization.id, .trained_skill_points = 0, .skills = kept };
+    try expectWrite(kept_plan, heroic.id, 1, true);
+    try std.testing.expectEqual(@as(usize, 2), kept.len);
+
+    const cleared = try planCreationReset(gpa, &sheet, &attributes, &bands, null, true);
+    defer gpa.free(cleared);
+    const cleared_plan = CreationPlan{ .specialization = specialization.id, .trained_skill_points = 0, .skills = cleared };
+    try expectWrite(cleared_plan, heroic.id, 0, false);
 }
