@@ -579,8 +579,17 @@ pub const CharacterCreation = struct {
     }
 };
 
+pub const CharacterCreationStatus = struct {
+    pub const Id = u32;
+    pub const table_name: []const u8 = "character_creation_status";
+
+    id: Id,
+    name: []const u8,
+};
+
 pub const RowCharacter = struct {
     id: Character.Id,
+    creation_status: CharacterCreationStatus.Id,
     name: []const u8,
     level: u32,
     kin: Kin.Id,
@@ -650,6 +659,7 @@ pub const Character = struct {
     pub const resource_name: []const u8 = "character";
 
     id: Id,
+    creation_status: CharacterCreationStatus,
     name: []const u8,
     level: u32,
     kin: Kin,
@@ -670,6 +680,7 @@ pub const Character = struct {
     /// this character's id.
     pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Character {
         const summary = try CharacterSummary.fromRow(db, gpa, row);
+        const creation_status = try db.readItem(gpa, CharacterCreationStatus, row.creation_status) orelse return error.CharacterCreationStatusNotFound;
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
         const bands = try db.readAllAlloc(gpa, MovementModifier);
         const rules = try db.readAllAlloc(gpa, DamageBonus);
@@ -681,6 +692,7 @@ pub const Character = struct {
 
         return .{
             .id = summary.id,
+            .creation_status = creation_status,
             .name = summary.name,
             .level = summary.level,
             .kin = summary.kin,
@@ -851,8 +863,10 @@ test "Character serializes to the JSON wire shape" {
     const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10, .skills = &.{} };
     const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
     const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
+    const creation_status = CharacterCreationStatus{ .id = 4, .name = "Complete" };
     const character = Character{
         .id = 1,
+        .creation_status = creation_status,
         .name = "Alice",
         .level = 2,
         .kin = kin,
@@ -870,7 +884,7 @@ test "Character serializes to the JSON wire shape" {
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
+        \\{"id":1,"creation_status":{"id":4,"name":"Complete"},"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
@@ -1346,6 +1360,7 @@ var test_professsion_specializations = [_]Specialization{
 fn testCharacter(specialization: ?Specialization, attribute_points: u32, pool: u32, skills: []const CharacterSkill) Character {
     return .{
         .id = 1,
+        .creation_status = .{ .id = 1, .name = "Attributes" },
         .name = "Test",
         .level = 1,
         .kin = .{ .id = 1, .name = "Elf", .icon = test_icon, .movement = 10, .skills = &.{} },

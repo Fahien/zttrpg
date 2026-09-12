@@ -581,7 +581,7 @@ pub const Database = struct {
 const all_models = .{ Character, Item, Kin, Skill };
 
 test "getCols lists the fields in declaration order" {
-    try std.testing.expectEqualStrings("id, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points, creation_complete, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
+    try std.testing.expectEqualStrings("id, creation_status, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points, creation_complete, movement, damage_bonuses, attributes, skills", comptime Database.getCols(Character));
     try std.testing.expectEqualStrings("id, name, icon, movement", comptime Database.getCols(Kin.Row));
     try std.testing.expectEqualStrings("id, name, icon, kind, attribute, description", comptime Database.getCols(Skill));
     try std.testing.expectEqualStrings("id, name, icon, description", comptime Database.getCols(Profession.Row));
@@ -674,7 +674,7 @@ test "readAllQuery orders a collection by the one column an edit cannot move" {
     );
     // The roster reads summaries, so this is the query behind /characters.
     try std.testing.expectEqualStrings(
-        "SELECT id, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points FROM characters ORDER BY id",
+        "SELECT id, creation_status, name, level, kin, profession, specialization, age, attribute_points, trained_skill_points FROM characters ORDER BY id",
         comptime Database.readAllQuery(Character.Summary),
     );
 }

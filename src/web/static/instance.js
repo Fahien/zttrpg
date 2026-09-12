@@ -191,15 +191,24 @@ function initInstancePage() {
      * @param {*} scope The scope element to search for data-list elements within.
      */
     async function checkDataHide(root, scope) {
-        const sections = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-hide-empty]'));
+        const sections = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-hide]'));
         for (const section of sections) {
-            const listName = section.dataset.hideEmpty;
-            if (listName === undefined || listName === '') {
-                console.warn('No data-hide-empty attribute found for element:', section);
+            const field = section.dataset.hide;
+
+            if (field === undefined || field === '') {
+                console.warn('No data-hide attribute found for element:', section);
                 continue;
             }
-            const value = resolveFieldName(root, listName);
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            const value = resolveFieldName(root, field);
+            if (value === undefined || value === null) {
+                section.hidden = true;
+            }
+
+            const hideValue = section.dataset.hideValue;
+            if (hideValue !== undefined) {
+                section.hidden = value == hideValue;
+            }
+            else if (!value || (Array.isArray(value) && value.length === 0)) {
                 section.hidden = true;
             } else {
                 section.hidden = false;
@@ -223,8 +232,13 @@ function initInstancePage() {
             if (value === undefined || value === null) {
                 section.hidden = true;
             }
+
+            const showValue = section.dataset.showValue;
+            if (showValue !== undefined && showValue !== null) {
+                section.hidden = value != showValue;
+            }
             else if (typeof value === 'number') {
-                // If number, hide if != 0
+                // If number, show if != 0
                 section.hidden = value == 0;
             }
             else if ((Array.isArray(value) && value.length === 0)) {

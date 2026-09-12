@@ -1,6 +1,10 @@
 <main id="instance-details">
     <header>
         <h1 data-field="name">Name</h1>
+
+        <section class="notice" data-hide="creation_status.name" data-hide-value="Complete" hidden aria-live="polite">
+            <p>Creation status: <span data-field="creation_status.name" data-quality="uncommon">Unknown</span></p>
+        </section>
         
         <section class="notice" data-show="attribute_points" hidden aria-live="polite">
             <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
@@ -75,7 +79,7 @@
             </ul>
         </section>
 
-        <section id="skill-groups" aria-live="polite" data-hide-empty="secondary_skills">
+        <section id="skill-groups" aria-live="polite" data-show="secondary_skills">
             <h3>Secondary</h3>
             <ul class="plain-list skill-kind-list" data-list="secondary_skills">
                 <template>
@@ -88,7 +92,7 @@
             </ul>
         </section>
 
-        <section id="skill-groups" aria-live="polite" data-hide-empty="heroic_skills">
+        <section id="skill-groups" aria-live="polite" data-show="heroic_skills">
             <h3>Heroic</h3>
             <ul class="plain-list skill-kind-list" data-list="heroic_skills">
                 <template>

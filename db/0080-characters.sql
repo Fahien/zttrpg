@@ -1,3 +1,8 @@
+CREATE TABLE character_creation_status (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
 -- A new character's pool of attribute points comes from configs at the moment
 -- the row is inserted, so changing the config later reaches new characters
 -- without a migration. A DEFAULT cannot contain a subquery, but it can call a
@@ -17,6 +22,7 @@ $fn$ LANGUAGE plpgsql;
 
 CREATE TABLE characters (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    creation_status INTEGER NOT NULL DEFAULT 1,
     name TEXT UNIQUE NOT NULL,
     level INTEGER NOT NULL,
     kin INTEGER NOT NULL,
@@ -27,6 +33,7 @@ CREATE TABLE characters (
     trained_skill_points INTEGER NOT NULL DEFAULT 0,
     CHECK (level >= 1 AND level <= 100),
     CHECK (name <> ''),
+    FOREIGN KEY (creation_status) REFERENCES character_creation_status(id),
     FOREIGN KEY (profession) REFERENCES professions(id),
     FOREIGN KEY (specialization) REFERENCES profession_specializations(id),
     FOREIGN KEY (kin) REFERENCES kins(id),
