@@ -19,11 +19,13 @@
 
         <h3>Damage Bonus</h3>
         <ul id="damage-bonuses" class="plain-list" aria-live="polite"></ul>
+    </fieldset>
 
-        <h3>Attributes</h3>
+    <fieldset id="instance-attributes">
+        <legend>Attributes</legend>
         <!-- A callout, not an error: the player has points to spend. Hidden
                  with the rest of the stepper when the pool is empty. -->
-        <section class="notice" data-requires-points hidden>
+        <section class="notice" data-show="creation_status.name" data-show-value="Attributes" hidden>
             <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
         </section>
 
@@ -41,9 +43,9 @@
                     <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon"
                         data-requires-points hidden></span>
                     <button type="button" class="button-small" data-action="decrease-attribute"
-                        data-field="attribute.id:data-attribute-id" data-requires-points hidden>-</button>
+                        data-field="attribute.id:data-attribute-id" data-show="attribute_points" hidden>-</button>
                     <button type="button" class="button-small" data-action="increase-attribute"
-                        data-field="attribute.id:data-attribute-id" data-requires-points hidden>+</button>
+                        data-field="attribute.id:data-attribute-id" data-show="attribute_points" hidden>+</button>
                 </li>
             </template>
         </ul>
@@ -71,7 +73,7 @@
     <fieldset id="instance-skills">
         <legend>Skills</legend>
         
-        <section class="notice" data-requires-training-points hidden aria-live="polite">
+        <section class="notice" data-show="creation_status.name" data-show-value="Skills" hidden aria-live="polite">
             <p>Training points to spend: <span id="trained-skill-points" data-quality="uncommon">0</span></p>
             <p id="trained-skill-help"></p>
         </section>
@@ -90,7 +92,9 @@
                     <span class="profession-skill-marker" data-specialization-skill hidden role="img"
                         aria-label="Profession skill" title="Profession skill">★</span>
                     <small data-training-state hidden></small>
-                    <input type="checkbox" data-training-selection hidden>
+                    <span data-show="trained_skill_points" hidden>
+                        <input type="checkbox" data-training-selection>
+                    </span>
                 </li>
             </template>
         </ul>
@@ -104,5 +108,6 @@
 </main>
 
 <script src="/static/instance.js" data-resource="characters"></script>
+<script src="/static/characters/skills.js"></script>
 <script src="/static/characters/attributes.js"></script>
 <script src="/static/characters/creation.js"></script>

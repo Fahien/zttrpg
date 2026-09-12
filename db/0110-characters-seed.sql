@@ -1,7 +1,7 @@
 INSERT INTO character_creation_status (name) VALUES
     ('Attributes'),
     ('Specialization'),
-    ('Trained Skill'),
+    ('Skills'),
     ('Complete');
 
 -- These rows skip the server, which is what fills a new character's pool of

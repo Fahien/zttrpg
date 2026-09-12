@@ -55,9 +55,6 @@ list.addEventListener('click', onAttributeButtonClick);
 const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-attributes'));
 submitButton.addEventListener('click', onSubmitAttributes);
 
-// The banner from the header partial, shared with instance.js.
-const statusMessage = document.getElementById('status-message');
-
 /**
  * @param {Event} event
  */

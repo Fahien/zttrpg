@@ -235,11 +235,11 @@ function initInstancePage() {
 
             const showValue = section.dataset.showValue;
             if (showValue !== undefined && showValue !== null) {
-                section.hidden = value != showValue;
+                section.hidden = value !== showValue;
             }
             else if (typeof value === 'number') {
                 // If number, show if != 0
-                section.hidden = value == 0;
+                section.hidden = value === 0;
             }
             else if ((Array.isArray(value) && value.length === 0)) {
                 section.hidden = true;
