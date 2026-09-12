@@ -8,7 +8,6 @@ const Allocator = std.mem.Allocator;
 
 const Icon = @import("icon.zig").Icon;
 const Age = @import("age.zig").Age;
-const AgeAttribute = @import("age.zig").AgeAttribute;
 const Profession = @import("profession.zig").Profession;
 const Specialization = @import("profession.zig").Specialization;
 const Kin = @import("kin.zig").Kin;
@@ -332,6 +331,25 @@ pub const BodyCharacter = struct {
 pub const CreateCharacter = BodyCharacter;
 pub const UpdateCharacter = BodyCharacter;
 
+/// The three choices that establish a character's sheet at creation time.
+/// They remain in the update body because a normal PUT replaces the row, so
+/// the model compares them with storage before it accepts the replacement.
+const StoredCharacterIdentity = struct {
+    kin: Kin.Id,
+    profession: Profession.Id,
+    age: Age.Id,
+};
+
+fn validateCharacterIdentity(stored: StoredCharacterIdentity, update: UpdateCharacter) error{
+    KinImmutable,
+    ProfessionImmutable,
+    AgeImmutable,
+}!void {
+    if (update.kin != stored.kin) return error.KinImmutable;
+    if (update.profession != stored.profession) return error.ProfessionImmutable;
+    if (update.age != stored.age) return error.AgeImmutable;
+}
+
 /// The remaining choices a player makes after the character row has been
 /// created. The URL supplies the character id, so it must not be repeated in
 /// this body.
@@ -415,14 +433,6 @@ fn specializationGrantAt(specialization: Specialization, index: usize) ?Skill {
     return null;
 }
 
-fn specializationGrantsSkill(specialization: Specialization, id: Skill.Id) bool {
-    for (0..specialization.skills.len + 1) |index| {
-        const skill = specializationGrantAt(specialization, index) orelse continue;
-        if (skill.id == id) return true;
-    }
-    return false;
-}
-
 fn setTrainedSkillWrite(
     gpa: Allocator,
     writes: *std.ArrayList(TrainedSkillWrite),
@@ -453,19 +463,6 @@ fn appendSpecializationGrants(
     }
 }
 
-fn appendRemovedSpecializationGrants(
-    gpa: Allocator,
-    writes: *std.ArrayList(TrainedSkillWrite),
-    old: Specialization,
-    replacement: Specialization,
-) !void {
-    for (0..old.skills.len + 1) |index| {
-        const skill = specializationGrantAt(old, index) orelse continue;
-        if (specializationGrantsSkill(replacement, skill.id)) continue;
-        try setTrainedSkillWrite(gpa, writes, skill.id, 0, false);
-    }
-}
-
 pub const CreationError = error{
     SpecializationNotOffered,
     SpecializationLocked,
@@ -491,19 +488,11 @@ pub fn planCreation(
     profession_skill_minimum: u32,
 ) !?CreationPlan {
     const selected = body.specialization orelse return error.SpecializationNotOffered;
+    if (character.specialization) |stored| {
+        if (stored.id != selected) return error.SpecializationLocked;
+    }
     const specialization = findSpecialization(character.profession.specializations, selected) orelse
         return error.SpecializationNotOffered;
-
-    const stored = if (character.specialization) |current| current.id else null;
-    const changing = stored != null and stored.? != selected;
-
-    // A saved choice cannot be refunded, so the specialization locks as soon as
-    // a point has been spent under it.
-    if (changing) {
-        for (character.skills) |entry| {
-            if (entry.trained and entry.skill.kind.base_chance) return error.SpecializationLocked;
-        }
-    }
 
     // A specialization may be chosen while attributes are unfinished. A skill
     // may not, because its starting value comes from an attribute.
@@ -514,8 +503,11 @@ pub fn planCreation(
         if (entry.skill.attribute == null or !entry.skill.kind.base_chance) return error.SkillNotTrainable;
     }
 
-    if (deriveCreationComplete(character.attribute_points, character.trained_skill_points, stored)) {
-        if (changing) return error.CreationComplete;
+    if (deriveCreationComplete(
+        character.attribute_points,
+        character.trained_skill_points,
+        if (character.specialization) |current| current.id else null,
+    )) {
         for (body.skills) |id| {
             if (!findSkillEntry(character.skills, id).?.trained) return error.CreationComplete;
         }
@@ -550,12 +542,6 @@ pub fn planCreation(
     var writes = std.ArrayList(TrainedSkillWrite).empty;
     errdefer writes.deinit(gpa);
 
-    // A replaced specialization takes its grant with it, unless the new one
-    // names the same skill.
-    if (changing) {
-        try appendRemovedSpecializationGrants(gpa, &writes, character.specialization.?, specialization);
-    }
-
     try appendSpecializationGrants(gpa, &writes, specialization);
 
     // A trained skill is worth twice its starting chance, which is the value
@@ -572,82 +558,6 @@ pub fn planCreation(
         .trained_skill_points = remaining,
         .skills = try writes.toOwnedSlice(gpa),
     };
-}
-
-/// One attribute row an age change writes. Only the rules' column moves; what
-/// the player spent is theirs and never changes here.
-const AgeModifierWrite = struct {
-    pub const key_name: []const u8 = Attribute.resource_name;
-
-    attribute: Attribute.Id,
-    modifier: i32,
-};
-
-/// The stored state an age or profession change invalidates.
-const StoredCreation = struct {
-    profession: Profession.Id,
-    age: Age.Id,
-    specialization: ?Specialization.Id,
-    attribute_points: u32,
-};
-
-/// What a new age does to a sheet's attributes. An age adjusts a few and says
-/// nothing about the rest, and silence means zero rather than no change.
-pub fn planAgeModifiers(
-    gpa: Allocator,
-    attributes: []const CharacterAttribute,
-    age_modifiers: []const AgeAttribute,
-) ![]const AgeModifierWrite {
-    var writes = std.ArrayList(AgeModifierWrite).empty;
-    errdefer writes.deinit(gpa);
-
-    for (attributes) |entry| {
-        var modifier: i32 = 0;
-        for (age_modifiers) |adjustment| {
-            if (adjustment.attribute == entry.attribute.id) modifier = adjustment.modifier;
-        }
-        if (modifier == entry.modifier) continue;
-
-        try writes.append(gpa, .{ .attribute = entry.attribute.id, .modifier = modifier });
-    }
-
-    return writes.toOwnedSlice(gpa);
-}
-
-/// What an age or profession change does to a sheet's skills. Every choice made
-/// under the old one goes: training is cleared, and each skill falls back to
-/// what its attribute alone gives, or to zero while the attributes are still
-/// unfinished. A specialization the character keeps grants its skill again.
-pub fn planCreationReset(
-    gpa: Allocator,
-    entries: []const CharacterSkill,
-    attributes: []const CharacterAttribute,
-    bands: []const SkillBaseChance,
-    specialization: ?Specialization,
-    attributes_finished: bool,
-) ![]const TrainedSkillWrite {
-    var writes = std.ArrayList(TrainedSkillWrite).empty;
-    errdefer writes.deinit(gpa);
-
-    for (entries) |entry| {
-        var cleared = entry;
-        cleared.trained = false;
-
-        const value = if (attributes_finished)
-            (try deriveStartingSkillValue(cleared, attributes, bands)) orelse 0
-        else
-            0;
-
-        if (!entry.trained and entry.value == value) continue;
-
-        try setTrainedSkillWrite(gpa, &writes, entry.skill.id, value, false);
-    }
-
-    if (specialization) |kept| {
-        try appendSpecializationGrants(gpa, &writes, kept);
-    }
-
-    return writes.toOwnedSlice(gpa);
 }
 
 /// The non-row operation exposed at /characters/:id/creation. The rules live in
@@ -720,16 +630,9 @@ const AgeTrainedSkillCount = struct {
     trained_skill_count: u32,
 };
 
-/// A character's specialization is one its profession offers. A profession
-/// that does not offer the stored choice replaces it, with its sole
-/// specialization when it has exactly one and with nothing when the player
-/// still has a choice to make.
-pub fn deriveSpecialization(available: []const Specialization, current: ?Specialization.Id) ?Specialization.Id {
-    if (current) |chosen| {
-        for (available) |option| {
-            if (option.id == chosen) return chosen;
-        }
-    }
+/// A profession with exactly one specialization decides it at character
+/// creation; otherwise the player saves their first choice through creation.
+pub fn deriveInitialSpecialization(available: []const Specialization) ?Specialization.Id {
     return if (available.len == 1) available[0].id else null;
 }
 
@@ -825,7 +728,7 @@ pub const Character = struct {
         const kin = (try db.readItem(gpa, Kin, create.kin)) orelse
             return error.KinNotFound;
 
-        const specialization_id = deriveSpecialization(profession.specializations, null);
+        const specialization_id = deriveInitialSpecialization(profession.specializations);
 
         try db.updateColumns(gpa, Character, id, .{
             .trained_skill_points = age.trained_skill_count,
@@ -842,53 +745,12 @@ pub const Character = struct {
         }
     }
 
-    /// A new age or profession invalidates every choice made under the old one.
-    /// The whole reset happens before the row changes, so it and the update
-    /// commit together and no half-reset sheet is ever readable.
+    /// Kin, profession, and age establish the character's initial sheet. A
+    /// general update may still change the name or level, but cannot recast it.
     pub fn beforeUpdate(db: *const Database, gpa: Allocator, id: Id, update: Update) !void {
-        const stored = (try db.readProjection(gpa, Character, StoredCreation, id)) orelse
+        const stored = (try db.readProjection(gpa, Character, StoredCharacterIdentity, id)) orelse
             return error.ItemNotFound;
-        const profession = (try db.readItem(gpa, Profession, update.profession)) orelse
-            return error.ProfessionNotFound;
-
-        const specialization = deriveSpecialization(profession.specializations, stored.specialization);
-
-        // An unchanged age and profession leave every earlier choice standing,
-        // along with the points already spent on them.
-        if (update.age == stored.age and update.profession == stored.profession) {
-            if (specialization != stored.specialization) {
-                try db.updateColumns(gpa, Character, id, .{ .specialization = specialization });
-            }
-            return;
-        }
-
-        const age = (try db.readItem(gpa, Age, update.age)) orelse return error.AgeNotFound;
-
-        try db.updateColumns(gpa, Character, id, .{
-            .specialization = specialization,
-            .trained_skill_points = age.trained_skill_count,
-        });
-
-        if (update.age != stored.age) {
-            const current = try db.readSubResource(gpa, Character, CharacterAttribute, id);
-            const age_modifiers = try db.readSubResource(gpa, Age, AgeAttribute, update.age);
-            const modifiers = try planAgeModifiers(gpa, current, age_modifiers);
-
-            try db.updateSubRows(gpa, Character, CharacterAttribute, AgeModifierWrite, id, modifiers);
-        }
-
-        // Read the sheet after the modifiers land: a skill's chance follows the
-        // attribute the new age has just adjusted.
-        const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, id);
-        const bands = try db.readAllAlloc(gpa, SkillBaseChance);
-        const entries = try db.readSubResource(gpa, Character, CharacterSkill, id);
-        const kept = if (specialization) |chosen|
-            findSpecialization(profession.specializations, chosen)
-        else
-            null;
-
-        const writes = try planCreationReset(gpa, entries, attributes, bands, kept, stored.attribute_points == 0);
-        try db.updateSubRows(gpa, Character, CharacterSkill, TrainedSkillWrite, id, writes);
+        try validateCharacterIdentity(stored, update);
     }
 };
 
@@ -902,8 +764,8 @@ const CreationPools = struct {
 
 /// Creation status is a view of persisted choices. The served JSON and the
 /// guard on direct skill writes both read it here, so the two cannot disagree
-/// after a profession, age, or attribute-point update. Whether a
-/// specialization was chosen is what counts, not which one.
+/// after either point pool changes. Whether a specialization was chosen is
+/// what counts, not which one.
 pub fn deriveCreationComplete(
     attribute_points: u32,
     trained_skill_points: u32,
@@ -961,6 +823,24 @@ test "CreateCharacter.validate rejects levels out of range" {
         .age = 1,
     };
     try max.validate();
+}
+
+test "a character update keeps kin, profession, and age fixed" {
+    const stored = StoredCharacterIdentity{ .kin = 1, .profession = 2, .age = 3 };
+    const unchanged = UpdateCharacter{ .name = "Grog", .level = 2, .kin = 1, .profession = 2, .age = 3 };
+    try validateCharacterIdentity(stored, unchanged);
+
+    var changed = unchanged;
+    changed.kin = 4;
+    try std.testing.expectError(error.KinImmutable, validateCharacterIdentity(stored, changed));
+
+    changed = unchanged;
+    changed.profession = 4;
+    try std.testing.expectError(error.ProfessionImmutable, validateCharacterIdentity(stored, changed));
+
+    changed = unchanged;
+    changed.age = 4;
+    try std.testing.expectError(error.AgeImmutable, validateCharacterIdentity(stored, changed));
 }
 
 test "Character serializes to the JSON wire shape" {
@@ -1255,19 +1135,12 @@ fn testSpecialization(id: Specialization.Id) Specialization {
     };
 }
 
-test "a specialization lasts only as long as its profession offers it" {
+test "a sole specialization is chosen when a character is created" {
     const several = [_]Specialization{ testSpecialization(1), testSpecialization(2) };
     const sole = [_]Specialization{testSpecialization(1)};
 
-    // One specialization leaves the player nothing to decide, so it is chosen
-    // even over a stored choice that belonged to another profession.
-    try std.testing.expectEqual(@as(?Specialization.Id, 1), deriveSpecialization(&sole, null));
-    try std.testing.expectEqual(@as(?Specialization.Id, 1), deriveSpecialization(&sole, 2));
-
-    // Several keep a valid choice and drop one the profession does not offer.
-    try std.testing.expectEqual(@as(?Specialization.Id, 2), deriveSpecialization(&several, 2));
-    try std.testing.expectEqual(@as(?Specialization.Id, null), deriveSpecialization(&several, null));
-    try std.testing.expectEqual(@as(?Specialization.Id, null), deriveSpecialization(&several, 7));
+    try std.testing.expectEqual(@as(?Specialization.Id, 1), deriveInitialSpecialization(&sole));
+    try std.testing.expectEqual(@as(?Specialization.Id, null), deriveInitialSpecialization(&several));
 }
 
 test "creation completion is derived from the two exhausted point pools" {
@@ -1489,18 +1362,6 @@ fn testCharacter(specialization: ?Specialization, attribute_points: u32, pool: u
     };
 }
 
-fn testCharacterWithSpecializations(
-    specializations: []Specialization,
-    specialization: ?Specialization,
-    attribute_points: u32,
-    pool: u32,
-    skills: []const CharacterSkill,
-) Character {
-    var character = testCharacter(specialization, attribute_points, pool, skills);
-    character.profession.specializations = specializations;
-    return character;
-}
-
 /// A finished sheet: every core skill at its starting chance, nothing trained,
 /// and both grants unlearned.
 fn testSheet() [7]CharacterSkill {
@@ -1562,72 +1423,45 @@ test "retrying a trained skill charges nothing" {
     for (plan.skills) |write| try std.testing.expect(write.skill != 1);
 }
 
-test "replacing a specialization takes back the skill it granted" {
-    var sheet = testSheet();
-    sheet[5] = .{ .skill = testGrantedSkill(9), .value = 1, .trained = true };
-    const character = testCharacter(test_professsion_specializations[0], 0, 8, &sheet);
-    const body = BodyCharacterCreation{ .specialization = 2, .skills = &.{} };
-
-    const plan = (try planCreation(std.testing.allocator, character, body, 2)).?;
-    defer std.testing.allocator.free(plan.skills);
-
-    try expectWrite(plan, 9, 0, false);
-    try expectWrite(plan, 10, 1, true);
-    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
-}
-
-test "specialization grants replace heroic skills without training charges" {
-    const first_heroic = testHeroicSkill(11);
-    const second_heroic = testHeroicSkill(12);
-    var specializations = [_]Specialization{
-        .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = first_heroic, .items = &.{} },
-        .{ .id = 2, .name = "Second", .description = "d", .skills = &test_second_skills, .heroic_skill = second_heroic, .items = &.{} },
-    };
-    const sheet = testSheet();
-    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
-
-    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 2, .skills = &.{} }, 2)).?;
-    defer std.testing.allocator.free(plan.skills);
-
-    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
-    try expectWrite(plan, first_heroic.id, 0, false);
-    try expectWrite(plan, second_heroic.id, 1, true);
-
-    try std.testing.expectError(
-        error.SkillNotTrainable,
-        planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{first_heroic.id} }, 2),
-    );
-}
-
-test "a specialization replacement retains a heroic grant shared by both choices" {
+test "the first specialization grants its heroic skill without a training charge" {
     const heroic = testHeroicSkill(11);
     var specializations = [_]Specialization{
         .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = heroic, .items = &.{} },
-        .{ .id = 2, .name = "Second", .description = "d", .skills = &test_second_skills, .heroic_skill = heroic, .items = &.{} },
+        test_professsion_specializations[1],
     };
     const sheet = testSheet();
-    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
-
-    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 2, .skills = &.{} }, 2)).?;
-    defer std.testing.allocator.free(plan.skills);
-
-    try expectWrite(plan, heroic.id, 1, true);
-    try std.testing.expectEqual(@as(usize, 3), plan.skills.len);
-}
-
-test "replaying a specialization grant leaves the training pool unchanged" {
-    const heroic = testHeroicSkill(11);
-    var specializations = [_]Specialization{
-        .{ .id = 1, .name = "First", .description = "d", .skills = &test_first_skills, .heroic_skill = heroic, .items = &.{} },
-    };
-    const sheet = testSheet();
-    const character = testCharacterWithSpecializations(&specializations, specializations[0], 0, 8, &sheet);
+    var character = testCharacter(null, 0, 8, &sheet);
+    character.profession.specializations = &specializations;
 
     const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{} }, 2)).?;
     defer std.testing.allocator.free(plan.skills);
 
     try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
     try expectWrite(plan, heroic.id, 1, true);
+    try std.testing.expectError(
+        error.SkillNotTrainable,
+        planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{heroic.id} }, 2),
+    );
+}
+
+test "a saved specialization cannot change even before training begins" {
+    const sheet = testSheet();
+    const character = testCharacter(test_professsion_specializations[0], 0, 8, &sheet);
+    try std.testing.expectError(
+        error.SpecializationLocked,
+        planCreation(std.testing.allocator, character, .{ .specialization = 2, .skills = &.{} }, 2),
+    );
+}
+
+test "replaying a saved specialization grant leaves the training pool unchanged" {
+    const sheet = testSheet();
+    const character = testCharacter(test_professsion_specializations[0], 0, 8, &sheet);
+
+    const plan = (try planCreation(std.testing.allocator, character, .{ .specialization = 1, .skills = &.{} }, 2)).?;
+    defer std.testing.allocator.free(plan.skills);
+
+    try std.testing.expectEqual(@as(u32, 8), plan.trained_skill_points);
+    try expectWrite(plan, 9, 1, true);
 }
 
 test "a completed character may replay its last request but not extend it" {
@@ -1641,8 +1475,7 @@ test "a completed character may replay its last request but not extend it" {
     const extend = BodyCharacterCreation{ .specialization = 1, .skills = &.{2} };
     try std.testing.expectError(error.CreationComplete, planCreation(std.testing.allocator, character, extend, 2));
 
-    // Moving specialization is refused by the lock rather than by completion:
-    // a finished character has spent points, and the lock is checked first.
+    // A saved specialization remains fixed even after creation has completed.
     const move = BodyCharacterCreation{ .specialization = 2, .skills = &.{} };
     try std.testing.expectError(error.SpecializationLocked, planCreation(std.testing.allocator, character, move, 2));
 }
@@ -1656,7 +1489,7 @@ test "each creation rule refuses its own request" {
     try std.testing.expectError(error.SpecializationNotOffered, planCreation(gpa, fresh, .{ .specialization = null, .skills = &.{} }, 2));
     try std.testing.expectError(error.SpecializationNotOffered, planCreation(gpa, fresh, .{ .specialization = 99, .skills = &.{} }, 2));
 
-    // A point already spent under the stored specialization locks it.
+    // The first saved specialization locks immediately, before training starts.
     var spent = testSheet();
     spent[0] = .{ .skill = testCoreSkill(1), .value = 10, .trained = true };
     const started = testCharacter(test_professsion_specializations[0], 0, 7, &spent);
@@ -1680,99 +1513,4 @@ test "each creation rule refuses its own request" {
     // leaves no way to reach a minimum of two.
     const two_left = testCharacter(null, 0, 2, &sheet);
     try std.testing.expectError(error.ProfessionSkillsReserved, planCreation(gpa, two_left, .{ .specialization = 1, .skills = &.{5} }, 2));
-}
-
-test "a new age sets every modifier it names and clears the ones it does not" {
-    const sheet = [_]CharacterAttribute{
-        .{ .attribute = test_agility, .base = 3, .spent = 0, .modifier = 2, .value = 5 },
-        .{ .attribute = test_strength, .base = 3, .spent = 0, .modifier = 0, .value = 3 },
-    };
-    // The new age says nothing about agility and adds one to strength.
-    const age_modifiers = [_]AgeAttribute{.{ .age = 2, .attribute = test_strength.id, .modifier = 1 }};
-
-    const writes = try planAgeModifiers(std.testing.allocator, &sheet, &age_modifiers);
-    defer std.testing.allocator.free(writes);
-
-    try std.testing.expectEqual(@as(usize, 2), writes.len);
-    try std.testing.expectEqual(AgeModifierWrite{ .attribute = test_agility.id, .modifier = 0 }, writes[0]);
-    try std.testing.expectEqual(AgeModifierWrite{ .attribute = test_strength.id, .modifier = 1 }, writes[1]);
-
-    // An age that changes nothing writes nothing.
-    const settled = [_]CharacterAttribute{
-        .{ .attribute = test_strength, .base = 3, .spent = 0, .modifier = 1, .value = 4 },
-    };
-    const none = try planAgeModifiers(std.testing.allocator, &settled, &age_modifiers);
-    defer std.testing.allocator.free(none);
-    try std.testing.expectEqual(@as(usize, 0), none.len);
-}
-
-test "an age or profession change clears training and keeps the grant" {
-    const gpa = std.testing.allocator;
-    const attributes = sheetWithAgility(13);
-    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
-
-    var sheet = testSheet();
-    sheet[0] = .{ .skill = testCoreSkill(1), .value = 12, .trained = true };
-    sheet[5] = .{ .skill = testGrantedSkill(9), .value = 1, .trained = true };
-
-    const writes = try planCreationReset(gpa, &sheet, &attributes, &bands, test_professsion_specializations[0], true);
-    defer gpa.free(writes);
-
-    // A trained core skill falls back to the single chance, and the grant is
-    // cleared before the specialization hands it out again.
-    const plan = CreationPlan{ .specialization = 1, .trained_skill_points = 0, .skills = writes };
-    try expectWrite(plan, 1, 6, false);
-    try expectWrite(plan, 5, 6, false);
-    try std.testing.expectEqual(TrainedSkillWrite{ .skill = 9, .value = 1, .trained = true }, writes[writes.len - 1]);
-
-    // Skill 10 is another specialization's grant, already at zero, so nothing
-    // about it changes.
-    for (writes) |write| try std.testing.expect(write.skill != 10);
-}
-
-test "an unfinished sheet resets to zero rather than to a chance" {
-    const gpa = std.testing.allocator;
-    const attributes = sheetWithAgility(13);
-    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
-
-    const sheet = testSheet();
-    const writes = try planCreationReset(gpa, &sheet, &attributes, &bands, null, false);
-    defer gpa.free(writes);
-
-    // Every core skill in the fixture holds 5, and none of them keeps it.
-    for (writes) |write| {
-        try std.testing.expectEqual(@as(u32, 0), write.value);
-        try std.testing.expect(!write.trained);
-    }
-    try std.testing.expectEqual(@as(usize, 5), writes.len);
-}
-
-test "a reset restores a kept heroic grant and clears it with no specialization" {
-    const gpa = std.testing.allocator;
-    const heroic = testHeroicSkill(11);
-    const specialization = Specialization{
-        .id = 1,
-        .name = "First",
-        .description = "d",
-        .skills = &.{},
-        .heroic_skill = heroic,
-        .items = &.{},
-    };
-    const attributes = sheetWithAgility(13);
-    const bands = [_]SkillBaseChance{.{ .min_value = 13, .max_value = 15, .base_chance = 6 }};
-    const sheet = [_]CharacterSkill{
-        .{ .skill = testCoreSkill(1), .value = 12, .trained = true },
-        .{ .skill = heroic, .value = 1, .trained = true },
-    };
-
-    const kept = try planCreationReset(gpa, &sheet, &attributes, &bands, specialization, true);
-    defer gpa.free(kept);
-    const kept_plan = CreationPlan{ .specialization = specialization.id, .trained_skill_points = 0, .skills = kept };
-    try expectWrite(kept_plan, heroic.id, 1, true);
-    try std.testing.expectEqual(@as(usize, 2), kept.len);
-
-    const cleared = try planCreationReset(gpa, &sheet, &attributes, &bands, null, true);
-    defer gpa.free(cleared);
-    const cleared_plan = CreationPlan{ .specialization = specialization.id, .trained_skill_points = 0, .skills = cleared };
-    try expectWrite(cleared_plan, heroic.id, 0, false);
 }

@@ -209,7 +209,11 @@ pub fn responseForError(err: anyerror, method: std.http.Method) ErrorResponse {
         },
         error.SpecializationLocked => .{
             .status = .bad_request,
-            .message = "The specialization cannot change once a skill has been trained.",
+            .message = "The specialization cannot change after it has been chosen.",
+        },
+        error.KinImmutable, error.ProfessionImmutable, error.AgeImmutable => .{
+            .status = .bad_request,
+            .message = "Kin, profession, and age are chosen when the character is created.",
         },
         error.AttributePointsRemaining => .{
             .status = .bad_request,
@@ -253,6 +257,13 @@ test "a write refused by the record's state is still the client's fault" {
     try std.testing.expectEqual(
         std.http.Status.bad_request,
         responseForError(error.CreationIncomplete, .PUT).status,
+    );
+}
+
+test "immutable character choices are the client's fault" {
+    try std.testing.expectEqual(
+        std.http.Status.bad_request,
+        responseForError(error.ProfessionImmutable, .PUT).status,
     );
 }
 

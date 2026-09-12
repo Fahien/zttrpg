@@ -222,9 +222,14 @@ function render() {
         return;
     }
 
-    if (trainingUnlocked() && minimumProfessionSkills !== null) {
+    const savingFirstChoice = character.specialization === null && selectedSpecialization() !== null;
+    if (savingFirstChoice || (trainingUnlocked() && minimumProfessionSkills !== null)) {
         submitButton.hidden = false;
-        renderSkills();
+        if (trainingUnlocked() && minimumProfessionSkills !== null) {
+            renderSkills();
+        } else {
+            hideTrainingControls();
+        }
     } else {
         submitButton.hidden = true;
         hideTrainingControls();
@@ -238,9 +243,9 @@ function renderSpecializations() {
     const focusedSpecialization = focusedInput instanceof HTMLInputElement &&
         focusedInput.name === 'specialization' ? focusedInput.value : null;
     const hasChoices = specializations.some((entry) => !isDefaultSpecialization(entry));
-    // A radio choice is only a draft until creation completes on the server.
-    // Keep it available while the player assigns and confirms training points.
-    creationFieldset.hidden = character.creation_complete || !hasChoices;
+    // A radio choice stays a local draft until its first save. After that the
+    // server keeps it fixed while creation can continue with training points.
+    creationFieldset.hidden = character.creation_complete || character.specialization !== null || !hasChoices;
     const needsChoice = !creationFieldset.hidden && specializationId === null;
     for (const element of document.querySelectorAll('[data-requires-specialization]')) {
         if (element instanceof HTMLElement) element.hidden = !needsChoice;
@@ -391,7 +396,8 @@ function renderStatus() {
     status.textContent = submitError;
     status.classList.toggle('error', submitError.length > 0);
     status.hidden = submitError.length === 0;
-    submitButton.disabled = pendingSkillIds.size === 0 || specialization === null || submitting;
+    submitButton.disabled = specialization === null || submitting ||
+        (character.specialization !== null && pendingSkillIds.size === 0);
 }
 
 function hideTrainingControls() {
@@ -422,7 +428,9 @@ function renderSheetSkills() {
 
 async function onSubmit() {
     const specialization = selectedSpecialization();
-    if (!trainingUnlocked() || submitting || specialization === null || pendingSkillIds.size === 0) return;
+    const savingFirstChoice = character.specialization === null;
+    if (submitting || specialization === null ||
+        (!savingFirstChoice && (!trainingUnlocked() || pendingSkillIds.size === 0))) return;
     submitting = true;
     submitError = '';
     render();
