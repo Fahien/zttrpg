@@ -8,13 +8,6 @@
 // Training mirrors the attribute step: a checkbox reserves a point locally and
 // a submit saves only those new choices. Saved training cannot be refunded.
 
-/** @typedef {{ id: number, attribute: { id: number } | null, kind: { name: string, base_chance: boolean } }} Skill */
-/** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
-/** @typedef {{ id: number, name: string, description: string, skills: Skill[] }} Specialization */
-/** @typedef {{ id: number, trained_skill_count: number }} Age */
-/** @typedef {{ specializations: Specialization[] }} Profession */
-/** @typedef {{ id: number, attribute_points: number, trained_skill_points: number, creation_complete: boolean, profession: Profession, specialization: Specialization | null, age: Age, skills: CharacterSkill[] }} Character */
-
 /** @type {Character} */
 let character = /** @type {Character} */ (/** @type {unknown} */ (null));
 /** @type {number | null} */
@@ -24,17 +17,14 @@ const pendingSkillIds = new Set();
 let availableTrainingPoints = 0;
 /** @type {number | null} */
 let minimumProfessionSkills = null;
-let submitting = false;
 let submitError = '';
+let submitting = false;
 
-const status = /** @type {HTMLElement} */ (document.getElementById('creation-status'));
-const creationFieldset = /** @type {HTMLFieldSetElement} */ (document.getElementById('character-creation'));
 const specializationOptions = /** @type {HTMLElement} */ (document.getElementById('specialization-options'));
-const specializationTemplate = /** @type {HTMLTemplateElement} */ (specializationOptions.querySelector('template'));
-const specializationSummary = /** @type {HTMLElement} */ (document.getElementById('selected-specialization'));
 const trainedSkillHelp = /** @type {HTMLElement} */ (document.getElementById('trained-skill-help'));
 const pointsElement = /** @type {HTMLElement} */ (document.getElementById('trained-skill-points'));
-const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-creation'));
+const submitSpecializationButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-specialization'));
+const submitSkillsButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-skills'));
 const skillLegend = /** @type {HTMLElement} */ (document.querySelector('.skill-legend'));
 const skillSourceList = /** @type {HTMLElement} */ (document.querySelector('[data-list="skills"]'));
 const skillGroups = /** @type {HTMLElement} */ (document.getElementById('skill-groups'));
@@ -44,7 +34,8 @@ document.addEventListener('instanceLoaded', onInstanceLoaded);
 document.addEventListener('characterUpdated', onCharacterUpdated);
 specializationOptions.addEventListener('change', onSpecializationChange);
 skillGroups.addEventListener('change', onTrainingSelectionChange);
-submitButton.addEventListener('click', onSubmit);
+submitSpecializationButton.addEventListener('click', onSubmitSpecialization);
+submitSkillsButton.addEventListener('click', onSubmitSkills);
 
 /** @param {Event} event */
 async function onInstanceLoaded(event) {
@@ -212,78 +203,12 @@ function render() {
     groupSkills();
     renderSheetSkills();
     renderTrainingNotice();
-    renderSpecializationSummary();
-    renderSpecializations();
-    renderSpecializationMarkers();
     if (character.creation_complete) {
         submitButton.hidden = true;
         hideTrainingControls();
-        status.hidden = true;
         return;
     }
-
-    const savingFirstChoice = character.specialization === null && selectedSpecialization() !== null;
-    if (savingFirstChoice || (trainingUnlocked() && minimumProfessionSkills !== null)) {
-        submitButton.hidden = false;
-        if (trainingUnlocked() && minimumProfessionSkills !== null) {
-            renderSkills();
-        } else {
-            hideTrainingControls();
-        }
-    } else {
-        submitButton.hidden = true;
-        hideTrainingControls();
-    }
     renderStatus();
-}
-
-function renderSpecializations() {
-    const specializations = character.profession.specializations;
-    const focusedInput = document.activeElement;
-    const focusedSpecialization = focusedInput instanceof HTMLInputElement &&
-        focusedInput.name === 'specialization' ? focusedInput.value : null;
-    const hasChoices = specializations.some((entry) => !isDefaultSpecialization(entry));
-    // A radio choice stays a local draft until its first save. After that the
-    // server keeps it fixed while creation can continue with training points.
-    creationFieldset.hidden = character.creation_complete || character.specialization !== null || !hasChoices;
-    const needsChoice = !creationFieldset.hidden && specializationId === null;
-    for (const element of document.querySelectorAll('[data-requires-specialization]')) {
-        if (element instanceof HTMLElement) element.hidden = !needsChoice;
-    }
-    if (creationFieldset.hidden) return;
-
-    for (const option of specializationOptions.querySelectorAll('[data-specialization-option]')) option.remove();
-
-    for (const specialization of specializations) {
-        const option = /** @type {DocumentFragment} */ (specializationTemplate.content.cloneNode(true));
-        const li = /** @type {HTMLElement} */ (option.querySelector('[data-specialization-option]'));
-        const input = /** @type {HTMLInputElement} */ (li.querySelector('input[name="specialization"]'));
-        const name = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-name]'));
-        const description = /** @type {HTMLElement} */ (li.querySelector('[data-specialization-description]'));
-        input.value = String(specialization.id);
-        input.checked = specialization.id === specializationId;
-        input.disabled = submitting;
-        name.textContent = ` ${specialization.name}`;
-        if (specialization.description) {
-            description.textContent = ` ${specialization.description}`;
-            description.hidden = false;
-        }
-        specializationOptions.append(option);
-    }
-
-    if (focusedSpecialization !== null) {
-        const replacement = specializationOptions.querySelector(`input[name="specialization"][value="${focusedSpecialization}"]`);
-        if (replacement instanceof HTMLInputElement) replacement.focus();
-    }
-}
-
-function renderSpecializationSummary() {
-    const specialization = selectedSpecialization();
-    specializationSummary.hidden = specialization === null || isDefaultSpecialization(specialization);
-    if (specialization !== null) {
-        const name = specializationSummary.querySelector('span');
-        if (name) name.textContent = specialization.name;
-    }
 }
 
 function renderTrainingNotice() {
@@ -325,51 +250,6 @@ function findSkillRow(id) {
         skillSourceList.querySelector(`[data-skill-id="${id}"]`);
 }
 
-function renderSkills() {
-    const specializationSkillIds = selectedSpecializationSkillIds();
-    const state = trainingState();
-    const hasSpecialization = selectedSpecialization() !== null;
-    for (const entry of character.skills) {
-        const row = findSkillRow(entry.skill.id);
-        if (!row) continue;
-        const inSpecialization = specializationSkillIds.has(entry.skill.id);
-        const trainingLabel = row.querySelector('[data-training-state]');
-        const choice = row.querySelector('input[data-training-selection]');
-        if (entry.skill.attribute === null || !entry.skill.kind.base_chance) {
-            if (trainingLabel instanceof HTMLElement) trainingLabel.hidden = true;
-            if (choice instanceof HTMLInputElement) choice.hidden = true;
-            continue;
-        }
-
-        const pending = pendingSkillIds.has(entry.skill.id);
-        const saved = entry.trained;
-        if (trainingLabel instanceof HTMLElement) {
-            trainingLabel.hidden = !saved;
-            trainingLabel.textContent = saved ? 'saved' : '';
-        }
-        if (choice instanceof HTMLInputElement) {
-            choice.hidden = !hasSpecialization;
-            choice.checked = saved || pending;
-            choice.disabled = saved || submitting || (!pending && !canAddSkill(inSpecialization, state));
-            choice.dataset.skillId = String(entry.skill.id);
-            choice.setAttribute('aria-label', `Train ${entry.skill.name}`);
-            choice.title = saved ? 'Training saved' : `Train ${entry.skill.name}`;
-        }
-    }
-}
-
-function renderSpecializationMarkers() {
-    const specializationSkillIds = selectedSpecializationSkillIds();
-    for (const entry of character.skills) {
-        const row = findSkillRow(entry.skill.id);
-        if (!row) continue;
-        const specializationLabel = row.querySelector('[data-specialization-skill]');
-        if (specializationLabel instanceof HTMLElement) {
-            specializationLabel.hidden = character.creation_complete || !specializationSkillIds.has(entry.skill.id);
-        }
-    }
-}
-
 /** @param {boolean} inProfession @param {ReturnType<typeof trainingState>} state @param {number} minimum */
 function hasRoomForProfessionMinimum(inProfession, state, minimum) {
     const nextProfession = state.selectedProfession + (inProfession ? 1 : 0);
@@ -393,9 +273,6 @@ function renderStatus() {
         : specialization === null
         ? ''
         : `${state.remainingProfession} more profession skill${state.remainingProfession === 1 ? '' : 's'} required; ${state.remainingTotal} training point${state.remainingTotal === 1 ? '' : 's'} remaining.`;
-    status.textContent = submitError;
-    status.classList.toggle('error', submitError.length > 0);
-    status.hidden = submitError.length === 0;
     submitButton.disabled = specialization === null || submitting ||
         (character.specialization !== null && pendingSkillIds.size === 0);
 }
@@ -426,7 +303,34 @@ function renderSheetSkills() {
     }
 }
 
-async function onSubmit() {
+async function onSubmitSpecialization() {
+    const specialization = selectedSpecialization();
+    const savingFirstChoice = character.specialization === null;
+    if (submitting || specialization === null) return;
+    submitting = true;
+    submitError = '';
+    render();
+    try {
+        const response = await fetch(`/characters/${character.id}/creation`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ specialization: specialization.id, skills: [...pendingSkillIds] }),
+        });
+        if (!response.ok) throw new Error(await response.text());
+        pendingSkillIds.clear();
+        const saved = /** @type {Character} */ (await response.json());
+        adoptCharacter(saved);
+        document.dispatchEvent(new CustomEvent('characterUpdated', { detail: saved }));
+    } catch (error) {
+        submitError = `Training not saved: ${error instanceof Error ? error.message : String(error)}`;
+    } finally {
+        submitting = false;
+        render();
+    }
+}
+
+
+async function onSubmitSkills() {
     const specialization = selectedSpecialization();
     const savingFirstChoice = character.specialization === null;
     if (submitting || specialization === null ||
@@ -452,5 +356,7 @@ async function onSubmit() {
         render();
     }
 }
+
+
 
 })();

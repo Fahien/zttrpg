@@ -229,13 +229,16 @@ function initInstancePage() {
                 continue;
             }
             const value = resolveFieldName(root, field);
-            if (value === undefined || value === null) {
-                section.hidden = true;
-            }
-
-            const showValue = section.dataset.showValue;
+            
+            let showValue = /** @type {string | null} */ (section.dataset.showValue);
             if (showValue !== undefined && showValue !== null) {
+                if (showValue == "null") {
+                    showValue = null;
+                }
                 section.hidden = value !== showValue;
+            }
+            else if (value === undefined || value === null) {
+                section.hidden = true;
             }
             else if (typeof value === 'number') {
                 // If number, show if != 0
@@ -268,7 +271,7 @@ function initInstancePage() {
 
         const instance = await response.json();
         // Dispatch an event announcing that the instance has been loaded, so other scripts can react to it.
-        const event = new CustomEvent('instanceLoaded', { detail: instance });
+        const event = new CustomEvent('instanceFetched', { detail: instance });
         document.dispatchEvent(event);
 
         bindHrefs(instance, document);
@@ -276,6 +279,8 @@ function initInstancePage() {
         expandList(instance, document);
         checkDataHide(instance, document);
         checkDataShow(instance, document);
+
+        document.dispatchEvent(new CustomEvent('instanceLoaded'));
     }
 
     // Fetch the instance when the page loads

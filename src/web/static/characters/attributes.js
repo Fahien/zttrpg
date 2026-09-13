@@ -3,15 +3,7 @@
 
 // @ts-check
 
-/** @typedef {{ id: number, short: string }} Attribute */
-/** @typedef {{ attribute: Attribute, spent: number, value: number }} CharacterAttribute */
-/** @typedef {{ attribute: Attribute | null, id: number, kind: { name: string, base_chance: boolean } }} Skill */
-/** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
-/** @typedef {{ attribute: Attribute, die_sides: number | null }} DamageBonus */
-/** @typedef {{ id: number, kin: { movement: number }, attribute_points: number, movement: number, attributes: CharacterAttribute[], skills: CharacterSkill[], damage_bonuses: DamageBonus[] }} Character */
-/** @typedef {{ attribute: Attribute, min_value: number, max_value: number, modifier: number }} MovementModifier */
-/** @typedef {{ attribute: number, min_value: number, die_sides: number }} DamageBonusRule */
-/** @typedef {{ min_value: number, max_value: number, base_chance: number }} SkillBaseChance */
+
 
 // Saved state of the character: the last answer the server gave, on load and
 // after every submit. Nothing in it is ever computed from clicks.
@@ -425,7 +417,7 @@ async function onSubmitAttributes() {
     // send the same body twice.
     submitButton.disabled = true;
     try {
-        const response = await fetch(`/characters/${originalCharacter.id}/attributes`, {
+        const response = await fetch(`/characters/${character.id}/attributes`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -433,13 +425,13 @@ async function onSubmitAttributes() {
 
         if (response.ok) {
             adoptCharacter(/** @type {Character} */ (await response.json()));
-            document.dispatchEvent(new CustomEvent('characterUpdated', { detail: originalCharacter }));
+            document.dispatchEvent(new CustomEvent('characterUpdated', { detail: character }));
             hideStatus();
         } else {
             for (const attributeId of editAttributeMap.keys()) {
                 editAttributeMap.set(attributeId, 0);
             }
-            availableAttributePoints = originalCharacter.attribute_points;
+            availableAttributePoints = character.attribute_points;
             showStatus(`Attributes not saved: ${await response.text()}`);
         }
     } catch (error) {
@@ -447,24 +439,4 @@ async function onSubmitAttributes() {
     } finally {
         render();
     }
-}
-
-/**
- * @param {string} message
- */
-function showStatus(message) {
-    if (!statusMessage) {
-        return;
-    }
-    statusMessage.textContent = message;
-    statusMessage.classList.add('error');
-    statusMessage.hidden = false;
-}
-
-function hideStatus() {
-    if (!statusMessage) {
-        return;
-    }
-    statusMessage.hidden = true;
-    statusMessage.classList.remove('error');
 }

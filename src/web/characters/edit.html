@@ -9,7 +9,7 @@
             <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
             <span data-field="age.name">Age</span>
         </p>
-        <p id="selected-specialization" hidden>Specialization: <span></span></p>
+        <p>Specialization: <span data-field="specialization.name" data-show="specialization.name" data-show-value="null" ></span></p>
     </header>
 
     <fieldset id="instance-stats">
@@ -25,23 +25,22 @@
         <legend>Attributes</legend>
         <!-- A callout, not an error: the player has points to spend. Hidden
                  with the rest of the stepper when the pool is empty. -->
-        <section class="notice" data-show="creation_status.name" data-show-value="Attributes" hidden>
-            <p>Attribute points to spend: <span data-field="attribute_points" data-quality="uncommon">0</span></p>
+        <section class="notice" data-show="attribute_points" hidden>
+            <p>Attribute points to spend: <span data-field="edit.attribute_points" data-quality="uncommon">0</span></p>
         </section>
 
         <!-- One row per attribute: the saved value, the points pending on
                  it, and the stepper that moves them. Everything that spends
                  points starts hidden and is revealed only while the character
                  still has points to spend. -->
-        <ul class="plain-list" data-list="attributes">
+        <ul class="plain-list" data-list="edit.attributes">
             <template>
                 <li class="flex-row" data-field="attribute.id:data-attribute-id">
                     <span class="icon-frame" data-icon-size="1"><span
                             data-field="attribute.icon.name:icon"></span></span>
                     <span class="grow" data-field="attribute.name"></span>
                     <span class="align-right tabular-nums min-width-3ch" data-field="value"></span>
-                    <span class="align-right tabular-nums min-width-3ch" data-pending data-quality="uncommon"
-                        data-requires-points hidden></span>
+                    <span class="align-right tabular-nums min-width-3ch" data-field="pending" data-quality="uncommon" data-show="attribute_points" hidden>0</span>
                     <button type="button" class="button-small" data-action="decrease-attribute"
                         data-field="attribute.id:data-attribute-id" data-show="attribute_points" hidden>-</button>
                     <button type="button" class="button-small" data-action="increase-attribute"
@@ -50,39 +49,43 @@
             </template>
         </ul>
 
-        <button type="button" id="submit-attributes" data-action="submit-attributes" data-requires-points hidden>Submit
+        <button type="button" id="submit-attributes" data-action="submit-attributes" data-show="attribute_points">Submit
             Attributes</button>
     </fieldset>
 
 
-    <fieldset id="character-creation" hidden>
+    <fieldset data-show="specialization" data-show-value="null" hidden>
         <legend>Specialization</legend>
-        <section class="notice" data-requires-specialization hidden>
+        <section class="notice">
             <p>Choose a specialization</p>
         </section>
-        <ul id="specialization-options" class="plain-list">
+
+        <button type="button" id="submit-specialization" data-action="submit-specialization">Submit
+            Specialization</button>
+
+        <ul class="plain-list" data-list="profession.specializations">
             <template>
-                <li class="specialization-option" data-specialization-option>
-                    <label><input type="radio" name="specialization"><span data-specialization-name></span></label>
-                    <small data-specialization-description hidden></small>
+                <li class="specialization-option" data-field="id:data-id">
+                    <label><input type="radio" name="specialization"><span data-field="name"></span></label>
+                    <small data-field="description"></small>
                 </li>
             </template>
         </ul>
     </fieldset>
 
-    <fieldset id="instance-skills">
+    <fieldset>
         <legend>Skills</legend>
-        
-        <section class="notice" data-show="creation_status.name" data-show-value="Skills" hidden aria-live="polite">
+
+        <section class="notice" aria-live="polite">
             <p>Training points to spend: <span id="trained-skill-points" data-quality="uncommon">0</span></p>
             <p id="trained-skill-help"></p>
         </section>
 
-        <p class="skill-legend" hidden><span class="profession-skill-marker" aria-hidden="true">★</span> Profession skill</p>
+        <p class="skill-legend"><span class="profession-skill-marker" aria-hidden="true">★</span> Profession
+            skill</p>
 
-        <button type="button" id="submit-creation" hidden>Submit Skills</button>
-        <p id="creation-status" hidden aria-live="polite"></p>
-        <section id="skill-groups" aria-live="polite"></section>
+        <button type="button" id="submit-skills" hidden>Submit Skills</button>
+
         <ul class="plain-list" data-list="skills" hidden>
             <template>
                 <li class="flex-row skill-row" data-field="skill.id:data-skill-id">
@@ -98,16 +101,10 @@
                 </li>
             </template>
         </ul>
-        <template id="skill-kind-template">
-            <section class="skill-kind">
-                <h3 data-skill-kind></h3>
-                <ul class="plain-list skill-kind-list"></ul>
-            </section>
-        </template>
     </fieldset>
 </main>
 
 <script src="/static/instance.js" data-resource="characters"></script>
-<script src="/static/characters/skills.js"></script>
-<script src="/static/characters/attributes.js"></script>
-<script src="/static/characters/creation.js"></script>
+<script src="/static/characters/edit/specialization.js"></script>
+<script type="module" src="/static/characters/edit/attributes.js"></script>
+<script src="/static/characters/edit/skills.js"></script>
