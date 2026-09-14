@@ -14,14 +14,14 @@ pub const SubResource = enum {
     attributes,
     skills,
     specialization,
-    creation,
+    train_skills,
 
     pub fn definition(comptime subresource: SubResource) SubDefinition {
         return switch (subresource) {
             .attributes => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterAttribute, .kind = .collection },
             .skills => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterSkill, .kind = .collection },
             .specialization => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterSpecialization, .kind = .action },
-            .creation => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterCreation, .kind = .action },
+            .train_skills => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterCreation, .kind = .action },
         };
     }
 };

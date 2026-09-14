@@ -361,7 +361,6 @@ fn validateCharacterIdentity(stored: StoredCharacterIdentity, update: UpdateChar
 /// created. The URL supplies the character id, so it must not be repeated in
 /// this body.
 pub const BodyCharacterCreation = struct {
-    specialization: ?Specialization.Id = null,
     skills: []const Skill.Id,
 
     pub fn validate(self: *const BodyCharacterCreation) error{DuplicateEntry}!void {
@@ -386,7 +385,6 @@ const TrainedSkillWrite = struct {
 
 /// Everything a valid creation request changes.
 pub const CreationPlan = struct {
-    specialization: Specialization.Id,
     trained_skill_points: u32,
     skills: []const TrainedSkillWrite,
 };
@@ -403,13 +401,6 @@ fn findSkillEntry(entries: []const CharacterSkill, id: Skill.Id) ?CharacterSkill
         if (entry.skill.id == id) return entry;
     }
     return null;
-}
-
-fn offersSkill(specialization: Specialization, id: Skill.Id) bool {
-    for (specialization.skills) |skill| {
-        if (skill.id == id) return true;
-    }
-    return false;
 }
 
 /// A specialization grants its non-base-chance skills that have an attribute.
@@ -494,40 +485,30 @@ pub fn planCreation(
     body: BodyCharacterCreation,
     profession_skill_minimum: u32,
 ) !?CreationPlan {
-    const selected = body.specialization orelse return error.SpecializationNotOffered;
-    if (character.specialization) |stored| {
-        if (stored.id != selected) return error.SpecializationLocked;
+    if (character.trained_skill_points == 0) {
+        return null;
     }
-    const specialization = findSpecialization(character.profession.specializations, selected) orelse
-        return error.SpecializationNotOffered;
 
-    // A specialization may be chosen while attributes are unfinished. A skill
-    // may not, because its starting value comes from an attribute.
-    if (body.skills.len > 0 and character.attribute_points > 0) return error.AttributePointsRemaining;
+    const specialization = character.specialization orelse return error.SpecializationNotOffered;
 
+    // Only Core skills are trainable.
     for (body.skills) |id| {
         const entry = findSkillEntry(character.skills, id) orelse return error.SkillNotTrainable;
-        if (entry.skill.attribute == null or !entry.skill.kind.base_chance) return error.SkillNotTrainable;
-    }
-
-    if (deriveCreationComplete(
-        character.attribute_points,
-        character.trained_skill_points,
-        if (character.specialization) |current| current.id else null,
-    )) {
-        for (body.skills) |id| {
-            if (!findSkillEntry(character.skills, id).?.trained) return error.CreationComplete;
-        }
-        return null;
+        if (!std.mem.eql(u8, entry.skill.kind.name, "Core")) return error.SkillNotTrainable;
     }
 
     var new_skills: u32 = 0;
     var new_profession_skills: u32 = 0;
     for (body.skills) |id| {
-        if (findSkillEntry(character.skills, id).?.trained) continue;
+        // Skip already trained skills.
+        if (findSkillEntry(character.skills, id).?.trained) {
+            continue;
+        }
 
         new_skills += 1;
-        if (offersSkill(specialization, id)) new_profession_skills += 1;
+        if (specialization.offersSkill(id)) {
+            new_profession_skills += 1;
+        }
     }
 
     if (new_skills > character.trained_skill_points) return error.NotEnoughTrainedSkillPoints;
@@ -536,7 +517,9 @@ pub fn planCreation(
     var saved_profession_skills: u32 = 0;
     for (character.skills) |entry| {
         if (!entry.trained or !entry.skill.kind.base_chance) continue;
-        if (offersSkill(specialization, entry.skill.id)) saved_profession_skills += 1;
+        if (specialization.offersSkill(entry.skill.id)) {
+            saved_profession_skills += 1;
+        }
     }
 
     // Choices from outside the profession are free while enough unspent points
@@ -561,7 +544,6 @@ pub fn planCreation(
     }
 
     return .{
-        .specialization = selected,
         .trained_skill_points = remaining,
         .skills = try writes.toOwnedSlice(gpa),
     };
@@ -618,7 +600,6 @@ pub const CharacterCreation = struct {
         const plan = (try planCreation(gpa, character, body, minimum)) orelse return;
 
         try db.updateColumns(gpa, Character, character_id, .{
-            .specialization = plan.specialization,
             .trained_skill_points = plan.trained_skill_points,
         });
         try db.updateSubRows(gpa, Character, CharacterSkill, TrainedSkillWrite, character_id, plan.skills);

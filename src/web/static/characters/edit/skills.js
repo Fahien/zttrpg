@@ -83,7 +83,7 @@ import { showStatus, hideStatus, fetchConfigValue } from '../types.js';
         submitButton.disabled = true;
 
         try {
-            const response = await fetch(`/characters/${character.id}/skills`, {
+            const response = await fetch(`/characters/${character.id}/train-skills`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body),

@@ -91,6 +91,13 @@ pub const Specialization = struct {
             .items = items,
         };
     }
+
+    pub fn offersSkill(self: *const Specialization, id: Skill.Id) bool {
+        for (self.skills) |skill| {
+            if (skill.id == id) return true;
+        }
+        return false;
+    }
 };
 
 /// One starting skill. Position is stored only to preserve the data's order.
