@@ -414,6 +414,7 @@ pub const Database = struct {
             .int => try std.fmt.parseInt(T, present, 10),
             .float => try std.fmt.parseFloat(T, present),
             .bool => if (std.mem.eql(u8, present, "t")) true else if (std.mem.eql(u8, present, "f")) false else error.InvalidCharacter,
+            .@"enum" => @enumFromInt(try std.fmt.parseInt(std.meta.Tag(T), present, 10)),
             .pointer => if (T == []const u8 or T == []u8)
                 try gpa.dupe(u8, present)
             else
@@ -430,6 +431,7 @@ pub const Database = struct {
             .bool => try gpa.dupeZ(u8, if (value) "true" else "false"),
             .int => try std.fmt.allocPrintSentinel(gpa, "{d}", .{value}, 0),
             .float => try std.fmt.allocPrintSentinel(gpa, "{}", .{value}, 0),
+            .@"enum" => try std.fmt.allocPrintSentinel(gpa, "{d}", .{@intFromEnum(value)}, 0),
             .pointer => if (T == []const u8 or T == []u8)
                 try gpa.dupeZ(u8, value)
             else

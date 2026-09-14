@@ -86,6 +86,13 @@ pub const CharacterAttribute = struct {
             return error.ItemNotFound;
         if (pools.attribute_points != 0) return;
 
+        if (pools.creation_status != CreationStatus.attributes) {
+            std.debug.print("Creation status mismatch: expected 'Attributes', got '{d}'\n", .{pools.creation_status});
+            return error.CreationStatusMismatch;
+        }
+        const next_creation_status_id = pools.creation_status.next();
+        try db.updateColumns(gpa, Character, character_id, .{ .creation_status = next_creation_status_id });
+
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, character_id);
         const bands = try db.readAllAlloc(gpa, SkillBaseChance);
         const entries = try db.readSubResource(gpa, Character, CharacterSkill, character_id);
@@ -574,10 +581,12 @@ pub const CharacterSpecialization = struct {
     pub const Body = BodyCharacterSpecialization;
 
     pub fn apply(db: *const Database, gpa: Allocator, character_id: Character.Id, body: Body) !void {
+        const pools = (try db.readProjection(gpa, Character, CreationPools, character_id)) orelse return error.ItemNotFound;
+        if (pools.creation_status != .specialization) return error.InvalidCreationStatus;
         const specialization_id = body.specialization orelse return error.InvalidValue;
         _ = (try db.readItem(gpa, Specialization, specialization_id)) orelse return error.ItemNotFound;
         const character = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
-        const next_creation_status_id = character.creation_status.id + 1;
+        const next_creation_status_id = character.creation_status.next();
 
         try db.updateColumns(gpa, Character, character_id, .{
             .creation_status = next_creation_status_id,
@@ -605,17 +614,25 @@ pub const CharacterCreation = struct {
     }
 };
 
-pub const CharacterCreationStatus = struct {
-    pub const Id = u32;
-    pub const table_name: []const u8 = "character_creation_status";
+pub const CreationStatus = enum(u32) {
+    attributes = 1,
+    specialization = 2,
+    skills = 3,
+    complete = 4,
 
-    id: Id,
-    name: []const u8,
+    pub fn next(self: CreationStatus) CreationStatus {
+        return switch (self) {
+            .attributes => .specialization,
+            .specialization => .skills,
+            .skills => .complete,
+            .complete => .complete,
+        };
+    }
 };
 
 pub const RowCharacter = struct {
     id: Character.Id,
-    creation_status: CharacterCreationStatus.Id,
+    creation_status: CreationStatus,
     name: []const u8,
     level: u32,
     kin: Kin.Id,
@@ -685,7 +702,7 @@ pub const Character = struct {
     pub const resource_name: []const u8 = "character";
 
     id: Id,
-    creation_status: CharacterCreationStatus,
+    creation_status: CreationStatus,
     name: []const u8,
     level: u32,
     kin: Kin,
@@ -706,7 +723,6 @@ pub const Character = struct {
     /// this character's id.
     pub fn fromRow(db: *const Database, gpa: Allocator, row: Row) !Character {
         const summary = try CharacterSummary.fromRow(db, gpa, row);
-        const creation_status = try db.readItem(gpa, CharacterCreationStatus, row.creation_status) orelse return error.CharacterCreationStatusNotFound;
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, row.id);
         const bands = try db.readAllAlloc(gpa, MovementModifier);
         const rules = try db.readAllAlloc(gpa, DamageBonus);
@@ -718,7 +734,7 @@ pub const Character = struct {
 
         return .{
             .id = summary.id,
-            .creation_status = creation_status,
+            .creation_status = row.creation_status,
             .name = summary.name,
             .level = summary.level,
             .kin = summary.kin,
@@ -795,6 +811,7 @@ pub const Character = struct {
 /// The columns creation status is read from, for a caller that wants the
 /// status alone. Reading the whole character costs a query per nested record.
 const CreationPools = struct {
+    creation_status: CreationStatus,
     attribute_points: u32,
     trained_skill_points: u32,
     specialization: ?Specialization.Id,
@@ -889,10 +906,9 @@ test "Character serializes to the JSON wire shape" {
     const kin = Kin{ .id = 1, .name = "Elf", .icon = icon, .movement = 10, .skills = &.{} };
     const profession = Profession{ .id = 1, .name = "Warrior", .icon = icon, .description = "A strong melee fighter", .specializations = &.{} };
     const age = Age{ .id = 1, .name = "Old", .icon = icon, .trained_skill_count = 8 };
-    const creation_status = CharacterCreationStatus{ .id = 4, .name = "Complete" };
     const character = Character{
         .id = 1,
-        .creation_status = creation_status,
+        .creation_status = .complete,
         .name = "Alice",
         .level = 2,
         .kin = kin,
@@ -910,7 +926,7 @@ test "Character serializes to the JSON wire shape" {
     try std.json.Stringify.value(character, .{}, &out.writer);
 
     try std.testing.expectEqualStrings(
-        \\{"id":1,"creation_status":{"id":4,"name":"Complete"},"name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
+        \\{"id":1,"creation_status":"complete","name":"Alice","level":2,"kin":{"id":1,"name":"Elf","icon":{"id":1,"name":"abacus"},"movement":10,"skills":[]},"profession":{"id":1,"name":"Warrior","icon":{"id":1,"name":"abacus"},"description":"A strong melee fighter","specializations":[]},"specialization":null,"age":{"id":1,"name":"Old","icon":{"id":1,"name":"abacus"},"trained_skill_count":8},"attribute_points":54,"trained_skill_points":8,"creation_complete":false,"movement":10,"damage_bonuses":[],"attributes":[],"skills":[]}
     , out.written());
 }
 
