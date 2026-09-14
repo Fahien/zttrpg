@@ -14,6 +14,7 @@ pub const Attribute = model.Attribute;
 pub const Character = model.Character;
 pub const CharacterAttribute = model.CharacterAttribute;
 pub const CharacterSkill = model.CharacterSkill;
+pub const CharacterSpecialization = model.CharacterSpecialization;
 pub const CharacterCreation = model.CharacterCreation;
 pub const CharacterSummary = model.CharacterSummary;
 pub const Config = model.Config;

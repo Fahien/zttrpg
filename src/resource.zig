@@ -13,12 +13,14 @@ const zttrpg = @import("zttrpg");
 pub const SubResource = enum {
     attributes,
     skills,
+    specialization,
     creation,
 
     pub fn definition(comptime subresource: SubResource) SubDefinition {
         return switch (subresource) {
             .attributes => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterAttribute, .kind = .collection },
             .skills => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterSkill, .kind = .collection },
+            .specialization => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterSpecialization, .kind = .action },
             .creation => .{ .Parent = zttrpg.Character, .Model = zttrpg.CharacterCreation, .kind = .action },
         };
     }
@@ -125,7 +127,15 @@ pub const Resource = enum {
             .movement_modifiers => .{ .Model = zttrpg.MovementModifier },
             .damage_bonuses => Definition.readOnly(zttrpg.DamageBonus),
             .skill_base_chances => Definition.readOnly(zttrpg.SkillBaseChance),
-            .characters => .{ .Model = zttrpg.Character, .edit = true, .subresources = &.{ .attributes, .skills, .creation } },
+            .characters => .{
+                .Model = zttrpg.Character,
+                .edit = true,
+                .subresources = &.{
+                    .attributes,
+                    .specialization,
+                    .skills,
+                },
+            },
             .kins => .{ .Model = zttrpg.Kin },
             .skill_kinds => .{ .Model = zttrpg.SkillKind },
             .skills => .{ .Model = zttrpg.Skill },

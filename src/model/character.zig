@@ -560,6 +560,32 @@ pub fn planCreation(
     };
 }
 
+/// The player's choice for specialization.
+pub const BodyCharacterSpecialization = struct {
+    specialization: ?Specialization.Id = null,
+
+    pub fn validate(self: *const BodyCharacterSpecialization) !void {
+        if (self.specialization == null) return error.InvalidValue;
+        if (self.specialization.? <= 0) return error.ValueOutOfRange;
+    }
+};
+
+pub const CharacterSpecialization = struct {
+    pub const Body = BodyCharacterSpecialization;
+
+    pub fn apply(db: *const Database, gpa: Allocator, character_id: Character.Id, body: Body) !void {
+        const specialization_id = body.specialization orelse return error.InvalidValue;
+        _ = (try db.readItem(gpa, Specialization, specialization_id)) orelse return error.ItemNotFound;
+        const character = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
+        const next_creation_status_id = character.creation_status.id + 1;
+
+        try db.updateColumns(gpa, Character, character_id, .{
+            .creation_status = next_creation_status_id,
+            .specialization = specialization_id,
+        });
+    }
+};
+
 /// The non-row operation exposed at /characters/:id/creation. The rules live in
 /// planCreation; this reads what they need and writes what they decide.
 pub const CharacterCreation = struct {

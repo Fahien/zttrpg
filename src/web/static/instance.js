@@ -113,25 +113,26 @@ function initInstancePage() {
 
     /**
      * @param {*} root The root data object.
-     * @param {*} scope The scope element to search for data-field elements within.
+     * @param {*} scope The scope element to search within.
+     * @param {*} element The element selector to target.
+     * @param {*} attribute The attribute to bind and resolve.
      */
-    function bindHrefs(root, scope) {
-        const dataHref = /** @type {NodeListOf<HTMLAnchorElement>} */ (scope.querySelectorAll('[data-href]'));
-        for (const href of dataHref) {
-            if (!href.dataset.href) {
-                console.warn('No data-href attribute found for element:', href);
+    function bindAttribute(root, scope, element, attribute) {
+        const selector = `${element}[${attribute}]`;
+        const elements = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll(selector));
+        for (const element of elements) {
+            let currentValue = element.getAttribute(attribute);
+            if (!currentValue) {
                 continue;
             }
-
-            href.href = href.dataset.href.replace(
+            const resolvedValue = currentValue.replace(
                 /\{([^{}]+)\}/g, // match all substring that start with { and end with }, e.g. {id}
-                (entire_match, capture_text) => {
-                    console.info("Entire match: ", entire_match);
-                    console.info("Captured text:", capture_text);
+                (_, capture_text) => {
                     const value = resolveFieldName(root, capture_text);
                     return value !== null && value !== undefined ? value : '';
                 }
-            )
+            );
+            element.setAttribute(attribute, resolvedValue);
         }
     }
 
@@ -178,8 +179,9 @@ function initInstancePage() {
                 }
                 // Clone the template content and bind fields for each item.
                 const clone = document.importNode(template.content, true);
+                bindAttribute(item, clone, 'input', 'value');
+                bindAttribute(item, clone, 'a', 'href');
                 bindFields(item, clone);
-                bindHrefs(item, clone);
                 expandList(item, clone);
                 list.appendChild(clone);
             }
@@ -274,7 +276,8 @@ function initInstancePage() {
         const event = new CustomEvent('instanceFetched', { detail: instance });
         document.dispatchEvent(event);
 
-        bindHrefs(instance, document);
+        bindAttribute(instance, document, 'input', 'value');
+        bindAttribute(instance, document, 'a', 'href');
         bindFields(instance, document);
         expandList(instance, document);
         checkDataHide(instance, document);

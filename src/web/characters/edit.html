@@ -9,7 +9,7 @@
             <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
             <span data-field="age.name">Age</span>
         </p>
-        <p>Specialization: <span data-field="specialization.name" data-show="specialization.name" data-show-value="null" ></span></p>
+        <p>Specialization: <span data-field="specialization.name" data-show="specialization.name" ></span></p>
     </header>
 
     <fieldset id="instance-stats">
@@ -63,10 +63,10 @@
         <button type="button" id="submit-specialization" data-action="submit-specialization">Submit
             Specialization</button>
 
-        <ul class="plain-list" data-list="profession.specializations">
+        <ul id="specialization-options" class="plain-list" data-list="profession.specializations">
             <template>
                 <li class="specialization-option" data-field="id:data-id">
-                    <label><input type="radio" name="specialization"><span data-field="name"></span></label>
+                    <label><input type="radio" name="specialization" value="{id}"><span data-field="name"></span></label>
                     <small data-field="description"></small>
                 </li>
             </template>
@@ -105,6 +105,6 @@
 </main>
 
 <script src="/static/instance.js" data-resource="characters"></script>
-<script src="/static/characters/edit/specialization.js"></script>
 <script type="module" src="/static/characters/edit/attributes.js"></script>
-<script src="/static/characters/edit/skills.js"></script>
+<script type="module" src="/static/characters/edit/specialization.js"></script>
+<script type="module" src="/static/characters/edit/skills.js"></script>

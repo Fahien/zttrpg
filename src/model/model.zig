@@ -22,6 +22,7 @@ pub const Character = character.Character;
 pub const CharacterAttribute = character.CharacterAttribute;
 pub const CharacterSkill = character.CharacterSkill;
 pub const CharacterCreation = character.CharacterCreation;
+pub const CharacterSpecialization = character.CharacterSpecialization;
 pub const CharacterSummary = character.CharacterSummary;
 pub const MovementModifier = character.MovementModifier;
 
