@@ -6,7 +6,7 @@
 import { showStatus, hideStatus } from '../types.js';
 /** @typedef {import('../types.js').Character} Character */
 /** @typedef {{ selected_specialization_id: number | null }} SpecializationEdit */
-/** @typedef {import('../types.js').Character & { specialization_edit: SpecializationEdit }} CharacterSpecializationEdit */
+/** @typedef {import('../types.js').Character & { specialization_edit: SpecializationEdit | null }} CharacterSpecializationEdit */
 
 (() => {
 
@@ -26,7 +26,7 @@ import { showStatus, hideStatus } from '../types.js';
      * @param {Event} event
      */
     function onInstanceFetched(event) {
-        const customEvent = /** @type {CustomEvent} */ (event);
+        const customEvent = /** @type {CustomEvent<Character>} */ (event);
         setCharacter(/** @type {CharacterSpecializationEdit} */(customEvent.detail));
     }
 
@@ -55,6 +55,9 @@ import { showStatus, hideStatus } from '../types.js';
         submitButton.addEventListener('click', onSubmitSpecialization);
     }
 
+    /**
+     * @returns {Promise<void>}
+     */
     async function onSubmitSpecialization() {
         if (character == null || character.specialization_edit == null) {
             return;

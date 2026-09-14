@@ -112,10 +112,14 @@ function initInstancePage() {
     }
 
     /**
-     * @param {*} root The root data object.
-     * @param {*} scope The scope element to search within.
-     * @param {*} element The element selector to target.
-     * @param {*} attribute The attribute to bind and resolve.
+     * Interpolates {field.path} placeholders in matching descendant attributes.
+     * Missing/null values become empty strings. Updates attributes in place.
+     *
+     * @param {Record<string, unknown>} root Page data or the current list item.
+     * @param {Document | DocumentFragment | Element} scope Search container.
+     * @param {string} element Element selector prefix, e.g. "input".
+     * @param {string} attribute Attribute name, e.g. "value".
+     * @returns {void}
      */
     function bindAttribute(root, scope, element, attribute) {
         const selector = `${element}[${attribute}]`;
@@ -231,7 +235,7 @@ function initInstancePage() {
                 continue;
             }
             const value = resolveFieldName(root, field);
-            
+
             let showValue = /** @type {string | null} */ (section.dataset.showValue);
             if (showValue !== undefined && showValue !== null) {
                 if (showValue == "null") {
