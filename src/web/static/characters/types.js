@@ -14,6 +14,7 @@
 /** @typedef {{ id: number, name: string, description: string, skills: Skill[] }} Specialization */
 /** @typedef {{ id: number, trained_skill_count: number }} Age */
 /** @typedef {{ specializations: Specialization[] }} Profession */
+/** @typedef { 'attributes' | 'specialization' | 'skills' | 'complete' } CreationStatus */
 /**
  * @typedef {{
  *  id: number,
@@ -22,6 +23,7 @@
  *  movement: number,
  *  trained_skill_points: number,
  *  creation_complete: boolean,
+ *  creation_status: CreationStatus,
  *  profession: Profession,
  *  specialization: Specialization | null,
  *  age: Age,
@@ -55,6 +57,21 @@ export function hideStatus() {
     }
     statusMessage.hidden = true;
     statusMessage.classList.remove('error');
+}
+
+
+/**
+ * Reads a numeric rule from the generic configuration resource.
+ * @param {string} name
+ */
+export async function fetchConfigValue(name) {
+    const response = await fetch('/configs', { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const configs = /** @type {{ name: string, value: string }[]} */ (await response.json());
+    const config = configs.find((entry) => entry.name === name);
+    const value = Number(config?.value);
+    if (!config || !Number.isSafeInteger(value) || value < 0) throw new Error(`invalid config: ${name}`);
+    return value;
 }
 
 

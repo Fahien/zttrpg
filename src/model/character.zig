@@ -90,8 +90,8 @@ pub const CharacterAttribute = struct {
             std.debug.print("Creation status mismatch: expected 'Attributes', got '{d}'\n", .{pools.creation_status});
             return error.CreationStatusMismatch;
         }
-        const next_creation_status_id = pools.creation_status.next();
-        try db.updateColumns(gpa, Character, character_id, .{ .creation_status = next_creation_status_id });
+        const next_creation_status = if (pools.specialization != null) .skills else .specialization;
+        try db.updateColumns(gpa, Character, character_id, .{ .creation_status = next_creation_status });
 
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, character_id);
         const bands = try db.readAllAlloc(gpa, SkillBaseChance);
@@ -583,13 +583,24 @@ pub const CharacterSpecialization = struct {
     pub fn apply(db: *const Database, gpa: Allocator, character_id: Character.Id, body: Body) !void {
         const pools = (try db.readProjection(gpa, Character, CreationPools, character_id)) orelse return error.ItemNotFound;
         if (pools.creation_status != .specialization) return error.InvalidCreationStatus;
+
         const specialization_id = body.specialization orelse return error.InvalidValue;
         _ = (try db.readItem(gpa, Specialization, specialization_id)) orelse return error.ItemNotFound;
-        const character = (try db.readItem(gpa, Character, character_id)) orelse return error.ItemNotFound;
-        const next_creation_status_id = character.creation_status.next();
+
+        const profession = (try db.readItem(gpa, Profession, pools.profession)) orelse return error.ItemNotFound;
+        var specialization_found = false;
+        for (profession.specializations) |spec| {
+            if (spec.id == specialization_id) {
+                specialization_found = true;
+                break;
+            }
+        }
+        if (!specialization_found) return error.InvalidSpecialization;
+
+        const next_creation_status = pools.creation_status.next();
 
         try db.updateColumns(gpa, Character, character_id, .{
-            .creation_status = next_creation_status_id,
+            .creation_status = next_creation_status,
             .specialization = specialization_id,
         });
     }
@@ -815,6 +826,7 @@ const CreationPools = struct {
     attribute_points: u32,
     trained_skill_points: u32,
     specialization: ?Specialization.Id,
+    profession: ?Profession.Id,
 };
 
 /// Creation status is a view of persisted choices. The served JSON and the

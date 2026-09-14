@@ -141,6 +141,55 @@ function initInstancePage() {
     }
 
     /**
+     * Replaces {field.path} placeholders in descendant data-* attributes.
+     * Missing/null values become empty strings.
+     *
+     * @param {Record<string, unknown>} root Page data or the current list item.
+     * @param {Document | DocumentFragment | Element} scope Search container.
+     * @returns {void}
+     */
+    function bindDataAttributes(root, scope) {
+        const elements = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('*'));
+        for (const element of elements) {
+            for (const attribute of element.attributes) {
+                if (!attribute.name.startsWith('data-')) {
+                    continue;
+                }
+
+                attribute.value = attribute.value.replace(
+                    /\{([^{}]+)\}/g, // match all substring that start with { and end with }, e.g. {id}
+                    (_, field) => {
+                        const sanitizedField = field.trim();
+                        const value = resolveFieldName(root, sanitizedField);
+                        return value ?? '';
+                    }
+                );
+            }
+        }
+    }
+
+    /**
+     * Replaces {field.path} placeholders in descendant text nodes.
+     * Skips scripts and styles. Missing/null values become empty strings.
+     *
+     * @param {Record<string, unknown>} root Page data or the current list item.
+     * @param {Document | DocumentFragment | Element} scope Search container.
+     * @returns {void}
+     */
+    function bindText(root, scope) {
+        const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (node.parentElement?.closest('script, style')) continue;
+
+            const text = /** @type {Text} */ (node);
+            text.data = text.data.replace(
+                /\{([^{}]+)\}/g,
+                (_, field) => String(resolveFieldName(root, field.trim()) ?? '')
+            );
+        }
+    }
+
+    /**
      * @param {*} root The root data object.
      * @param {*} scope The scope element to search for data-list elements within.
      */
@@ -185,7 +234,9 @@ function initInstancePage() {
                 const clone = document.importNode(template.content, true);
                 bindAttribute(item, clone, 'input', 'value');
                 bindAttribute(item, clone, 'a', 'href');
+                bindDataAttributes(item, clone);
                 bindFields(item, clone);
+                bindText(item, clone);
                 expandList(item, clone);
                 list.appendChild(clone);
             }
@@ -282,7 +333,9 @@ function initInstancePage() {
 
         bindAttribute(instance, document, 'input', 'value');
         bindAttribute(instance, document, 'a', 'href');
+        bindDataAttributes(instance, document);
         bindFields(instance, document);
+        bindText(instance, document);
         expandList(instance, document);
         checkDataHide(instance, document);
         checkDataShow(instance, document);
