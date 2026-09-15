@@ -20,7 +20,13 @@ function initInstancePage() {
     /** @type {string} */
     const bindingName = script.dataset.as;
 
-    /** @typedef {{node: Text, template: string, data: Record<string, unknown>}} Binding */
+    /**
+     * @typedef {Object} Binding
+     * @property {Text | Attr} node Either a text node or an attribute node where to write.
+     * @property {string} template The template string containing placeholders for data binding.
+     * @property {Record<string, unknown>} data The object used to resolve the placeholders in the template.
+     */
+
     /** @type {Binding[]} */
     const bindings = [];
 
@@ -182,7 +188,7 @@ function initInstancePage() {
 
 
     /**
-     * Discovers {field.path} placeholders in descendant text nodes.
+     * Discovers {field.path} placeholders in descendant text and attribute nodes.
      * Skips scripts and styles.
      *
      * @param {Document | DocumentFragment | Element} scope Search container.
@@ -195,26 +201,39 @@ function initInstancePage() {
             if (node.parentElement?.closest('script, style')) continue;
             const text_node = /** @type {Text} */ (node);
             // If node data contains placeholders like {field.path}, collect node and template.
-            if (text_node.data.match(/\{([^{}]+)\}/)) {
-                bindings.push({
-                    node: text_node,
-                    template: text_node.data,
-                    data,
-                });
+            if (!/\{([^{}]+)\}/.test(text_node.data)) {
+                continue;
             }
+            bindings.push({
+                node: text_node,
+                template: text_node.data,
+                data,
+            });
+        }
+
+        for (const element of scope.querySelectorAll('[title]')) {
+            const attribute = element.getAttributeNode('title');
+            if (!attribute || !/\{([^{}]+)\}/.test(attribute.value)) {
+                continue;
+            }
+            bindings.push({
+                node: attribute,
+                template: attribute.value,
+                data,
+            });
         }
     }
 
     /**
-     * Re-renders existing text nodes from their saved templates and data objects.
+     * Re-renders existing text and attribute nodes from their saved templates and data objects.
      * Call after mutating those objects. This does not add, remove, or replace rows.
      * @returns {void}
      */
     function updateBindings() {
         for (const binding of bindings) {
             const value = interpolate(binding.template, binding.data);
-            if (binding.node.data !== value) {
-                binding.node.data = value;
+            if (binding.node.nodeValue !== value) {
+                binding.node.nodeValue = value;
             }
         }
     }
