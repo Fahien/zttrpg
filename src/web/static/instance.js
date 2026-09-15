@@ -122,6 +122,22 @@ function initInstancePage() {
     }
 
     /**
+     * This function takes a template, such as "Hello {name}", and inserts values into it.
+     * `Record<string, unknown>` means an object with string keys whose value types are not assumed in advance.
+     * 
+     * @param {string} template The original string containing placeholders like "{name}".
+     * @param {Record<string, unknown>} data The object from which to read their values.
+     * @returns {string} The template with those placeholders replaced.
+     */
+    function interpolate(template, data) {
+        return template.replace(/\{([^{}]+)\}/g, (_match, field) => {
+            const path = field.trim();
+            const value = resolveFieldName(data, path);
+            return String(value ?? '');
+        });
+    }
+
+    /**
      * Interpolates {field.path} placeholders in matching descendant attributes.
      * Missing/null values become empty strings. Updates attributes in place.
      *
@@ -139,13 +155,7 @@ function initInstancePage() {
             if (!currentValue) {
                 continue;
             }
-            const resolvedValue = currentValue.replace(
-                /\{([^{}]+)\}/g, // match all substring that start with { and end with }, e.g. {id}
-                (_, capture_text) => {
-                    const value = resolveFieldName(root, capture_text);
-                    return value !== null && value !== undefined ? value : '';
-                }
-            );
+            const resolvedValue = interpolate(currentValue, root);
             element.setAttribute(attribute, resolvedValue);
         }
     }
@@ -165,15 +175,7 @@ function initInstancePage() {
                 if (!attribute.name.startsWith('data-')) {
                     continue;
                 }
-
-                attribute.value = attribute.value.replace(
-                    /\{([^{}]+)\}/g, // match all substring that start with { and end with }, e.g. {id}
-                    (_, field) => {
-                        const sanitizedField = field.trim();
-                        const value = resolveFieldName(root, sanitizedField);
-                        return value ?? '';
-                    }
-                );
+                attribute.value = interpolate(attribute.value, root);
             }
         }
     }
@@ -210,10 +212,7 @@ function initInstancePage() {
      */
     function updateBindings() {
         for (const binding of bindings) {
-            const value = binding.template.replace(
-                /\{([^{}]+)\}/g,
-                (_, field) => String(resolveFieldName(binding.data, field.trim()) ?? '')
-            );
+            const value = interpolate(binding.template, binding.data);
             if (binding.node.data !== value) {
                 binding.node.data = value;
             }
