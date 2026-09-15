@@ -1,8 +1,8 @@
 <main id="instance-details">
     <header>
-        <h1 data-field="name">Config Name</h1>
+        <h1>{config.name}</h1>
     </header>
-    <p>Value: <span data-field="value"></span></p>
+    <p>Value: {config.value}</p>
 </main>
 
-<script src="/static/instance.js" data-resource="configs"></script>
+<script src="/static/instance.js" data-resource="configs" data-as="config"></script>

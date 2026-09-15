@@ -1,14 +1,13 @@
 <main id="instance-details">
     <header>
-        <h1><span class="icon-frame" data-icon-size="1"><span data-field="icon.name:icon"></span></span> <span
-                data-field="name">Item Name</span></h1>
-        <p>Kind: <span data-field="kind.name">Item kind</span></p>
-        <p>Supply: <span data-field="supply.name">Item supply</span></p>
-        <p>Cost: <span data-field="cost">0</span></p>
-        <p>Weight: <span data-field="weight">1</span></p>
-        <p>Effect: <span data-field="effect">None</span></p>
-        <p data-field="description">Item description</p>
+        <h1><span class="icon-frame" data-icon-size="1"><span data-field="icon.name:icon"></span></span> {item.name}</h1>
+        <p>Kind: {item.kind.name}</p>
+        <p>Supply: {item.supply.name}</p>
+        <p>Cost: {item.cost}</p>
+        <p>Weight: {item.weight}</p>
+        <p>Effect: {item.effect}</p>
+        <p>{item.description}</p>
     </header>
 </main>
 
-<script src="/static/instance.js" data-resource="items"></script>
+<script src="/static/instance.js" data-resource="items" data-as="item"></script>

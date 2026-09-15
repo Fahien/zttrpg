@@ -144,50 +144,6 @@ function initInstancePage() {
     }
 
     /**
-     * Interpolates {field.path} placeholders in matching descendant attributes.
-     * Missing/null values become empty strings. Updates attributes in place.
-     *
-     * @param {Record<string, unknown>} root Page data or the current list item.
-     * @param {Document | DocumentFragment | Element} scope Search container.
-     * @param {string} element Element selector prefix, e.g. "input".
-     * @param {string} attribute Attribute name, e.g. "value".
-     * @returns {void}
-     */
-    function bindAttribute(root, scope, element, attribute) {
-        const selector = `${element}[${attribute}]`;
-        const elements = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll(selector));
-        for (const element of elements) {
-            let currentValue = element.getAttribute(attribute);
-            if (!currentValue) {
-                continue;
-            }
-            const resolvedValue = interpolate(currentValue, root);
-            element.setAttribute(attribute, resolvedValue);
-        }
-    }
-
-    /**
-     * Replaces {field.path} placeholders in descendant data-* attributes.
-     * Missing/null values become empty strings.
-     *
-     * @param {Record<string, unknown>} root Page data or the current list item.
-     * @param {Document | DocumentFragment | Element} scope Search container.
-     * @returns {void}
-     */
-    function bindDataAttributes(root, scope) {
-        const elements = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('*'));
-        for (const element of elements) {
-            for (const attribute of element.attributes) {
-                if (!attribute.name.startsWith('data-')) {
-                    continue;
-                }
-                attribute.value = interpolate(attribute.value, root);
-            }
-        }
-    }
-
-
-    /**
      * Discovers {field.path} placeholders in descendant text and attribute nodes.
      * Skips scripts and styles.
      *
@@ -211,16 +167,26 @@ function initInstancePage() {
             });
         }
 
-        for (const element of scope.querySelectorAll('[title]')) {
-            const attribute = element.getAttributeNode('title');
-            if (!attribute || !/\{([^{}]+)\}/.test(attribute.value)) {
+        for (const element of scope.querySelectorAll('*')) {
+            if (element.closest('script, style')) {
                 continue;
             }
-            bindings.push({
-                node: attribute,
-                template: attribute.value,
-                data,
-            });
+            for (const attribute of element.attributes) {
+                const supported =
+                    ['title', 'href', 'value'].includes(attribute.name) ||
+                    attribute.name.startsWith('data-') ||
+                    attribute.name.startsWith('aria-');
+
+                if (!supported || !/\{([^{}]+)\}/.test(attribute.value)) {
+                    continue;
+                }
+
+                bindings.push({
+                    node: attribute,
+                    template: attribute.value,
+                    data,
+                });
+            }
         }
     }
 
@@ -275,59 +241,6 @@ function initInstancePage() {
                 discoverBindings(clone, rowData);
                 // Discover before expanding: nested rows must keep their own data.
                 expandIterations(rowData, clone);
-                list.appendChild(clone);
-            }
-        }
-    }
-
-    /**
-     * @param {*} root The root data object.
-     * @param {*} scope The scope element to search for data-list elements within.
-     */
-    function expandList(root, scope) {
-        const dataLists = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-list]'));
-        for (const list of dataLists) {
-            if (!list.dataset.list) {
-                console.warn('No data-list attribute found for element:', list);
-                continue;
-            }
-
-            const listName = list.dataset.list;
-
-            const path = listName.split('.'); // Handle nested fields like "kin.name"
-            const value = resolvePath(root, path);
-            if (value === null || value === undefined) {
-                console.warn(`Field "${listName}" not found in root data:`, root);
-                continue;
-            }
-
-            if (!Array.isArray(value)) {
-                console.warn(`Field "${listName}" is not an array in root data:`, root);
-                continue;
-            }
-
-            // Find the template element within the list.
-            const template = /** @type {HTMLTemplateElement} */ (list.querySelector('template'));
-            if (!template) {
-                console.warn('No template found for list element:', list);
-                continue;
-            }
-
-            const filterField = list.dataset.filterField;
-            const filterValue = list.dataset.filterValue;
-            const shouldFilter = filterField !== undefined && filterValue !== undefined;
-
-            for (const item of value) {
-                if (shouldFilter && resolveFieldName(item, filterField) !== filterValue) {
-                    continue;
-                }
-                // Clone the template content and bind fields for each item.
-                const clone = document.importNode(template.content, true);
-                bindAttribute(item, clone, 'input', 'value');
-                bindAttribute(item, clone, 'a', 'href');
-                bindDataAttributes(item, clone);
-                bindFields(item, clone);
-                expandList(item, clone);
                 list.appendChild(clone);
             }
         }
@@ -421,11 +334,7 @@ function initInstancePage() {
         const event = new CustomEvent('instanceFetched', { detail: instance });
         document.dispatchEvent(event);
 
-        bindAttribute(instance, document, 'input', 'value');
-        bindAttribute(instance, document, 'a', 'href');
-        bindDataAttributes(instance, document);
         bindFields(instance, document);
-        expandList(instance, document);
         checkDataHide(instance, document);
         checkDataShow(instance, document);
 

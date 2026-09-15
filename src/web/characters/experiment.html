@@ -2,7 +2,8 @@
 
 <ul data-iter="character.attributes" data-as="entry">
     <template>
-        <li title="{entry.attribute.name}: {entry.value}">{entry.attribute.name}: {entry.value}</li>
+        <li title="{entry.attribute.name}: {entry.value}">
+            <a href="/attributes/{entry.attribute.id}">{entry.attribute.name}</a>: {entry.value}</li>
     </template>
 </ul>
 

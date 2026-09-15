@@ -1,18 +1,18 @@
 <main id="instance-details">
     <header>
-        <h1 data-field="name">Kin Name</h1>
+        <h1>{kin.name}</h1>
     </header>
-    <p>Movement: <span data-field="movement"></span></p>
-    <ul class="plain-list" data-list="skills">
+    <p>Movement: {kin.movement}</p>
+    <ul class="plain-list" data-iter="kin.skills" data-as="entry">
         <template>
             <li>
                 <span class="icon-frame">
-                    <span data-field="icon.name:icon"></span>
+                    {entry.skill.icon.name}
                 </span>
-                <a href="/skills/{id}"><span data-field="name"></span></a>
+                <a href="/skills/{entry.skill.id}"><span>{entry.skill.name}</span></a>
             </li>
         </template>
     </ul>
 </main>
 
-<script src="/static/instance.js" data-resource="kins"></script>
+<script src="/static/instance.js" data-resource="kins" data-as="kin"></script>
