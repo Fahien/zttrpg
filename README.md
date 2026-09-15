@@ -280,7 +280,7 @@ The validation rules in `src/model/` mirror the CHECK constraints in `db/`. Keep
 
 Every roster page uses the same `roster.js`, and every record page the same `instance.js`. A page says which columns to show and where to find them with `data-*` attributes, so a new resource needs no new JavaScript.
 
-A page with more to do adds its own script. `instance.js` announces the loaded record as a `CustomEvent` on `document`, and the character page's `static/characters/attributes.js` listens for it.
+A page with more to do adds its own script, such as the character editor modules in `static/characters/edit/`.
 
 
 ## HTTP API
@@ -358,7 +358,7 @@ curl -X PUT http://127.0.0.1:8080/characters/1/attributes \
 | `src/pq.zig` | Minimal Zig bindings for libpq. |
 | `src/migration.zig` | The migration tool. |
 | `src/icons.zig`, `src/sqls.zig` | Build-time generators for the icons and the seed SQL. |
-| `src/web/` | HTML pages, and the CSS, JavaScript, and icons in `static/`. The character sheet's script is `static/characters/attributes.js`. |
+| `src/web/` | HTML pages, and the CSS, JavaScript, and icons in `static/`. Character editing scripts live in `static/characters/edit/`. |
 | `src/data/` | The JSON the seed SQL is generated from, with a schema beside each file. |
 | `db/` | SQL migration files. |
 

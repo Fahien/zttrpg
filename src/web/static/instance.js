@@ -62,21 +62,6 @@ function createView(root, data) {
             });
         }
 
-        /** @param {HTMLElement} element */
-        function bindField(element) {
-            const [path, format] = (element.dataset.field ?? '').split(':');
-            bindings.push(() => {
-                const value = resolveFieldName(data, path);
-                if (format?.startsWith('data-')) {
-                    element.setAttribute(format, String(value ?? ''));
-                } else {
-                    const text = String(value ?? '');
-                    if (element.textContent !== text) element.textContent = text;
-                }
-            });
-            return !format?.startsWith('data-');
-        }
-
         /** @param {HTMLElement} element @param {'show' | 'hide'} directive */
         function bindVisibility(element, directive) {
             const path = element.dataset[directive];
@@ -140,7 +125,6 @@ function createView(root, data) {
                 return;
             }
             if (node instanceof Element && node.matches('script, style, template')) return;
-            let ownsText = false;
             if (node instanceof HTMLElement) {
                 for (const attribute of node.attributes) {
                     const supported = ['title', 'href', 'value'].includes(attribute.name)
@@ -156,14 +140,11 @@ function createView(root, data) {
                             : 'none');
                     });
                 }
-                if (node.hasAttribute('data-field')) ownsText = bindField(node);
                 bindVisibility(node, 'show');
                 bindVisibility(node, 'hide');
                 if (node.hasAttribute('data-iter')) bindIteration(node);
             }
-            if (!ownsText) {
-                for (const child of node.childNodes) visit(child);
-            }
+            for (const child of node.childNodes) visit(child);
         }
 
         visit(scope);

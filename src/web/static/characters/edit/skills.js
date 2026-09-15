@@ -6,7 +6,7 @@
 import { showStatus, hideStatus } from '../types.js';
 /** @typedef {import('../types.js').Character} Character */
 /** @typedef {import('../types.js').CharacterSkill} CharacterSkill */
-/** @typedef {CharacterSkill & { selected: boolean }} SkillDraft */
+/** @typedef {CharacterSkill & { selected: boolean, readonly display_value: number }} SkillDraft */
 /** @typedef {{ trained_skill_points: number, core_skills: SkillDraft[] }} SkillsEdit */
 /** @typedef {import('../types.js').Character & { skills_edit: SkillsEdit }} CharacterSkillsEdit */
 /** @typedef {{ data: { character: CharacterSkillsEdit }, update: () => void }} CharacterView */
@@ -56,7 +56,14 @@ import { showStatus, hideStatus } from '../types.js';
             trained_skill_points: character.trained_skill_points,
             core_skills: character.skills
                 .filter((entry) => entry.skill.kind.name === 'Core')
-                .map((entry) => ({ ...entry, selected: false })),
+                .map((entry) => ({
+                    ...entry,
+                    selected: false,
+                    // The text binding reads this preview without changing the saved value.
+                    get display_value() {
+                        return this.selected ? this.value * 2 : this.value;
+                    },
+                })),
         };
     }
 
@@ -71,18 +78,16 @@ import { showStatus, hideStatus } from '../types.js';
         if (!character) return;
         const professionSkillIds = new Set(character.specialization?.skills.map((skill) => skill.id) ?? []);
         for (const entry of character.skills_edit.core_skills) {
-            const value = list.querySelector(`[data-skill-id="${entry.skill.id}"]`);
-            if (!value) continue;
-            value.textContent = String(entry.selected ? entry.value * 2 : entry.value);
-            const checkbox = value.closest('.skill-row')?.querySelector('input[type="checkbox"]');
+            const row = list.querySelector(`[data-skill-id="${entry.skill.id}"]`)?.closest('.skill-row');
+            if (!row) continue;
+            const checkbox = row.querySelector('input[type="checkbox"]');
             if (checkbox instanceof HTMLInputElement) {
                 checkbox.checked = entry.trained || entry.selected;
                 checkbox.disabled = entry.trained || saving || character.creation_status !== 'skills';
             }
-            const row = value.closest('.skill-row');
-            const professionMarker = row?.querySelector('[data-specialization-skill]');
+            const professionMarker = row.querySelector('[data-specialization-skill]');
             if (professionMarker instanceof HTMLElement) professionMarker.hidden = !professionSkillIds.has(entry.skill.id);
-            const state = row?.querySelector('[data-training-state]');
+            const state = row.querySelector('[data-training-state]');
             if (state instanceof HTMLElement) {
                 state.hidden = !entry.trained && !entry.selected;
                 state.textContent = entry.trained ? 'Trained' : 'Selected';

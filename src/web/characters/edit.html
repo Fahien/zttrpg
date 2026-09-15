@@ -1,22 +1,22 @@
 <main id="instance-details">
     <header>
-        <h1 data-field="character.name">Name</h1>
-        <p>Creation Status: <span data-field="character.creation_status"></span></p>
+        <h1>{character.name}</h1>
+        <p>Creation Status: {character.creation_status}</p>
         <p class="flex-row">
             <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.kin.icon.name}" aria-hidden="true"></span></span>
-            <span data-field="character.kin.name">Kin</span>
+            <span>{character.kin.name}</span>
             <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.profession.icon.name}" aria-hidden="true"></span></span>
-            <span data-field="character.profession.name">Profession</span>
+            <span>{character.profession.name}</span>
             <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.age.icon.name}" aria-hidden="true"></span></span>
-            <span data-field="character.age.name">Age</span>
+            <span>{character.age.name}</span>
         </p>
-        <p>Specialization: <span data-field="character.specialization.name" data-show="character.specialization.name"></span></p>
+        <p>Specialization: <span data-show="character.specialization.name">{character.specialization.name}</span></p>
     </header>
 
     <fieldset id="instance-stats">
         <legend>Stats</legend>
-        <p>Level: <span data-field="character.level">1</span></p>
-        <p>Movement: <span data-field="character.movement">0</span></p>
+        <p>Level: {character.level}</p>
+        <p>Movement: {character.movement}</p>
 
         <h3>Damage Bonus</h3>
         <ul id="damage-bonuses" class="plain-list" data-iter="character.damage_bonuses" data-as="entry" aria-live="polite">
@@ -34,7 +34,7 @@
         <!-- A callout, not an error: the player has points to spend. Hidden
                  with the rest of the stepper when the pool is empty. -->
         <section class="notice" data-show="character.edit.attribute_points" hidden>
-            <p>Attribute points to spend: <span data-field="character.edit.attribute_points" data-quality="uncommon">0</span></p>
+            <p>Attribute points to spend: <span data-quality="uncommon">{character.edit.attribute_points}</span></p>
         </section>
 
         <!-- One row per attribute: the saved value, the points pending on
@@ -46,10 +46,10 @@
                 <li class="flex-row" data-attribute-id="{entry.attribute.id}">
                     <span class="icon-frame" data-icon-size="1"><span
                             class="icon" data-icon="{entry.attribute.icon.name}" aria-hidden="true"></span></span>
-                    <span class="grow" data-field="entry.attribute.name"></span>
-                    <span class="align-right tabular-nums min-width-3ch" data-field="entry.value"></span>
-                    <span class="align-right tabular-nums min-width-3ch" data-field="entry.pending" data-quality="uncommon"
-                        data-show="entry.pending" hidden>0</span>
+                    <span class="grow">{entry.attribute.name}</span>
+                    <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
+                    <span class="align-right tabular-nums min-width-3ch" data-quality="uncommon"
+                        data-show="entry.pending" hidden>{entry.pending}</span>
                     <button type="button" class="button-small" data-action="decrease-attribute"
                         data-attribute-id="{entry.attribute.id}" data-show="entry.pending" hidden>-</button>
                     <button type="button" class="button-small" data-action="increase-attribute"
@@ -75,9 +75,8 @@
         <ul id="specialization-options" class="plain-list" data-iter="character.profession.specializations" data-as="specialization">
             <template>
                 <li class="specialization-option" data-id="{specialization.id}">
-                    <label><input type="radio" name="specialization" value="{specialization.id}"><span
-                            data-field="specialization.name"></span></label>
-                    <small data-field="specialization.description"></small>
+                    <label><input type="radio" name="specialization" value="{specialization.id}"><span>{specialization.name}</span></label>
+                    <small>{specialization.description}</small>
                 </li>
             </template>
         </ul>
@@ -87,7 +86,7 @@
         <legend>Skills</legend>
 
         <section class="notice" aria-live="polite">
-            <p>Training points to spend: <span data-quality="uncommon" data-field="character.skills_edit.trained_skill_points"></span></p>
+            <p>Training points to spend: <span data-quality="uncommon">{character.skills_edit.trained_skill_points}</span></p>
             <p id="trained-skill-help"></p>
         </section>
 
@@ -102,8 +101,8 @@
                     <li class="flex-row skill-row">
                         <span class="icon-frame" data-icon-size="1"><span
                                 class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
-                        <span class="grow" data-field="entry.skill.name"></span>
-                        <span class="align-right tabular-nums min-width-3ch" data-field="entry.value" data-skill-id="{entry.skill.id}"></span>
+                        <span class="grow">{entry.skill.name}</span>
+                        <span class="align-right tabular-nums min-width-3ch" data-skill-id="{entry.skill.id}">{entry.display_value}</span>
                         <span class="profession-skill-marker" data-specialization-skill hidden role="img"
                             aria-label="Profession skill" title="Profession skill">★</span>
                         <small data-training-state hidden></small>
