@@ -6,108 +6,90 @@
 import { showStatus, hideStatus } from '../types.js';
 /** @typedef {import('../types.js').Character} Character */
 /** @typedef {{ selected_specialization_id: number | null }} SpecializationEdit */
-/** @typedef {import('../types.js').Character & { specialization_edit: SpecializationEdit | null }} CharacterSpecializationEdit */
+/** @typedef {import('../types.js').Character & { specialization_edit: SpecializationEdit }} CharacterSpecializationEdit */
+/** @typedef {{ data: { character: CharacterSpecializationEdit }, update: () => void }} CharacterView */
 
 (() => {
-
-    document.addEventListener('instanceFetched', onInstanceFetched);
-    document.addEventListener('instanceLoaded', onInstanceLoaded);
-
-    const specializationOptions = /** @type {HTMLElement} */ (document.getElementById('specialization-options'));
-    specializationOptions.addEventListener('change', onSpecializationChange);
-
+    const options = /** @type {HTMLUListElement} */ (document.getElementById('specialization-options'));
     const submitButton = /** @type {HTMLButtonElement} */ (document.getElementById('submit-specialization'));
-    submitButton.addEventListener('click', onSubmitSpecialization);
 
     /** @type {CharacterSpecializationEdit | null} */
     let character = null;
+    /** @type {CharacterView | null} */
+    let view = null;
+    let saving = false;
 
-    /**
-     * @param {Event} event
-     */
+    document.addEventListener('instanceFetched', onInstanceFetched);
+    document.addEventListener('bindingsReady', onBindingsReady);
+    document.addEventListener('characterUpdated', onCharacterUpdated);
+    options.addEventListener('change', onSpecializationChange);
+    submitButton.addEventListener('click', onSubmitSpecialization);
+
+    /** @param {Event} event */
     function onInstanceFetched(event) {
-        const customEvent = /** @type {CustomEvent<Character>} */ (event);
-        setCharacter(/** @type {CharacterSpecializationEdit} */(customEvent.detail));
+        setCharacter(/** @type {CharacterSpecializationEdit} */ ((/** @type {CustomEvent} */ (event)).detail));
     }
 
-    /**
-     * @param {CharacterSpecializationEdit} newCharacter
-     */
-    function setCharacter(newCharacter) {
-        if (!newCharacter) {
-            console.error('No instance data found.');
-            return;
-        }
-        character = newCharacter;
-
-        if (character.specialization_edit == null) {
-            let specialization_draft = /** @type {SpecializationEdit} */ ({ selected_specialization_id: null });
-            character.specialization_edit = specialization_draft;
-        }
+    /** @param {Event} event */
+    function onBindingsReady(event) {
+        view = /** @type {CharacterView} */ ((/** @type {CustomEvent} */ (event)).detail);
     }
 
-    function onInstanceLoaded() {
-        if (character == null) {
-            console.error('Character data is not available.');
-            return;
-        }
-
-        submitButton.addEventListener('click', onSubmitSpecialization);
+    /** @param {Event} event */
+    function onCharacterUpdated(event) {
+        setCharacter(/** @type {CharacterSpecializationEdit} */ ((/** @type {CustomEvent} */ (event)).detail));
     }
 
-    /**
-     * @returns {Promise<void>}
-     */
+    /** @param {CharacterSpecializationEdit} nextCharacter */
+    function setCharacter(nextCharacter) {
+        character = nextCharacter;
+        character.specialization_edit = { selected_specialization_id: null };
+    }
+
+    function refreshView() {
+        if (!character || !view) return;
+        view.data.character = character;
+        view.update();
+    }
+
+    /** @param {Event} event */
+    function onSpecializationChange(event) {
+        if (!character || saving || character.creation_status !== 'specialization' ||
+            !(event.target instanceof HTMLInputElement) || event.target.name !== 'specialization') return;
+        const id = Number(event.target.value);
+        if (!Number.isSafeInteger(id)) return;
+        character.specialization_edit.selected_specialization_id = id;
+    }
+
     async function onSubmitSpecialization() {
-        if (character == null || character.specialization_edit == null) {
-            return;
-        }
+        if (!character || saving || character.creation_status !== 'specialization' ||
+            character.specialization_edit.selected_specialization_id === null) return;
 
-        const body = {
-            specialization: character.specialization_edit.selected_specialization_id,
-        };
-
-
-        // One request at a time: a second click while this one is in flight would
-        // send the same body twice.
+        saving = true;
         submitButton.disabled = true;
+        for (const input of options.querySelectorAll('input')) input.disabled = true;
         try {
             const response = await fetch(`/characters/${character.id}/specialization`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify({ specialization: character.specialization_edit.selected_specialization_id }),
             });
-
-            if (response.ok) {
-                setCharacter(/** @type {CharacterSpecializationEdit} */(await response.json()));
-                hideStatus();
-            } else {
+            if (!response.ok) {
                 showStatus(`Specialization not saved: ${await response.text()}`);
+                return;
             }
+
+            const saved = /** @type {CharacterSpecializationEdit} */ (await response.json());
+            document.dispatchEvent(new CustomEvent('characterUpdated', { detail: saved }));
+            refreshView();
+            document.dispatchEvent(new CustomEvent('characterViewUpdated', { detail: character }));
+            hideStatus();
         } catch (error) {
             showStatus(`Specialization not saved: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
+            saving = false;
             submitButton.disabled = false;
+            for (const input of options.querySelectorAll('input')) input.disabled = false;
         }
-
     }
-
-    /**
-     * @param {Event} event
-     */
-    function onSpecializationChange(event) {
-        if (!character || !character.specialization_edit) {
-            return;
-        }
-
-        const target = event.target;
-        if (!(target instanceof HTMLInputElement) || target.name !== 'specialization') return;
-        
-        const id = Number(target.value);
-        if (!Number.isSafeInteger(id)) return;
-
-        character.specialization_edit.selected_specialization_id = id;
-        console.log(`Selected specialization ID: ${id}`);
-    }
-
 })();

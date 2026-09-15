@@ -3,22 +3,24 @@
 
 // @ts-check
 
-/** @typedef {{ id: number, short: string }} Attribute */
-/** @typedef {{ attribute: Attribute, spent: number, value: number }} CharacterAttribute */
-/** @typedef {{ id: number, name: string, attribute: Attribute | null, kind: { name: string, base_chance: boolean } }} Skill */
+/** @typedef {{ id: number, short: string, name: string, icon: { name: string } }} Attribute */
+/** @typedef {{ attribute: Attribute, spent: number, value: number, base: number, modifier: number }} CharacterAttribute */
+/** @typedef {{ id: number, name: string, icon: { name: string }, attribute: Attribute | null, kind: { name: string, base_chance: boolean } }} Skill */
 /** @typedef {{ skill: Skill, trained: boolean, value: number }} CharacterSkill */
 /** @typedef {{ attribute: Attribute, die_sides: number | null }} DamageBonus */
 /** @typedef {{ attribute: Attribute, min_value: number, max_value: number, modifier: number }} MovementModifier */
 /** @typedef {{ attribute: number, min_value: number, die_sides: number }} DamageBonusRule */
 /** @typedef {{ min_value: number, max_value: number, base_chance: number }} SkillBaseChance */
 /** @typedef {{ id: number, name: string, description: string, skills: Skill[] }} Specialization */
-/** @typedef {{ id: number, trained_skill_count: number }} Age */
-/** @typedef {{ specializations: Specialization[] }} Profession */
+/** @typedef {{ id: number, name: string, icon: { name: string }, trained_skill_count: number }} Age */
+/** @typedef {{ id: number, name: string, icon: { name: string }, specializations: Specialization[] }} Profession */
 /** @typedef { 'attributes' | 'specialization' | 'skills' | 'complete' } CreationStatus */
 /**
  * @typedef {{
  *  id: number,
- *  kin: { movement: number },
+ *  name: string,
+ *  level: number,
+ *  kin: { name: string, icon: { name: string }, movement: number },
  *  attribute_points: number,
  *  movement: number,
  *  trained_skill_points: number,

@@ -3,21 +3,17 @@
 
 // @ts-check
 
-// Saved state of the character: the last answer the server gave, on load and
-// after every submit. Nothing in it is ever computed from clicks.
-let character = /** @type {Character} */ (/** @type {unknown} */ (null));
+/** @typedef {import('./types.js').Character} Character */
 
-document.addEventListener('instanceLoaded', onInstanceLoaded);
-
-// The banner from the header partial, shared with instance.js.
-const statusMessage = document.getElementById('status-message');
+// Prepare these lists before createView discovers the iteration templates.
+document.addEventListener('instanceFetched', prepareSkillGroups);
 
 /**
  * @param {Event} event
  */
-function onInstanceLoaded(event) {
+function prepareSkillGroups(event) {
     const customEvent = /** @type {CustomEvent} */ (event);
-    character = /** @type {Character} */ (customEvent.detail);
+    const character = /** @type {Character} */ (customEvent.detail);
     if (!character) {
         console.error('No instance data found in event detail.');
         return;

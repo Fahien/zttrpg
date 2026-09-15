@@ -2,29 +2,29 @@
     <header>
         <h1>{character.name}</h1>
 
-        <section class="notice" data-hide="creation_status.name" data-hide-value="Complete" hidden aria-live="polite">
+        <section class="notice" data-hide="character.creation_status" data-hide-value="complete" hidden aria-live="polite">
             <p>Creation status: <span data-quality="uncommon">{character.creation_status}</span></p>
         </section>
         
-        <section class="notice" data-show="attribute_points" hidden aria-live="polite">
+        <section class="notice" data-show="character.attribute_points" hidden aria-live="polite">
             <p>Attribute points to spend: <span data-quality="uncommon">{character.attribute_points}</span></p>
         </section>
         
-        <section class="notice" data-show="trained_skill_points" hidden aria-live="polite">
+        <section class="notice" data-show="character.trained_skill_points" hidden aria-live="polite">
             <p>Training points to spend: <span data-quality="uncommon">{character.trained_skill_points}</span></p>
         </section>
         
         <p class="flex-row">
-            <span class="icon-frame" data-icon-size="1"><span data-field="kin.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span data-field="character.kin.icon.name:icon"></span></span>
             {character.kin.name}
-            <span class="icon-frame" data-icon-size="1"><span data-field="profession.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span data-field="character.profession.icon.name:icon"></span></span>
             {character.profession.name}
-            <span class="icon-frame" data-icon-size="1"><span data-field="age.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span data-field="character.age.icon.name:icon"></span></span>
             {character.age.name}
             <span class="grow"></span>
             <a class="button" href="/characters/{character.id}/edit" role="button">Edit</a>
         </p>
-        <p id="selected-specialization" hidden>Specialization: <span></span></p>
+        <p id="selected-specialization" data-show="character.specialization" hidden>Specialization: {character.specialization.name}</p>
     </header>
 
     <fieldset id="instance-stats">
@@ -33,16 +33,23 @@
         <p>Movement: {character.movement}</p>
 
         <h3>Damage Bonus</h3>
-        <ul id="damage-bonuses" class="plain-list" aria-live="polite"></ul>
+        <ul id="damage-bonuses" class="plain-list" data-iter="character.damage_bonuses" data-as="entry" aria-live="polite">
+            <template>
+                <li>{entry.attribute.name}:
+                    <span data-show="entry.die_sides">d{entry.die_sides}</span>
+                    <span data-show="entry.die_sides" data-show-value="null">—</span>
+                </li>
+            </template>
+        </ul>
 
         <h3>Attributes</h3>
         
         <!-- One row per attribute. -->
         <ul class="plain-list" data-iter="character.attributes" data-as="entry">
             <template>
-                <li class="flex-row" data-attribute.id="{entry.attribute.id}">
+                <li class="flex-row" data-attribute-id="{entry.attribute.id}">
                     <span class="icon-frame" data-icon-size="1"><span
-                            data-field="attribute.icon.name:icon"></span></span>
+                            data-field="entry.attribute.icon.name:icon"></span></span>
                     <span class="grow">{entry.attribute.name}</span>
                     <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                 </li>
@@ -53,12 +60,12 @@
     <fieldset id="instance-skills">
         <legend>Skills</legend>
 
-        <section id="skill-groups" aria-live="polite">
+        <section id="innate-skills" aria-live="polite">
             <h3>Innate</h3>
             <ul class="plain-list skill-kind-list" data-iter="character.innate_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -66,12 +73,12 @@
             </ul>
         </section>
 
-        <section id="skill-groups" aria-live="polite">
+        <section id="core-skills" aria-live="polite">
             <h3>Core</h3>
             <ul class="plain-list skill-kind-list" data-iter="character.core_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -79,12 +86,12 @@
             </ul>
         </section>
 
-        <section id="skill-groups" aria-live="polite" data-show="secondary_skills">
+        <section id="secondary-skills" aria-live="polite" data-show="character.secondary_skills">
             <h3>Secondary</h3>
             <ul class="plain-list skill-kind-list" data-iter="character.secondary_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -92,12 +99,12 @@
             </ul>
         </section>
 
-        <section id="skill-groups" aria-live="polite" data-show="character.heroic_skills">
+        <section id="heroic-skills" aria-live="polite" data-show="character.heroic_skills">
             <h3>Heroic</h3>
             <ul class="plain-list skill-kind-list" data-iter="character.heroic_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>

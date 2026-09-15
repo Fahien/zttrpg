@@ -138,6 +138,7 @@ pub const Resource = enum {
                     .attributes,
                     .specialization,
                     .skills,
+                    .train_skills,
                 },
             },
             .kins => .{ .Model = zttrpg.Kin },

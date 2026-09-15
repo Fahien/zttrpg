@@ -7,9 +7,9 @@
         <template>
             <li>
                 <span class="icon-frame">
-                    {entry.skill.icon.name}
+                    <span data-field="entry.icon.name:icon"></span>
                 </span>
-                <a href="/skills/{entry.skill.id}"><span>{entry.skill.name}</span></a>
+                <a href="/skills/{entry.id}"><span>{entry.name}</span></a>
             </li>
         </template>
     </ul>

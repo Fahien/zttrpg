@@ -583,3 +583,8 @@ input[type="checkbox"]:disabled {
     color: var(--text-muted);
     font-style: italic;
 }
+
+/* Visibility bindings must also hide elements with an explicit display rule. */
+[hidden] {
+    display: none !important;
+}
