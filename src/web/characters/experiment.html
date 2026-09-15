@@ -1,0 +1,25 @@
+<p>{character.name}</p>
+
+<ul data-iter="character.attributes" data-as="entry">
+    <template>
+        <li>{entry.attribute.name}: {entry.value}</li>
+    </template>
+</ul>
+
+<button type="button" id="increase-first-attribute" disabled>Increase first attribute</button>
+<p>These changes are a preview. Refresh to reload the saved values.</p>
+
+<script src="/static/instance.js" data-resource="characters" data-as="character"></script>
+<script>
+    document.addEventListener('bindingsReady', (event) => {
+        const { data, update } = event.detail;
+        const character = data.character;
+        const button = document.getElementById('increase-first-attribute');
+        button.disabled = character.attributes.length === 0;
+
+        button.addEventListener('click', () => {
+            character.attributes[0].value += 1;
+            update();
+        });
+    }, { once: true });
+</script>

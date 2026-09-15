@@ -66,6 +66,9 @@ pub const Definition = struct {
     /// Whether the resource supports an edit page at `/{resource}/{id}/edit`.
     edit: bool = false,
 
+    /// Whether the resource supports a test page at `/{resource}/{id}/experiment`.
+    experiment: bool = false,
+
     /// Nested operations this resource permits. The route parser recognizes
     /// their common URL shape; this registration says which parent owns them.
     subresources: []const SubResource = &.{},
@@ -130,6 +133,7 @@ pub const Resource = enum {
             .characters => .{
                 .Model = zttrpg.Character,
                 .edit = true,
+                .experiment = true,
                 .subresources = &.{
                     .attributes,
                     .specialization,

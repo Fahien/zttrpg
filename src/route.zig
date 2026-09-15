@@ -30,6 +30,7 @@ pub const Route = union(enum) {
     collection: Resource,
     item: ResourceItem,
     item_edit: ResourceItem,
+    item_experiment: ResourceItem,
     sub_collection: SubCollection,
     static: []const u8,
     not_found,
@@ -82,6 +83,15 @@ pub const Route = union(enum) {
         }
 
         const next_after_id = sequence.next() orelse unreachable;
+
+        // Test item.
+        if (std.mem.eql(u8, next_after_id, "experiment")) {
+            // There should be no additional segments after "experiment".
+            if (sequence.peek() != null) {
+                return Route.not_found;
+            }
+            return .{ .item_experiment = .{ .resource = resource, .id = id } };
+        }
 
         // Edit item.
         if (std.mem.eql(u8, next_after_id, "edit")) {

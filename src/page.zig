@@ -16,7 +16,7 @@ const Io = std.Io;
 const Allocator = std.mem.Allocator;
 
 /// Which of a resource's two pages to serve: the roster or one instance.
-pub const Page = enum { index, item, edit };
+pub const Page = enum { index, item, edit, experiment };
 
 /// The directory every page and asset is read from, relative to the working
 /// directory, which is why the server has to be run from the repository root.

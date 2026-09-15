@@ -90,7 +90,7 @@ pub const CharacterAttribute = struct {
             std.debug.print("Creation status mismatch: expected 'Attributes', got '{d}'\n", .{pools.creation_status});
             return error.CreationStatusMismatch;
         }
-        const next_creation_status = if (pools.specialization != null) .skills else .specialization;
+        const next_creation_status: CreationStatus = if (pools.specialization != null) .skills else .specialization;
         try db.updateColumns(gpa, Character, character_id, .{ .creation_status = next_creation_status });
 
         const attributes = try db.readSubResource(gpa, Character, CharacterAttribute, character_id);
@@ -807,7 +807,7 @@ const CreationPools = struct {
     attribute_points: u32,
     trained_skill_points: u32,
     specialization: ?Specialization.Id,
-    profession: ?Profession.Id,
+    profession: Profession.Id,
 };
 
 /// Creation status is a view of persisted choices. The served JSON and the

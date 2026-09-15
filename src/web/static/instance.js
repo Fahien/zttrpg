@@ -14,6 +14,16 @@ function initInstancePage() {
         throw new Error('No resource specified in data-resource attribute.');
     }
 
+    if (!script.dataset.as) {
+        throw new Error('No binding name specified in data-as attribute.');
+    }
+    /** @type {string} */
+    const bindingName = script.dataset.as;
+
+    /** @typedef {{node: Text, template: string, data: Record<string, unknown>}} Binding */
+    /** @type {Binding[]} */
+    const bindings = [];
+
     async function getIdFromUrl() {
         // Get the ID from the URL which is in this format: /<resource>/<id>
         const url_after_slash = window.location.pathname.split('/').at(2);
@@ -168,24 +178,87 @@ function initInstancePage() {
         }
     }
 
+
     /**
-     * Replaces {field.path} placeholders in descendant text nodes.
-     * Skips scripts and styles. Missing/null values become empty strings.
+     * Discovers {field.path} placeholders in descendant text nodes.
+     * Skips scripts and styles.
      *
-     * @param {Record<string, unknown>} root Page data or the current list item.
      * @param {Document | DocumentFragment | Element} scope Search container.
+     * @param {Record<string, unknown>} data The data used by this group of text nodes.
      * @returns {void}
      */
-    function bindText(root, scope) {
+    function discoverBindings(scope, data) {
         const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             if (node.parentElement?.closest('script, style')) continue;
+            const text_node = /** @type {Text} */ (node);
+            // If node data contains placeholders like {field.path}, collect node and template.
+            if (text_node.data.match(/\{([^{}]+)\}/)) {
+                bindings.push({
+                    node: text_node,
+                    template: text_node.data,
+                    data,
+                });
+            }
+        }
+    }
 
-            const text = /** @type {Text} */ (node);
-            text.data = text.data.replace(
+    /**
+     * Re-renders existing text nodes from their saved templates and data objects.
+     * Call after mutating those objects. This does not add, remove, or replace rows.
+     * @returns {void}
+     */
+    function updateBindings() {
+        for (const binding of bindings) {
+            const value = binding.template.replace(
                 /\{([^{}]+)\}/g,
-                (_, field) => String(resolveFieldName(root, field.trim()) ?? '')
+                (_, field) => String(resolveFieldName(binding.data, field.trim()) ?? '')
             );
+            if (binding.node.data !== value) {
+                binding.node.data = value;
+            }
+        }
+    }
+
+    /**
+     * Creates one copy of a direct child template for each item in data-iter.
+     * data-as names the item within each row's data object.
+     *
+     * @param {Record<string, unknown>} data The enclosing page or row data.
+     * @param {Document | DocumentFragment | Element} scope Search container.
+     */
+    function expandIterations(data, scope) {
+        const lists = /** @type {NodeListOf<HTMLElement>} */ (scope.querySelectorAll('[data-iter]'));
+        for (const list of lists) {
+            const path = list.dataset.iter?.trim();
+            const alias = list.dataset.as?.trim();
+            if (!path || !alias) {
+                console.warn('Iteration needs both data-iter and data-as:', list);
+                continue;
+            }
+
+            const items = resolveFieldName(data, path);
+            if (!Array.isArray(items)) {
+                console.warn(`Field "${path}" must be an array for data-iter:`, list);
+                continue;
+            }
+
+            const template = list.querySelector(':scope > template');
+            if (!(template instanceof HTMLTemplateElement)) {
+                console.warn('Iteration needs a direct child template:', list);
+                continue;
+            }
+
+            for (const item of items) {
+                const clone = document.importNode(template.content, true);
+                // Copy the enclosing names, then give this row its own item name.
+                // The character and item remain references to the original objects.
+                const rowData = { ...data, [alias]: item };
+                discoverBindings(clone, rowData);
+                // Discover before expanding: nested rows must keep their own data.
+                expandIterations(rowData, clone);
+                list.appendChild(clone);
+            }
         }
     }
 
@@ -236,7 +309,6 @@ function initInstancePage() {
                 bindAttribute(item, clone, 'a', 'href');
                 bindDataAttributes(item, clone);
                 bindFields(item, clone);
-                bindText(item, clone);
                 expandList(item, clone);
                 list.appendChild(clone);
             }
@@ -335,11 +407,18 @@ function initInstancePage() {
         bindAttribute(instance, document, 'a', 'href');
         bindDataAttributes(instance, document);
         bindFields(instance, document);
-        bindText(instance, document);
         expandList(instance, document);
         checkDataHide(instance, document);
         checkDataShow(instance, document);
 
+        const data = { [bindingName]: instance };
+        discoverBindings(document, data);
+        expandIterations(data, document);
+        updateBindings();
+
+        document.dispatchEvent(new CustomEvent('bindingsReady', {
+            detail: { data, update: updateBindings },
+        }));
         document.dispatchEvent(new CustomEvent('instanceLoaded'));
     }
 

@@ -34,6 +34,7 @@ pub fn dispatch(ctx: *Context, parsed: Route) !void {
         .collection => |resource| try handleCollection(ctx, resource),
         .item => |item| try handleItem(ctx, item),
         .item_edit => |item| try handleItemEdit(ctx, item),
+        .item_experiment => |item| try handleItemExperiment(ctx, item),
         .sub_collection => |sub| try handleSubCollection(ctx, sub),
         .static => |path| try page.serveStatic(ctx, path),
         .not_found => try ctx.notFound(),
@@ -93,6 +94,19 @@ fn handleItem(ctx: *Context, item: ResourceItem) !void {
 
                 else => try ctx.methodNotAllowed(),
             }
+        },
+    }
+}
+
+fn handleItemExperiment(ctx: *Context, item: ResourceItem) !void {
+    switch (item.resource) {
+        inline else => |r| {
+            const definition = comptime r.definition();
+
+            if (!definition.item or !definition.html or !definition.experiment) return ctx.notFound();
+            if (ctx.method() != .GET or ctx.wantsJson()) return ctx.methodNotAllowed();
+
+            try page.serveResource(ctx, item.resource, Page.experiment);
         },
     }
 }
