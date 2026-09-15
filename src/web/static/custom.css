@@ -144,6 +144,13 @@ h3 {
     color: transparent;
 }
 
+/* Gradient headings have transparent text; masked icons need an opaque color. */
+h1 .icon,
+h2 .icon,
+h3 .icon {
+    color: var(--text-main);
+}
+
 /* Drop cap, the way the old fansites opened a page. */
 .intro::first-letter {
     float: left;

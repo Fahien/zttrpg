@@ -3,11 +3,11 @@
         <h1 data-field="character.name">Name</h1>
         <p>Creation Status: <span data-field="character.creation_status"></span></p>
         <p class="flex-row">
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.kin.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.kin.icon.name}" aria-hidden="true"></span></span>
             <span data-field="character.kin.name">Kin</span>
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.profession.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.profession.icon.name}" aria-hidden="true"></span></span>
             <span data-field="character.profession.name">Profession</span>
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.age.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.age.icon.name}" aria-hidden="true"></span></span>
             <span data-field="character.age.name">Age</span>
         </p>
         <p>Specialization: <span data-field="character.specialization.name" data-show="character.specialization.name"></span></p>
@@ -45,7 +45,7 @@
             <template>
                 <li class="flex-row" data-attribute-id="{entry.attribute.id}">
                     <span class="icon-frame" data-icon-size="1"><span
-                            data-field="entry.attribute.icon.name:icon"></span></span>
+                            class="icon" data-icon="{entry.attribute.icon.name}" aria-hidden="true"></span></span>
                     <span class="grow" data-field="entry.attribute.name"></span>
                     <span class="align-right tabular-nums min-width-3ch" data-field="entry.value"></span>
                     <span class="align-right tabular-nums min-width-3ch" data-field="entry.pending" data-quality="uncommon"
@@ -101,7 +101,7 @@
                 <template>
                     <li class="flex-row skill-row">
                         <span class="icon-frame" data-icon-size="1"><span
-                                data-field="entry.skill.icon.name:icon"></span></span>
+                                class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
                         <span class="grow" data-field="entry.skill.name"></span>
                         <span class="align-right tabular-nums min-width-3ch" data-field="entry.value" data-skill-id="{entry.skill.id}"></span>
                         <span class="profession-skill-marker" data-specialization-skill hidden role="img"

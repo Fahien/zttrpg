@@ -69,17 +69,12 @@ function createView(root, data) {
                 const value = resolveFieldName(data, path);
                 if (format?.startsWith('data-')) {
                     element.setAttribute(format, String(value ?? ''));
-                } else if (format === 'icon') {
-                    element.classList.add('icon');
-                    // Preserve other classes and inline styles on the element.
-                    const icon = value ? `url("/static/icons/${encodeURIComponent(String(value))}.svg")` : 'none';
-                    element.style.setProperty('--icon', icon);
                 } else {
                     const text = String(value ?? '');
                     if (element.textContent !== text) element.textContent = text;
                 }
             });
-            return !format || (!format.startsWith('data-') && format !== 'icon');
+            return !format?.startsWith('data-');
         }
 
         /** @param {HTMLElement} element @param {'show' | 'hide'} directive */
@@ -151,6 +146,15 @@ function createView(root, data) {
                     const supported = ['title', 'href', 'value'].includes(attribute.name)
                         || attribute.name.startsWith('data-') || attribute.name.startsWith('aria-');
                     if (supported) bindTemplate(attribute);
+                }
+                // Attribute bindings resolve the name before this updates the mask.
+                if (node.hasAttribute('data-icon')) {
+                    bindings.push(() => {
+                        const name = node.dataset.icon;
+                        node.style.setProperty('--icon', name
+                            ? `url("/static/icons/${encodeURIComponent(name)}.svg")`
+                            : 'none');
+                    });
                 }
                 if (node.hasAttribute('data-field')) ownsText = bindField(node);
                 bindVisibility(node, 'show');

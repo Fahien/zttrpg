@@ -15,11 +15,11 @@
         </section>
         
         <p class="flex-row">
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.kin.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.kin.icon.name}" aria-hidden="true"></span></span>
             {character.kin.name}
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.profession.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.profession.icon.name}" aria-hidden="true"></span></span>
             {character.profession.name}
-            <span class="icon-frame" data-icon-size="1"><span data-field="character.age.icon.name:icon"></span></span>
+            <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{character.age.icon.name}" aria-hidden="true"></span></span>
             {character.age.name}
             <span class="grow"></span>
             <a class="button" href="/characters/{character.id}/edit" role="button">Edit</a>
@@ -49,7 +49,7 @@
             <template>
                 <li class="flex-row" data-attribute-id="{entry.attribute.id}">
                     <span class="icon-frame" data-icon-size="1"><span
-                            data-field="entry.attribute.icon.name:icon"></span></span>
+                            class="icon" data-icon="{entry.attribute.icon.name}" aria-hidden="true"></span></span>
                     <span class="grow">{entry.attribute.name}</span>
                     <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                 </li>
@@ -65,7 +65,7 @@
             <ul class="plain-list skill-kind-list" data-iter="character.innate_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -78,7 +78,7 @@
             <ul class="plain-list skill-kind-list" data-iter="character.core_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -91,7 +91,7 @@
             <ul class="plain-list skill-kind-list" data-iter="character.secondary_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
@@ -104,7 +104,7 @@
             <ul class="plain-list skill-kind-list" data-iter="character.heroic_skills" data-as="entry">
                 <template>
                     <li class="flex-row skill-row" data-skill-id="{entry.skill.id}">
-                        <span class="icon-frame" data-icon-size="1"><span data-field="entry.skill.icon.name:icon"></span></span>
+                        <span class="icon-frame" data-icon-size="1"><span class="icon" data-icon="{entry.skill.icon.name}" aria-hidden="true"></span></span>
                         <span class="grow">{entry.skill.name}</span>
                         <span class="align-right tabular-nums min-width-3ch">{entry.value}</span>
                     </li>
